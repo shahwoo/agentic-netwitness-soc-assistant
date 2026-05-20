@@ -11,6 +11,14 @@ OUTPUT_FILE = "outputs/report_result.json"
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "hf.co/Mungert/Foundation-Sec-8B-Instruct-GGUF:Q4_K_M"
+REPORT_APPROVAL_TYPE = "report_approval"
+LEARNING_UPDATE_APPROVAL_TYPE = "learning_update_approval"
+REPORTING_POLICY_REFERENCES = [
+    "Appendix J: Post-Incident Inquiry Report Requirements",
+    "Appendix K: Reporting and Learning Agent Rules",
+    "Appendix M: Audit Log Requirements",
+    "Appendix T: Workflow-to-Policy Mapping"
+]
 
 
 def load_case_context() -> Dict[str, Any]:
@@ -48,6 +56,36 @@ def get_list_value(value: Any) -> List[str]:
         return [value]
 
     return []
+
+
+def is_report_field_available(value: Any) -> bool:
+    missing_strings = {
+        "",
+        "unknown",
+        "not available",
+        "null",
+        "none"
+    }
+
+    if value is None:
+        return False
+
+    if isinstance(value, str):
+        return value.strip().lower() not in missing_strings
+
+    if isinstance(value, list):
+        return any(is_report_field_available(item) for item in value)
+
+    if isinstance(value, dict):
+        if len(value) == 0:
+            return False
+
+        if str(value.get("status", "")).strip().lower() == "not_available":
+            return False
+
+        return any(is_report_field_available(item) for item in value.values())
+
+    return True
 
 
 def call_local_llm(prompt: str) -> str:
@@ -103,7 +141,7 @@ def build_executive_summary(case_data: Dict[str, Any]) -> str:
         f"Incident {incident_id} was assessed as {severity} severity with {confidence} confidence. "
         f"The likely scenario is {likely_scenario}. The alert is titled '{alert_title}', involving the suspicious file "
         f"{possible_file_name}. Threat intelligence enrichment risk is {enrichment_risk_level}. "
-        f"The case should be reviewed by a SOC Analyst before final containment or closure."
+        f"The case should be reviewed by a SOC Analyst before report approval or closure."
     )
 
 
@@ -313,28 +351,11 @@ def build_timeline(case_data: Dict[str, Any]) -> List[Dict[str, str]]:
 
 
 def build_soc_approval_section(case_data: Dict[str, Any]) -> Dict[str, Any]:
-    severity = (
-        case_data.get("severity")
-        or get_nested_value(case_data, ["triage_result", "severity"], "Unknown")
-    )
-
-    containment = (
-        case_data.get("containment_recommendation")
-        or get_nested_value(case_data, ["triage_result", "containment_recommendation"], {})
-    )
-
-    approval_required = False
-
-    if severity in ["High", "Critical"]:
-        approval_required = True
-
-    if isinstance(containment, dict) and containment.get("approval_required") is True:
-        approval_required = True
-
     return {
-        "approval_required": approval_required,
+        "approval_required": True,
+        "approval_type": REPORT_APPROVAL_TYPE,
         "approval_status": "pending",
-        "approval_question": "Does the SOC Analyst approve this report and any recommended containment actions?",
+        "approval_question": "Does the SOC Analyst approve this incident report?",
         "approval_options": [
             "approved",
             "rejected",
@@ -342,6 +363,169 @@ def build_soc_approval_section(case_data: Dict[str, Any]) -> Dict[str, Any]:
             "more_investigation_required"
         ],
         "soc_analyst_comments": None
+    }
+
+
+def build_containment_summary(case_data: Dict[str, Any]) -> Dict[str, Any]:
+    containment_recommendation = (
+        case_data.get("containment_recommendation")
+        or get_nested_value(case_data, ["triage_result", "containment_recommendation"], {})
+        or get_nested_value(case_data, ["investigation_result", "containment_recommendation"], {})
+    )
+
+    containment_decision = (
+        case_data.get("containment_decision")
+        or get_nested_value(case_data, ["triage_result", "containment_decision"], {})
+        or get_nested_value(case_data, ["investigation_result", "containment_decision"], {})
+    )
+
+    if not isinstance(containment_recommendation, dict):
+        containment_recommendation = {}
+
+    if not isinstance(containment_decision, dict):
+        containment_decision = {}
+
+    containment_required = containment_recommendation.get("containment_required", False)
+    containment_action = containment_recommendation.get("containment_action", "No immediate containment required")
+    approval_required = containment_recommendation.get("approval_required", False)
+    approval_status = (
+        containment_decision.get("soc_analyst_approval_status")
+        or containment_decision.get("containment_approval_status")
+        or case_data.get("containment_approval_status")
+    )
+    containment_status = (
+        containment_decision.get("containment_status")
+        or case_data.get("containment_status")
+    )
+    containment_outcome = (
+        containment_decision.get("containment_outcome")
+        or case_data.get("containment_outcome")
+    )
+
+    if not approval_status:
+        approval_status = "pending" if approval_required else "not_required"
+
+    if not containment_status:
+        containment_status = "pending_approval" if approval_required else "not_required"
+
+    if not containment_outcome:
+        containment_outcome = (
+            "Pending SOC Analyst approval"
+            if approval_required
+            else "No containment approval is required at this reporting stage"
+        )
+
+    return {
+        "containment_required": containment_required,
+        "containment_action": containment_action,
+        "approval_required": approval_required,
+        "approval_status": approval_status,
+        "execution_status": case_data.get("containment_execution_status", "not_executed"),
+        "containment_outcome": containment_outcome,
+        "policy_reference": [
+            "Appendix G: Human Approval and Containment Rules",
+            "Appendix U: Containment Action Playbook",
+            "Appendix T: Workflow-to-Policy Mapping"
+        ]
+    }
+
+
+def build_learning_update_draft(
+    case_data: Dict[str, Any],
+    report_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    return {
+        "learning_update_status": "draft_prepared",
+        "approval_required": True,
+        "approval_type": LEARNING_UPDATE_APPROVAL_TYPE,
+        "learning_update_note": (
+            "Learning update draft prepared. SOC learning approval should only be "
+            "requested after report approval."
+        ),
+        "playbook_gaps": get_list_value(case_data.get("playbook_gaps")),
+        "scoring_biases": get_list_value(case_data.get("scoring_biases")),
+        "recommended_learning_points": get_list_value(
+            case_data.get("recommended_learning_points")
+            or report_data.get("investigation_summary", {}).get("missing_evidence")
+        ),
+        "chroma_storage_allowed": False
+    }
+
+
+def check_report_completeness(report_data: Dict[str, Any]) -> Dict[str, Any]:
+    required_fields = {
+        "incident_id": report_data.get("incident_id"),
+        "alert_id": report_data.get("alert_id"),
+        "severity": get_nested_value(report_data, ["triage_summary", "severity"]),
+        "confidence": get_nested_value(report_data, ["triage_summary", "confidence"]),
+        "triage_summary": report_data.get("triage_summary"),
+        "investigation_summary": report_data.get("investigation_summary", {}).get("summary"),
+        "key_findings": report_data.get("investigation_summary", {}).get("key_findings"),
+        "missing_evidence": report_data.get("investigation_summary", {}).get("missing_evidence"),
+        "recommended_actions": report_data.get("investigation_summary", {}).get("recommended_actions"),
+        "threat_intelligence_summary": report_data.get("threat_intelligence_summary"),
+        "timeline": report_data.get("timeline"),
+        "soc_approval": report_data.get("soc_approval")
+    }
+
+    missing_report_fields = [
+        field_name
+        for field_name, field_value in required_fields.items()
+        if not is_report_field_available(field_value)
+    ]
+
+    report_status = "draft_ready" if len(missing_report_fields) == 0 else "missing_information_required"
+
+    return {
+        "is_complete": len(missing_report_fields) == 0,
+        "missing_report_fields": missing_report_fields,
+        "report_status": report_status
+    }
+
+
+def build_reporting_audit_record(
+    case_data: Dict[str, Any],
+    report_status: str,
+    current_stage: str,
+    next_action: str,
+    report_completeness: Dict[str, Any]
+) -> Dict[str, Any]:
+    incident_id = case_data.get("incident_id", "UNKNOWN")
+    decision_made = (
+        "prepare_report_for_approval"
+        if report_completeness.get("is_complete")
+        else "request_missing_report_information"
+    )
+
+    return {
+        "audit_id": f"AUDIT-{incident_id}-REPORTING-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+        "incident_id": case_data.get("incident_id"),
+        "alert_id": case_data.get("alert_id"),
+        "agent_name": "reporting_agent",
+        "decision_point": "Reporting Agent report completeness and approval preparation",
+        "decision_made": decision_made,
+        "current_stage": current_stage,
+        "report_status": report_status,
+        "approval_type": REPORT_APPROVAL_TYPE,
+        "human_review_required": report_completeness.get("is_complete", False),
+        "policy_reference": REPORTING_POLICY_REFERENCES,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "input_summary": {
+            "incident_id": case_data.get("incident_id"),
+            "alert_id": case_data.get("alert_id"),
+            "severity": (
+                case_data.get("severity")
+                or get_nested_value(case_data, ["triage_result", "severity"])
+            ),
+            "confidence": (
+                case_data.get("confidence")
+                or get_nested_value(case_data, ["triage_result", "confidence"])
+            ),
+            "previous_stage": case_data.get("current_stage"),
+            "previous_agent": case_data.get("agent_completed"),
+            "missing_report_fields": report_completeness.get("missing_report_fields", []),
+            "next_action": next_action
+        }
     }
 
 
@@ -414,6 +598,7 @@ def generate_report(case_data: Dict[str, Any]) -> Dict[str, Any]:
     threat_intelligence_summary = collect_threat_intelligence_summary(case_data)
     timeline = build_timeline(case_data)
     soc_approval = build_soc_approval_section(case_data)
+    containment_summary = build_containment_summary(case_data)
 
     llm_prompt = build_llm_report_prompt(
         case_data,
@@ -432,6 +617,7 @@ def generate_report(case_data: Dict[str, Any]) -> Dict[str, Any]:
         "generated_at": generated_at,
         "incident_id": case_data.get("incident_id"),
         "alert_id": case_data.get("alert_id"),
+        "approval_type": REPORT_APPROVAL_TYPE,
         "report_status": "draft_ready",
 
         "executive_summary": executive_summary,
@@ -497,27 +683,57 @@ def generate_report(case_data: Dict[str, Any]) -> Dict[str, Any]:
 
         "threat_intelligence_summary": threat_intelligence_summary,
         "timeline": timeline,
-        "soc_approval": soc_approval
+        "soc_approval": soc_approval,
+        "containment_summary": containment_summary,
+        "correction_status": "not_requested",
+        "soc_analyst_comments": None,
+        "revision_count": 0
     }
+
+    report["learning_update"] = build_learning_update_draft(case_data, report)
+
+    report_completeness = check_report_completeness(report)
+    report_status = report_completeness["report_status"]
+    current_stage = "report_completed" if report_completeness["is_complete"] else "report_incomplete"
+    next_action = (
+        "Send to SOC Analyst Approval"
+        if report_completeness["is_complete"]
+        else "Request missing information"
+    )
+
+    report["report_status"] = report_status
+
+    reporting_audit_record = build_reporting_audit_record(
+        case_data,
+        report_status,
+        current_stage,
+        next_action,
+        report_completeness
+    )
 
     report_result = {
         **case_data,
 
-        "current_stage": "report_completed",
+        "current_stage": current_stage,
         "agent_completed": "reporting_agent",
-        "report_status": "draft_ready",
+        "approval_type": REPORT_APPROVAL_TYPE,
+        "report_status": report_status,
+        "report_completeness": report_completeness,
         "draft_report": report,
+        "reporting_audit_record": reporting_audit_record,
 
         "report_result": {
             "incident_id": case_data.get("incident_id"),
             "alert_id": case_data.get("alert_id"),
-            "report_status": "draft_ready",
+            "approval_type": REPORT_APPROVAL_TYPE,
+            "report_status": report_status,
             "generated_at": generated_at,
             "approval_required": report["soc_approval"]["approval_required"],
-            "next_action": "Send to SOC Analyst Approval"
+            "report_completeness": report_completeness,
+            "next_action": next_action
         },
 
-        "next_action": "Send to SOC Analyst Approval"
+        "next_action": next_action
     }
 
     return report_result
