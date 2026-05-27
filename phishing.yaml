@@ -1,0 +1,62 @@
+name: Phishing Triage Playbook
+version: 1.1
+
+steps:
+  step_1_identify_endpoints:
+    name: Identify Victim Endpoints
+    instructions: Analyze the given telemetry to identify who all the victim endpoints are and group their characteristics (IP, Host, process trees).
+    routing: step_2_query_triage_agent
+
+  step_2_query_triage_agent:
+    name: Query Triage Agent & Pivot
+    instructions: Query the Triage Agent using the identified IOCs to look for related suspicious activity.
+    routing: step_2a_expand_search
+
+  step_2a_expand_search:
+    name: Expand Search
+    instructions: Analyze the new intelligence gathered from the Triage Agent. Do you see any new IOCs or patterns to pivot on? If so, query the Triage Agent again with the new IOCs.
+    routing:
+      if_found_something: step_2_query_triage_agent
+      if_found_nothing: step_3_compare_baseline
+
+  step_3_compare_baseline:
+    name: Baseline Comparison
+    instructions: Compare the gathered IOCs against baseline norms to determine abnormality.
+    routing: step_4_evaluate_conclusive
+
+  step_4_evaluate_conclusive:
+    name: Conclusive Investigation Check
+    instructions: Evaluate all collected telemetry and baseline comparisons. Is the investigation conclusive?
+    routing:
+      if_yes: step_5a_report_findings
+      if_no: step_5b_analyze_behavior
+
+  step_5a_report_findings:
+    name: Conclusive Investigation Handoff
+    instructions: Generate containment steps according to containment book and give a new severity rating according to policies, then forward investigation findings to Reporting Agent.
+    status: complete
+
+  step_5b_analyze_behavior:
+    name: Understand Adversarial Behavior
+    instructions: Analyze and understand adversarial behavior based off the collected telemetry (Processes, commands).
+    routing:
+      if_privilege_escalation: step_6a_pivot_priv_esc
+      if_lateral_movement: step_6b_pivot_lat_movement
+      if_other: step_6c_general_containment
+
+  step_6a_pivot_priv_esc:
+    name: Privilege Escalation Handoff
+    instructions: Query LLM for containment steps according to containment book and pivot to Privilege Escalation playbook.
+    status: pivot_to_new_playbook
+
+  step_6b_pivot_lat_movement:
+    name: Lateral Movement Handoff
+    instructions: Query LLM for containment steps according to containment book and pivot to Lateral Movement playbook.
+    status: pivot_to_new_playbook
+
+  step_6c_general_containment:
+    name: General Containment & Further Analysis
+    instructions: |
+      Generate containment steps according to containment book. 
+      Proceed to perform further LLM analysis.
+    status: require_further_analysis

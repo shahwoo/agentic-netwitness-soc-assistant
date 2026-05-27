@@ -1,0 +1,904 @@
+{
+  "incident_id": "INC-6126",
+  "exported_at": "2026-02-02T04:26:29.837424+00:00",
+  "counts": {
+    "alerts_summary_count": 2,
+    "alerts_full_count": 2,
+    "alerts_extracted_count": 2,
+    "errors_count": 0
+  },
+  "incident_raw": {
+    "id": "INC-6126",
+    "title": "High Risk Alerts: ECAT for 70.0",
+    "summary": "",
+    "priority": "High",
+    "riskScore": 70,
+    "status": "New",
+    "alertCount": 2,
+    "averageAlertRiskScore": 70,
+    "sealed": true,
+    "totalRemediationTaskCount": 0,
+    "openRemediationTaskCount": 0,
+    "created": "2026-01-17T17:31:39.294Z",
+    "lastUpdated": "2026-01-18T09:29:34.539Z",
+    "lastUpdatedBy": null,
+    "assignee": null,
+    "sources": [
+      "ECAT"
+    ],
+    "ruleId": "640adea69e01cd06b9a459e4",
+    "firstAlertTime": "2026-01-17T17:31:36.371Z",
+    "categories": [],
+    "journalEntries": null,
+    "createdBy": "High Risk Alerts: ECAT",
+    "deletedAlertCount": 2,
+    "eventCount": 2,
+    "alertMeta": {
+      "SourceIp": [
+        "10.100.20.16"
+      ],
+      "DestinationIp": [
+        "155.140.254.18"
+      ]
+    },
+    "tactics": [],
+    "techniques": []
+  },
+  "alerts_summary_raw": {
+    "items": [
+      {
+        "id": "696bc77892fe737340c9e612",
+        "title": "Outbound from Unsigned AppData Directory",
+        "detail": null,
+        "created": "2026-01-17T17:31:36.371Z",
+        "source": "ECAT",
+        "riskScore": null,
+        "type": "Endpoint",
+        "events": [
+          {
+            "source": {
+              "device": {
+                "ipAddress": "10.100.20.16",
+                "port": null,
+                "macAddress": null,
+                "dnsHostname": null,
+                "dnsDomain": null
+              },
+              "user": {
+                "username": "RP-SOC-WS-WIN14\\Admin2",
+                "emailAddress": null,
+                "adUsername": null,
+                "adDomain": null
+              }
+            },
+            "destination": {
+              "device": {
+                "ipAddress": "155.140.254.18",
+                "port": null,
+                "macAddress": null,
+                "dnsHostname": null,
+                "dnsDomain": null
+              },
+              "user": {
+                "username": null,
+                "emailAddress": null,
+                "adUsername": null,
+                "adDomain": null
+              }
+            },
+            "domain": "RP-SOC-WS-Win14",
+            "eventSource": "e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005",
+            "eventSourceId": "593"
+          }
+        ],
+        "tactics": null,
+        "techniques": null
+      },
+      {
+        "id": "696bc77892fe737340c9e613",
+        "title": "Outbound from Unsigned Temporary Directory",
+        "detail": null,
+        "created": "2026-01-17T17:31:36.371Z",
+        "source": "ECAT",
+        "riskScore": null,
+        "type": "Endpoint",
+        "events": [
+          {
+            "source": {
+              "device": {
+                "ipAddress": "10.100.20.16",
+                "port": null,
+                "macAddress": null,
+                "dnsHostname": null,
+                "dnsDomain": null
+              },
+              "user": {
+                "username": "RP-SOC-WS-WIN14\\Admin2",
+                "emailAddress": null,
+                "adUsername": null,
+                "adDomain": null
+              }
+            },
+            "destination": {
+              "device": {
+                "ipAddress": "155.140.254.18",
+                "port": null,
+                "macAddress": null,
+                "dnsHostname": null,
+                "dnsDomain": null
+              },
+              "user": {
+                "username": null,
+                "emailAddress": null,
+                "adUsername": null,
+                "adDomain": null
+              }
+            },
+            "domain": "RP-SOC-WS-Win14",
+            "eventSource": "e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005",
+            "eventSourceId": "593"
+          }
+        ],
+        "tactics": null,
+        "techniques": null
+      }
+    ],
+    "pageNumber": 0,
+    "pageSize": 100,
+    "totalPages": 1,
+    "totalItems": 2,
+    "hasNext": false,
+    "hasPrevious": false
+  },
+  "alerts_full_raw": [
+    {
+      "_id": "696bc77892fe737340c9e612",
+      "receivedTime": 1768671096373,
+      "status": "GROUPED_IN_INCIDENT",
+      "originalHeaders": {
+        "name": "Outbound from Unsigned AppData Directory",
+        "description": null,
+        "version": 0,
+        "severity": 7,
+        "timestamp": 1768671096371,
+        "signatureId": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+        "deviceVendor": "RSA Netwitness",
+        "deviceProduct": "Event Stream Analysis",
+        "deviceVersion": "12.5",
+        "uebaSource": null,
+        "whiteListAlertSources": [
+          "nwendpoint"
+        ]
+      },
+      "originalAlert": {
+        "severity": 7,
+        "eventSourceId": "e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005:593",
+        "respondEnabled": true,
+        "engineUri": "",
+        "moduleName": "Outbound from Unsigned AppData Directory",
+        "suppressMessageBus": false,
+        "transientAlert": false,
+        "version": "",
+        "notificationReasons": [],
+        "actualEventsCount": 1,
+        "instanceId": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+        "statement": "Outbound from Unsigned AppData Directory",
+        "contentUuid": "",
+        "id": "0295968b-1d43-48b0-afd0-aa81fbfe5c6d",
+        "time": "Jan 17, 2026 17:31:36 PM UTC",
+        "events": [
+          {
+            "checksum_src": [
+              "ed5223b41ff3d70a5f4f01e8c3cdcc675005e6c38f2211755e2785a9dd8143b2",
+              "80ecee3ff083deeb191728f4630d6a78"
+            ],
+            "attack_tid": "T1564.001",
+            "agent_id": "2D5215DE-376E-4418-BB1C-D278975E7FB8",
+            "device_type": "nwendpoint",
+            "sessionid": 593,
+            "rid": 593,
+            "isp_dst": "BNP Paribas SG, Transit AS, Singapore",
+            "feed_name": [
+              "investigation",
+              "investigation",
+              "investigation",
+              "investigation",
+              "investigation"
+            ],
+            "context": [
+              "network.ipv4",
+              "network.outgoing",
+              "network.offHour"
+            ],
+            "attack_tactic": "defense-evasion",
+            "directory_src": [
+              "C:\\Users\\Admin2\\AppData\\Local\\Temp\\"
+            ],
+            "msg_id": "nwendpoint",
+            "country_dst": "France",
+            "event_source_id": "e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005:593",
+            "process_vid_src": "8982294308901369985",
+            "esa_time": 1768671096371,
+            "domain_dst": "bnpparibas.com",
+            "ip_dst": "155.140.254.18",
+            "size": 41,
+            "context_src": [
+              "file.createdInWeekend",
+              "file.createdInLastOneDay",
+              "file.exe",
+              "file.arch32",
+              "file.noCheckSum",
+              "file.invalidCheckSum",
+              "file.unsigned"
+            ],
+            "boc": [
+              "outbound from unsigned temporary directory",
+              "outbound from unsigned appdata directory"
+            ],
+            "city_dst": "Montreuil",
+            "nwe_callback_id": "nwe://3267129f-a75b-4147-9f9b-c476b2a7059d",
+            "ip_proto": 6,
+            "alias_host": [
+              "RP-SOC-WS-Win14"
+            ],
+            "com_rsa_netwitness_streams_stream": "RP-SOC2-Custom",
+            "ip_src": "10.100.20.16",
+            "param_src": [
+              "wzOCcAIIZg.exe"
+            ],
+            "port_src": 49955,
+            "medium": 32,
+            "inv_context": [
+              "event analysis",
+              "flow analysis"
+            ],
+            "analysis_file": [
+              "in appdata directory",
+              "in temporary directory"
+            ],
+            "user_src": "RP-SOC-WS-WIN14\\Admin2",
+            "forward_ip": "127.0.0.1",
+            "dir_path_src": [
+              "temporary",
+              "user",
+              "appDataLocal"
+            ],
+            "alias_ip": [
+              "10.100.20.16"
+            ],
+            "device_disc": 30,
+            "org_dst": "BNP Paribas SG, Transit AS, Singapore",
+            "direction": "outbound",
+            "owner": "RP-SOC-WS-WIN14\\Admin2",
+            "attack_technique": "hidden files and directories",
+            "com_rsa_netwitness_streams_arrival_timestamp": 1768671094619,
+            "OS": [
+              "windows",
+              "Microsoft Windows 10 Pro"
+            ],
+            "filename_src": [
+              "wzOCcAIIZg.exe"
+            ],
+            "port_dst": 4446,
+            "device_disc_type": "nwendpoint",
+            "com_rsa_netwitness_streams_source_trail": [
+              "admin@10.100.30.35:50005"
+            ],
+            "inv_category": [
+              "operations"
+            ],
+            "netname": [
+              "other dst",
+              "private src",
+              "private misc"
+            ],
+            "risk": [
+              "low",
+              "low",
+              "high",
+              "high"
+            ],
+            "time": 1768671084000,
+            "category": "Network Event",
+            "com_rsa_netwitness_streams_arrival_sequence": 734526,
+            "did": "rp-soc-nwe-svr2",
+            "analysis_session": [
+              "not top 20 dst"
+            ],
+            "event_time": 1768670783
+          }
+        ],
+        "suppressNotification": false
+      },
+      "alert": {
+        "groupby_alias_ip": "10.100.20.16",
+        "groupby_source_device_mac_address": "",
+        "user_summary": [
+          "RP-SOC-WS-WIN14\\Admin2"
+        ],
+        "groupby_dst_device_geolocation_domain": "",
+        "source": "ECAT",
+        "type": [
+          "Endpoint"
+        ],
+        "groupby_user_src": "RP-SOC-WS-WIN14\\Admin2",
+        "groupby_src_device_dns_domain": "",
+        "groupby_source_country": "",
+        "groupby_analysis_file": "in appdata directory",
+        "groupby_filename": "wzOCcAIIZg.exe",
+        "groupby_source_username": "RP-SOC-WS-WIN14\\Admin2",
+        "groupby_detector_ip": "",
+        "groupby_dst_usr_username": "",
+        "events": [
+          {
+            "agent_id": "2D5215DE-376E-4418-BB1C-D278975E7FB8",
+            "data": [
+              {
+                "filename": "wzOCcAIIZg.exe",
+                "size": 41,
+                "hash": "ed5223b41ff3d70a5f4f01e8c3cdcc675005e6c38f2211755e2785a9dd8143b2"
+              }
+            ],
+            "destination": {
+              "path": "",
+              "file_SHA256": "",
+              "filename": "",
+              "launch_argument": "",
+              "device": {
+                "compliance_rating": "",
+                "netbios_name": "",
+                "port": "",
+                "mac_address": "",
+                "criticality": "",
+                "asset_type": "",
+                "ip_address": "155.140.254.18",
+                "facility": "",
+                "business_unit": ""
+              },
+              "hash": ""
+            },
+            "description": "",
+            "domain_src": "",
+            "port_src": "49955",
+            "device_type": "nwendpoint",
+            "event_source": "e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005",
+            "source": {
+              "path": "C:\\Users\\Admin2\\AppData\\Local\\Temp\\",
+              "file_SHA256": "ed5223b41ff3d70a5f4f01e8c3cdcc675005e6c38f2211755e2785a9dd8143b2",
+              "filename": "wzOCcAIIZg.exe",
+              "launch_argument": "wzOCcAIIZg.exe",
+              "device": {
+                "compliance_rating": "",
+                "netbios_name": "",
+                "port": "",
+                "mac_address": "",
+                "criticality": "",
+                "asset_type": "",
+                "ip_address": "10.100.20.16",
+                "facility": "",
+                "business_unit": ""
+              },
+              "user": {
+                "email_address": "",
+                "ad_username": "",
+                "ad_domain": "",
+                "username": "RP-SOC-WS-WIN14\\Admin2"
+              },
+              "hash": "ed5223b41ff3d70a5f4f01e8c3cdcc675005e6c38f2211755e2785a9dd8143b2"
+            },
+            "type": "Endpoint",
+            "analysis_file": "in appdata directory",
+            "directory": "",
+            "registry_key": "",
+            "enrichment": "",
+            "user_src": "RP-SOC-WS-WIN14\\Admin2",
+            "hostname": "RP-SOC-WS-Win14",
+            "analysis_service": "",
+            "process_vid": "8982294308901369985",
+            "host_src": "",
+            "function": null,
+            "context": [
+              "network.ipv4",
+              "network.outgoing",
+              "network.offHour"
+            ],
+            "action": "",
+            "operating_system": "windows",
+            "alias_ip": "10.100.20.16",
+            "from": "10.100.20.16",
+            "attack_tactic": "defense-evasion",
+            "timestamp": 1768671084000,
+            "ec_subject": "",
+            "event_source_id": "593",
+            "attack_technique": "hidden files and directories",
+            "related_links": [
+              {
+                "type": "investigate_original_event",
+                "url": "/investigation/host/e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005/reconstruction/593/DETAILS"
+              },
+              {
+                "type": "investigate_destination_domain",
+                "url": "/investigation/e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005/navigate/query/alias.host%3D'RP-SOC-WS-Win14'%2Fdate%2F2026-01-17T17%3A21%3A24.000Z%2F2026-01-17T17%3A41%3A24.000Z"
+              }
+            ],
+            "service_name": "",
+            "port_dst": "4446",
+            "domain_dst": "bnpparibas.com",
+            "user_dst": "",
+            "autorun_type": "",
+            "host_dst": "",
+            "domain": "RP-SOC-WS-Win14",
+            "user_account": "RP-SOC-WS-WIN14\\Admin2",
+            "to": "155.140.254.18",
+            "category": "Network Event",
+            "nwe_callback_id": "nwe://3267129f-a75b-4147-9f9b-c476b2a7059d",
+            "cert_common": "",
+            "user": "RP-SOC-WS-WIN14\\Admin2",
+            "analysis_session": "not top 20 dst",
+            "event_time": 1768670783,
+            "site_categorization": null,
+            "username": ""
+          }
+        ],
+        "groupby_detector_dns_hostname": "",
+        "host_summary": "10.100.20.16 to 155.140.254.18-RP-SOC-WS-Win14",
+        "groupby_username": "",
+        "groupby_file_sha_256": "",
+        "original_source": "Event Stream Analysis",
+        "groupby_user_dst": "",
+        "groupby_dst_device_dns_hostname": "",
+        "groupby_os": "windows",
+        "groupby_src_usr_ad_domain": "",
+        "groupby_dst_usr_ad_username": "",
+        "name": "Outbound from Unsigned AppData Directory",
+        "groupby_detector_dns_domain": "",
+        "groupby_host_src": "",
+        "groupby_analysis_service": "",
+        "groupby_destination_device_mac_address": "",
+        "groupby_version": "0",
+        "groupby_dst_device_netbios_name": "",
+        "destination_country": [],
+        "groupby_type": "Endpoint",
+        "groupby_device_type": "",
+        "groupby_domain": "RP-SOC-WS-Win14",
+        "groupby_destination_country": "",
+        "groupby_dst_device_dns_domain": "",
+        "groupby_analysis_session": "not top 20 dst",
+        "signature_id": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+        "groupby_data_hash": "ed5223b41ff3d70a5f4f01e8c3cdcc675005e6c38f2211755e2785a9dd8143b2",
+        "groupby_domain_dst": "bnpparibas.com",
+        "groupby_src_device_netbios_name": "",
+        "groupby_destination_ip": "155.140.254.18",
+        "groupby_host_dst": "",
+        "groupby_source_ip": "10.100.20.16",
+        "groupby_detector_mac_address": "",
+        "timestamp": 1768671096371,
+        "severity": 70.0,
+        "related_links": [
+          {
+            "type": "investigate_session",
+            "url": "/investigation/e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005/navigate/query/sessionid%3D593"
+          },
+          {
+            "type": "investigate_src_ip",
+            "url": "/investigation/e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005/navigate/query/ip.src%3D10.100.20.16%2Fdate%2F2026-01-17T17%3A21%3A24.000Z%2F2026-01-17T17%3A41%3A24.000Z"
+          },
+          {
+            "type": "investigate_dst_ip",
+            "url": "/investigation/e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005/navigate/query/ip.dst%3D155.140.254.18%2Fdate%2F2026-01-17T17%3A21%3A24.000Z%2F2026-01-17T17%3A41%3A24.000Z"
+          },
+          {
+            "type": "investigate_destination_domain",
+            "url": "/investigation/e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005/navigate/query/alias.host%3D'RP-SOC-WS-Win14'%2Fdate%2F2026-01-17T17%3A21%3A24.000Z%2F2026-01-17T17%3A41%3A24.000Z"
+          }
+        ],
+        "risk_score": 70.0,
+        "groupby_src_device_geolocation_domain": "",
+        "groupby_dst_usr_ad_domain": "",
+        "groupby_destination_port": "",
+        "groupby_c2domain": "",
+        "groupby_host_name": "RP-SOC-WS-Win14",
+        "groupby_src_usr_ad_username": "",
+        "groupby_src_device_dns_hostname": "",
+        "source_country": [],
+        "groupby_domain_src": "",
+        "numEvents": 1,
+        "groupby_agent_id": "2D5215DE-376E-4418-BB1C-D278975E7FB8"
+      },
+      "partOfIncident": true,
+      "lastUpdated": 1768671099294,
+      "_class": "com.rsa.asoc.respond.commons.domain.Alert",
+      "incidentCreated": 1768671099294,
+      "incidentId": "INC-6126"
+    },
+    {
+      "_id": "696bc77892fe737340c9e613",
+      "receivedTime": 1768671096377,
+      "status": "GROUPED_IN_INCIDENT",
+      "originalHeaders": {
+        "name": "Outbound from Unsigned Temporary Directory",
+        "description": null,
+        "version": 0,
+        "severity": 7,
+        "timestamp": 1768671096371,
+        "signatureId": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+        "deviceVendor": "RSA Netwitness",
+        "deviceProduct": "Event Stream Analysis",
+        "deviceVersion": "12.5",
+        "uebaSource": null,
+        "whiteListAlertSources": [
+          "nwendpoint"
+        ]
+      },
+      "originalAlert": {
+        "severity": 7,
+        "eventSourceId": "e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005:593",
+        "respondEnabled": true,
+        "engineUri": "",
+        "moduleName": "Outbound from Unsigned Temporary Directory",
+        "suppressMessageBus": false,
+        "transientAlert": false,
+        "version": "",
+        "notificationReasons": [],
+        "actualEventsCount": 1,
+        "instanceId": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+        "statement": "Outbound from Unsigned Temporary Directory",
+        "contentUuid": "",
+        "id": "4403846a-41ff-4373-a1bc-0cf33306ee8a",
+        "time": "Jan 17, 2026 17:31:36 PM UTC",
+        "events": [
+          {
+            "checksum_src": [
+              "ed5223b41ff3d70a5f4f01e8c3cdcc675005e6c38f2211755e2785a9dd8143b2",
+              "80ecee3ff083deeb191728f4630d6a78"
+            ],
+            "attack_tid": "T1564.001",
+            "agent_id": "2D5215DE-376E-4418-BB1C-D278975E7FB8",
+            "device_type": "nwendpoint",
+            "sessionid": 593,
+            "rid": 593,
+            "isp_dst": "BNP Paribas SG, Transit AS, Singapore",
+            "feed_name": [
+              "investigation",
+              "investigation",
+              "investigation",
+              "investigation",
+              "investigation"
+            ],
+            "context": [
+              "network.ipv4",
+              "network.outgoing",
+              "network.offHour"
+            ],
+            "attack_tactic": "defense-evasion",
+            "directory_src": [
+              "C:\\Users\\Admin2\\AppData\\Local\\Temp\\"
+            ],
+            "msg_id": "nwendpoint",
+            "country_dst": "France",
+            "event_source_id": "e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005:593",
+            "process_vid_src": "8982294308901369985",
+            "esa_time": 1768671096371,
+            "domain_dst": "bnpparibas.com",
+            "ip_dst": "155.140.254.18",
+            "size": 41,
+            "context_src": [
+              "file.createdInWeekend",
+              "file.createdInLastOneDay",
+              "file.exe",
+              "file.arch32",
+              "file.noCheckSum",
+              "file.invalidCheckSum",
+              "file.unsigned"
+            ],
+            "boc": [
+              "outbound from unsigned temporary directory",
+              "outbound from unsigned appdata directory"
+            ],
+            "city_dst": "Montreuil",
+            "nwe_callback_id": "nwe://3267129f-a75b-4147-9f9b-c476b2a7059d",
+            "ip_proto": 6,
+            "alias_host": [
+              "RP-SOC-WS-Win14"
+            ],
+            "com_rsa_netwitness_streams_stream": "RP-SOC2-Custom",
+            "ip_src": "10.100.20.16",
+            "param_src": [
+              "wzOCcAIIZg.exe"
+            ],
+            "port_src": 49955,
+            "medium": 32,
+            "inv_context": [
+              "event analysis",
+              "flow analysis"
+            ],
+            "analysis_file": [
+              "in appdata directory",
+              "in temporary directory"
+            ],
+            "user_src": "RP-SOC-WS-WIN14\\Admin2",
+            "forward_ip": "127.0.0.1",
+            "dir_path_src": [
+              "temporary",
+              "user",
+              "appDataLocal"
+            ],
+            "alias_ip": [
+              "10.100.20.16"
+            ],
+            "device_disc": 30,
+            "org_dst": "BNP Paribas SG, Transit AS, Singapore",
+            "direction": "outbound",
+            "owner": "RP-SOC-WS-WIN14\\Admin2",
+            "attack_technique": "hidden files and directories",
+            "com_rsa_netwitness_streams_arrival_timestamp": 1768671094619,
+            "OS": [
+              "windows",
+              "Microsoft Windows 10 Pro"
+            ],
+            "filename_src": [
+              "wzOCcAIIZg.exe"
+            ],
+            "port_dst": 4446,
+            "device_disc_type": "nwendpoint",
+            "com_rsa_netwitness_streams_source_trail": [
+              "admin@10.100.30.35:50005"
+            ],
+            "inv_category": [
+              "operations"
+            ],
+            "netname": [
+              "other dst",
+              "private src",
+              "private misc"
+            ],
+            "risk": [
+              "low",
+              "low",
+              "high",
+              "high"
+            ],
+            "time": 1768671084000,
+            "category": "Network Event",
+            "com_rsa_netwitness_streams_arrival_sequence": 734526,
+            "did": "rp-soc-nwe-svr2",
+            "analysis_session": [
+              "not top 20 dst"
+            ],
+            "event_time": 1768670783
+          }
+        ],
+        "suppressNotification": false
+      },
+      "alert": {
+        "groupby_alias_ip": "10.100.20.16",
+        "groupby_source_device_mac_address": "",
+        "user_summary": [
+          "RP-SOC-WS-WIN14\\Admin2"
+        ],
+        "groupby_dst_device_geolocation_domain": "",
+        "source": "ECAT",
+        "type": [
+          "Endpoint"
+        ],
+        "groupby_user_src": "RP-SOC-WS-WIN14\\Admin2",
+        "groupby_src_device_dns_domain": "",
+        "groupby_source_country": "",
+        "groupby_analysis_file": "in appdata directory",
+        "groupby_filename": "wzOCcAIIZg.exe",
+        "groupby_source_username": "RP-SOC-WS-WIN14\\Admin2",
+        "groupby_detector_ip": "",
+        "groupby_dst_usr_username": "",
+        "events": [
+          {
+            "agent_id": "2D5215DE-376E-4418-BB1C-D278975E7FB8",
+            "data": [
+              {
+                "filename": "wzOCcAIIZg.exe",
+                "size": 41,
+                "hash": "ed5223b41ff3d70a5f4f01e8c3cdcc675005e6c38f2211755e2785a9dd8143b2"
+              }
+            ],
+            "destination": {
+              "path": "",
+              "file_SHA256": "",
+              "filename": "",
+              "launch_argument": "",
+              "device": {
+                "compliance_rating": "",
+                "netbios_name": "",
+                "port": "",
+                "mac_address": "",
+                "criticality": "",
+                "asset_type": "",
+                "ip_address": "155.140.254.18",
+                "facility": "",
+                "business_unit": ""
+              },
+              "hash": ""
+            },
+            "description": "",
+            "domain_src": "",
+            "port_src": "49955",
+            "device_type": "nwendpoint",
+            "event_source": "e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005",
+            "source": {
+              "path": "C:\\Users\\Admin2\\AppData\\Local\\Temp\\",
+              "file_SHA256": "ed5223b41ff3d70a5f4f01e8c3cdcc675005e6c38f2211755e2785a9dd8143b2",
+              "filename": "wzOCcAIIZg.exe",
+              "launch_argument": "wzOCcAIIZg.exe",
+              "device": {
+                "compliance_rating": "",
+                "netbios_name": "",
+                "port": "",
+                "mac_address": "",
+                "criticality": "",
+                "asset_type": "",
+                "ip_address": "10.100.20.16",
+                "facility": "",
+                "business_unit": ""
+              },
+              "user": {
+                "email_address": "",
+                "ad_username": "",
+                "ad_domain": "",
+                "username": "RP-SOC-WS-WIN14\\Admin2"
+              },
+              "hash": "ed5223b41ff3d70a5f4f01e8c3cdcc675005e6c38f2211755e2785a9dd8143b2"
+            },
+            "type": "Endpoint",
+            "analysis_file": "in appdata directory",
+            "directory": "",
+            "registry_key": "",
+            "enrichment": "",
+            "user_src": "RP-SOC-WS-WIN14\\Admin2",
+            "hostname": "RP-SOC-WS-Win14",
+            "analysis_service": "",
+            "process_vid": "8982294308901369985",
+            "host_src": "",
+            "function": null,
+            "context": [
+              "network.ipv4",
+              "network.outgoing",
+              "network.offHour"
+            ],
+            "action": "",
+            "operating_system": "windows",
+            "alias_ip": "10.100.20.16",
+            "from": "10.100.20.16",
+            "attack_tactic": "defense-evasion",
+            "timestamp": 1768671084000,
+            "ec_subject": "",
+            "event_source_id": "593",
+            "attack_technique": "hidden files and directories",
+            "related_links": [
+              {
+                "type": "investigate_original_event",
+                "url": "/investigation/host/e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005/reconstruction/593/DETAILS"
+              },
+              {
+                "type": "investigate_destination_domain",
+                "url": "/investigation/e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005/navigate/query/alias.host%3D'RP-SOC-WS-Win14'%2Fdate%2F2026-01-17T17%3A21%3A24.000Z%2F2026-01-17T17%3A41%3A24.000Z"
+              }
+            ],
+            "service_name": "",
+            "port_dst": "4446",
+            "domain_dst": "bnpparibas.com",
+            "user_dst": "",
+            "autorun_type": "",
+            "host_dst": "",
+            "domain": "RP-SOC-WS-Win14",
+            "user_account": "RP-SOC-WS-WIN14\\Admin2",
+            "to": "155.140.254.18",
+            "category": "Network Event",
+            "nwe_callback_id": "nwe://3267129f-a75b-4147-9f9b-c476b2a7059d",
+            "cert_common": "",
+            "user": "RP-SOC-WS-WIN14\\Admin2",
+            "analysis_session": "not top 20 dst",
+            "event_time": 1768670783,
+            "site_categorization": null,
+            "username": ""
+          }
+        ],
+        "groupby_detector_dns_hostname": "",
+        "host_summary": "10.100.20.16 to 155.140.254.18-RP-SOC-WS-Win14",
+        "groupby_username": "",
+        "groupby_file_sha_256": "",
+        "original_source": "Event Stream Analysis",
+        "groupby_user_dst": "",
+        "groupby_dst_device_dns_hostname": "",
+        "groupby_os": "windows",
+        "groupby_src_usr_ad_domain": "",
+        "groupby_dst_usr_ad_username": "",
+        "name": "Outbound from Unsigned Temporary Directory",
+        "groupby_detector_dns_domain": "",
+        "groupby_host_src": "",
+        "groupby_analysis_service": "",
+        "groupby_destination_device_mac_address": "",
+        "groupby_version": "0",
+        "groupby_dst_device_netbios_name": "",
+        "destination_country": [],
+        "groupby_type": "Endpoint",
+        "groupby_device_type": "",
+        "groupby_domain": "RP-SOC-WS-Win14",
+        "groupby_destination_country": "",
+        "groupby_dst_device_dns_domain": "",
+        "groupby_analysis_session": "not top 20 dst",
+        "signature_id": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+        "groupby_data_hash": "ed5223b41ff3d70a5f4f01e8c3cdcc675005e6c38f2211755e2785a9dd8143b2",
+        "groupby_domain_dst": "bnpparibas.com",
+        "groupby_src_device_netbios_name": "",
+        "groupby_destination_ip": "155.140.254.18",
+        "groupby_host_dst": "",
+        "groupby_source_ip": "10.100.20.16",
+        "groupby_detector_mac_address": "",
+        "timestamp": 1768671096371,
+        "severity": 70.0,
+        "related_links": [
+          {
+            "type": "investigate_session",
+            "url": "/investigation/e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005/navigate/query/sessionid%3D593"
+          },
+          {
+            "type": "investigate_src_ip",
+            "url": "/investigation/e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005/navigate/query/ip.src%3D10.100.20.16%2Fdate%2F2026-01-17T17%3A21%3A24.000Z%2F2026-01-17T17%3A41%3A24.000Z"
+          },
+          {
+            "type": "investigate_dst_ip",
+            "url": "/investigation/e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005/navigate/query/ip.dst%3D155.140.254.18%2Fdate%2F2026-01-17T17%3A21%3A24.000Z%2F2026-01-17T17%3A41%3A24.000Z"
+          },
+          {
+            "type": "investigate_destination_domain",
+            "url": "/investigation/e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005/navigate/query/alias.host%3D'RP-SOC-WS-Win14'%2Fdate%2F2026-01-17T17%3A21%3A24.000Z%2F2026-01-17T17%3A41%3A24.000Z"
+          }
+        ],
+        "risk_score": 70.0,
+        "groupby_src_device_geolocation_domain": "",
+        "groupby_dst_usr_ad_domain": "",
+        "groupby_destination_port": "",
+        "groupby_c2domain": "",
+        "groupby_host_name": "RP-SOC-WS-Win14",
+        "groupby_src_usr_ad_username": "",
+        "groupby_src_device_dns_hostname": "",
+        "source_country": [],
+        "groupby_domain_src": "",
+        "numEvents": 1,
+        "groupby_agent_id": "2D5215DE-376E-4418-BB1C-D278975E7FB8"
+      },
+      "partOfIncident": true,
+      "lastUpdated": 1768671099294,
+      "_class": "com.rsa.asoc.respond.commons.domain.Alert",
+      "incidentCreated": 1768671099294,
+      "incidentId": "INC-6126"
+    }
+  ],
+  "alerts_extracted": [
+    {
+      "_id": "696bc77892fe737340c9e612",
+      "id": null,
+      "name": null,
+      "title": null,
+      "type": null,
+      "severity": null,
+      "riskScore": null,
+      "created": null,
+      "attack_tactic": "defense-evasion",
+      "attack_technique": "hidden files and directories",
+      "attack_tid": "T1564.001"
+    },
+    {
+      "_id": "696bc77892fe737340c9e613",
+      "id": null,
+      "name": null,
+      "title": null,
+      "type": null,
+      "severity": null,
+      "riskScore": null,
+      "created": null,
+      "attack_tactic": "defense-evasion",
+      "attack_technique": "hidden files and directories",
+      "attack_tid": "T1564.001"
+    }
+  ],
+  "errors": []
+}
