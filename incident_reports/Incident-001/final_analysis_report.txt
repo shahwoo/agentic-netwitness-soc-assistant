@@ -1,7 +1,2 @@
 EXECUTIVE INCIDENT OUTCOME REPORT
 =================================
-Layman Briefing:
-The provided JSON response contains information about two alerts, each with a unique ID, name, title, type, severity, risk score, created date, attack tactic, technique, and TID. The data is extracted from the original JSON response to provide a layman's explanation of the alert details.
-
-Technical Chronology Summary:
-The provided JSON response contains information about two alerts, each with a unique ID, name, title, type, severity, risk score, created date, attack tactic, technique, and TID. The data is extracted from the original JSON response to provide a layman's explanation of the alert details.

@@ -6,6 +6,7 @@ import shutil
 from langchain_ollama import ChatOllama
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
+from typing import List
 
 # --- ANSI COLOR CODES ---
 class Color:
@@ -20,11 +21,11 @@ def log_info(message: str): print(f"{Color.CYAN}[*] {message}{Color.RESET}", fil
 def log_success(message: str): print(f"{Color.GREEN}[+] {message}{Color.RESET}", file=sys.stderr)
 def log_warning(message: str): print(f"{Color.YELLOW}[~] {message}{Color.RESET}", file=sys.stderr)
 def log_error(message: str): print(f"{Color.RED}[!] ERROR: {message}{Color.RESET}", file=sys.stderr)
-def log_analyst(step: str, explanation: str, technical: str):
+def log_analyst(step: str, thought: str, answer: str):
     print(f"\n{Color.MAGENTA}==================================================")
-    print(f"[PLAYBOOK NODE: {step}]")
-    print(f"ANALYST EXPLANATION (Layman Terms):\n{explanation}\n")
-    print(f"TECHNICAL LOGIC:\n{technical}")
+    print(f"[PLAYBOOK: {step}]")
+    print(f"\n{thought}")
+    print(f"\n{Color.GREEN}{answer}")
     print(f"=================================================={Color.RESET}\n", file=sys.stderr)
 
 # ==========================================
@@ -48,11 +49,11 @@ def load_text_file(filepath: str) -> str:
 def load_yaml_playbook(filepath: str) -> tuple[str, dict]:
     fallback_playbook = {
         "steps": {
-            "step_1_check_scope": {
+            "step_1": {
                 "instruction": "Determine if the attacker has successfully pivoted to adjacent systems or endpoints using compromised assets.",
-                "routing": {"yes": "step_2_isolate_host", "no": "step_terminal_close"}
+                "routing": {"yes": "step_2", "no": "step_terminal_close"}
             },
-            "step_2_isolate_host": {
+            "step_2": {
                 "instruction": "Evaluate if immediate isolation of the host infrastructure is necessary based on critical access logs.",
                 "routing": {"yes": "step_terminal_escalate", "no": "step_terminal_close"}
             }
@@ -123,44 +124,56 @@ def count_unread_queue() -> int:
 # 3. STRUCTURED LOGIC SCHEMA
 # ==========================================
 class PlaybookDrivenDecision(BaseModel):
-    layman_analyst_explanation: str = Field(
-        description="Explain your real-time investigative status and logic in plain, clear English for a non-IT corporate executive. Completely avoid dense technical jargon or file paths."
+    thought_process: str = Field(
+        description="Internal step-by-step reasoning tree. Break down your analysis of the logs, correlate the data points, and justify your next action. Use a 'Thinking:' style narrative. Do NOT write the final answer or search queries here."
     )
-    technical_thought_process: str = Field(
-        description="Your internal, gritty engineering logic notes documenting step verification checkpoints."
+    answer: str = Field(
+        description="The final standalone factual conclusion to the CRITICAL INSTRUCTION. Must be a single sentence. Strictly forbid any 'Because...', 'Based on...', or explanatory text. Just the raw conclusion."
     )
     has_sufficient_data: bool = Field(
-        description="Set to True if you have the data right now inside your active history to confidently answer the playbook node directive. Set to False if you need to run a search."
+        description="True ONLY if the active history contains 100% of the evidence needed to answer. False if you must search to fill a data gap."
     )
-    search_query_string: str = Field(
-        description="CRITICAL: If has_sufficient_data is False, write ONLY the technical query values (e.g., '188.40.170.197', 'example.com'). DO NOT write any words. DO NOT repeat the playbook instructions, OR any key names. Otherwise, write 'None'. Failures will break the pipline."
+    search_query_string: List[str] = Field(
+        default=[],
+        description="CRITICAL: Extract ONLY the raw target indicators needed for the next search. Max 1 word per item (e.g. ['10.100.20.16', 'RPSOCWSWin2']). Leave list completely empty [] if has_sufficient_data is True. ABSOLUTELY NO SENTENCES."
     )
     final_findings_summary: str = Field(
-        description="If you route the state machine to a terminal node outcome, write out the conclusive attack summary breakdown. Otherwise, write 'None'."
+        description="The ultimate SOC incident report summary for terminal nodes. Outline the threat actor vector and impact. Output 'None' if this is an intermediate playbook step."
     )
 
 # ==========================================
 # 4. RUNTIME SYSTEM EXECUTION PROMPT
 # ==========================================
-SYSTEM_PROMPT = """You are the Lead Playbook Execution Agent running as a strict investigative State Machine, deeply integrated into the RSA NetWitness SIEM, with the goal of mapping out the entire attack and categorizing all related alerts into individual incident reports.
-You are currently processing Node: [{current_node_id}]
-Node Directive: {current_node_instruction}
+SYSTEM_PROMPT = """You are the Lead Playbook Execution Agent performing active investigations, and deeply integrated into the RSA NetWitness SIEM, your only goal is to analyse data and answer the questions directly, querying for additional information when necessary.
 
 ### SYSTEM POLICIES
 {policies}
 
-### SIEM ENVIRONMENT CONSTRAINTS
-- Total Unread Alerts waiting in the queue directory: {queue_count}
-- You MUST ask yourself the node directive, and answer it DIRECTLY based on the evidence you have in your active investigation history.
-- When you request a search, the system will look for exact matches inside all remaining unread log files, feed the raw results directly into your History, and remove those logs from the unread queue.
+### GROUND RULES:
+1. 'thought_process' is your inner monologue. 
+2. 'answer' is a blunt 1-sentence state change conclusion. Do not reuse any words from your thought process here.
+3. 'search_query_string' must NEVER contain spaces, letters of instructions, or verbs. It is an array of raw indicators only.
+4. You are not a suggestor, you are an executor. Only answer questions and explicitly state if are unable to do so.
+5. You MUST look at the investigation history and determine if there is enough info to answer the question. DO NOT jump to conclusions.
+6. You are supposed to QUERY for missing data should the provided information be insufficient. If you think all the relevant details are not included, QUERY!
 
 ### PROTOCOL EXTRACTION RULES:
-1. Check the Investigation History. Do you have enough information to execute this node, or do you need to query for more data?
+1. Check the Investigation History. Do you have enough information to execute this instruction, or do you need to query for more data?
 - IF INSUFFICIENT DATA: 
       - Set `has_sufficient_data` to False
       - Extract the specific Indicators of Compromise to search and place inside `search_query_string` (e.g. IP addresses, domains, file hashes, email subjects). DO NOT write any explanatory text OR any metadata attached by SIEM, just the raw query values. The system will handle the rest.
 - IF SUFFICIENT DATA: 
       - Set `has_sufficient_data` to True
+
+### EXAMPLE OUTPUT ANSWER:
+Q: Analyze the given telemetry and identify who all the victim endpoints are and group their characteristics (IP, Host, process trees).
+A: The identified victim endpoint is IP address 192.168.2.101 and his compromised email address is jacob@gmail.com, his host is RPSOCWin10.
+
+Q: Does the phishing attempt contain a URL or attachment?
+A: The phishing attempt contains a URL, which is hxxp://maliciousdomain.com/login.
+
+Q: Has the URL or attachment been clicked or opened by the user?
+A: The URL has been clicked by the user, as evidenced by the access logs showing a connection to hxxp://maliciousdomain.com/login from the user's IP address.
 """
 
 prompt_template = ChatPromptTemplate.from_messages([
@@ -170,7 +183,7 @@ prompt_template = ChatPromptTemplate.from_messages([
         "--- ACTIVE INVESTIGATION HISTORY ---\n"
         "{investigation_history}\n"
         "------------------------------------\n\n"
-        "Assess data availability and calculate your next state execution action."
+        "{current_node_instruction}\n"
     )
 ])
 
@@ -209,7 +222,7 @@ if __name__ == "__main__":
     log_info("Powering up Ollama Foundation Security LLM node layer...")
     llm = ChatOllama(
         model="hf.co/Mungert/Foundation-Sec-8B-Instruct-GGUF:Q4_K_M", 
-        temperature=0
+        temperature=0.1
     ).with_structured_output(PlaybookDrivenDecision, method="json_schema")
 
     chain = prompt_template | llm
@@ -229,14 +242,13 @@ if __name__ == "__main__":
                 "current_node_instruction": node_instruction,
                 "current_node_routing": current_node_routing,
                 "policies": POLICIES_FILE,
-                "queue_count": queue_count,
                 "investigation_history": investigation_history
             })
         except Exception as e:
             log_error(f"Schema deserialization failure: {e}")
             continue
         
-        log_analyst(current_yaml_node, decision.layman_analyst_explanation, decision.technical_thought_process)
+        log_analyst(node_instruction, decision.thought_process, decision.answer)
         print(decision.search_query_string, decision.has_sufficient_data)
         # Handle Active Query Tool Call
         if not decision.has_sufficient_data and decision.search_query_string != "None":
