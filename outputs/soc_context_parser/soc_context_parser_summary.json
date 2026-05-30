@@ -1,0 +1,117 @@
+{
+    "parsing_succeeded": true,
+    "parser_status": "completed",
+    "detected_input_format": "incident_details_with_alerts",
+    "normalised_alert_count": 1,
+    "selected_alert_id": "ALERT-9201-A",
+    "parser_confidence": "High",
+    "parser_confidence_score": 90,
+    "important_extracted_fields": {
+        "alert_id": "ALERT-9201-A",
+        "incident_id": "INC-9201",
+        "alert_name": "Suspicious Email Attachment",
+        "alert_time": "2025-07-22T09:06:22.981000+00:00",
+        "severity": "High",
+        "risk_score": 86.0,
+        "source_ips": [
+            "185.199.108.153",
+            "10.100.20.44"
+        ],
+        "destination_ips": [
+            "10.100.10.7",
+            "45.77.88.21"
+        ],
+        "internal_ips": [
+            "10.100.20.44",
+            "10.100.10.7"
+        ],
+        "external_ips": [
+            "185.199.108.153",
+            "45.77.88.21"
+        ],
+        "source_ports": [
+            443,
+            49821
+        ],
+        "destination_ports": [
+            25,
+            443
+        ],
+        "services": [
+            "SMTP",
+            "HTTPS"
+        ],
+        "users": [
+            "lim_wei"
+        ],
+        "emails": [
+            "lim_wei@rp-soc.com",
+            "hr-notice@rp-hr-portal.com",
+            "support@rp-hr-portal.com"
+        ],
+        "reply_to_emails": [
+            "support@rp-hr-portal.com"
+        ],
+        "hosts": [
+            "NW-MAIL-GW01",
+            "RPSOCWSWin4"
+        ],
+        "file_names": [
+            "Leave_Balance_Report.xlsm"
+        ],
+        "file_hashes": [
+            "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+            "3395856ce81f2b7382dee72602f798b642f14140",
+            "44d88612fea8a8f36de82e1278abb02f"
+        ],
+        "file_hashes_by_type": {
+            "md5": [
+                "44d88612fea8a8f36de82e1278abb02f"
+            ],
+            "sha1": [
+                "3395856ce81f2b7382dee72602f798b642f14140"
+            ],
+            "sha256": [
+                "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"
+            ],
+            "unknown": []
+        },
+        "process_names": [
+            "EXCEL.EXE",
+            "powershell.exe",
+            "OUTLOOK.EXE"
+        ],
+        "parent_processes": [
+            "OUTLOOK.EXE"
+        ],
+        "child_processes": [
+            "powershell.exe"
+        ],
+        "process_relationships": [
+            {
+                "event_index": 1,
+                "parent": "OUTLOOK.EXE",
+                "child": "EXCEL.EXE"
+            },
+            {
+                "event_index": 1,
+                "parent": "EXCEL.EXE",
+                "child": "powershell.exe"
+            }
+        ],
+        "mitre_technique_ids": [
+            "T1566.001"
+        ]
+    },
+    "missing_important_fields": [],
+    "warnings": [],
+    "output_files": {
+        "normalised_alert": "outputs\\soc_context_parser\\soc_context_normalised_alert.json",
+        "processed_alert": "outputs\\soc_context_parser\\soc_context_processed_alert.json",
+        "processed_alert_csv": "outputs\\soc_context_parser\\soc_context_processed_alert.csv",
+        "all_normalised_alerts": "outputs\\soc_context_parser\\soc_context_netwitness_normalised_alerts.json",
+        "parser_summary": "outputs\\soc_context_parser\\soc_context_parser_summary.json",
+        "raw_debug": "outputs\\soc_context_parser\\soc_context_raw_alert_debug.json"
+    },
+    "generated_at": "2026-05-30T13:57:10.501679+00:00"
+}

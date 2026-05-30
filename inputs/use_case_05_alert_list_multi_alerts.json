@@ -1,0 +1,59 @@
+[
+  {
+    "id": "ALERT-9205-LOW",
+    "name": "Informational DNS Query",
+    "severity": "Low",
+    "riskScore": 20,
+    "timestamp": 1768676019000,
+    "type": "DNS",
+    "events": [
+      {
+        "time": 1768676019000,
+        "type": "network",
+        "ip_src": "10.100.60.10",
+        "ip_dst": "10.100.1.53",
+        "udp_dstport": 53,
+        "protocol": "UDP",
+        "query": "updates.example.com",
+        "event_source_id": "ES-DNS-01",
+        "rid": "RID-DNS-001"
+      }
+    ]
+  },
+  {
+    "id": "ALERT-9205-CRIT",
+    "name": "Malware File Detected on Endpoint",
+    "severity": "Critical",
+    "riskScore": 96,
+    "timestamp": 1768676119000,
+    "type": "Endpoint Malware",
+    "events": [
+      {
+        "time": 1768676119000,
+        "type": "endpoint",
+        "event_type": "file_detection",
+        "alias_host": [
+          "RPSOCWSWin11"
+        ],
+        "username": [
+          "farah_m"
+        ],
+        "filename": "invoice_viewer.exe",
+        "path": "C:\\Users\\farah_m\\Downloads\\invoice_viewer.exe",
+        "size": 734003,
+        "sha256": "a3f5c9d9b0d0f7e7a7a9d0f5c1b4e3a7f8c9d0b1a2e3f4c5d6e7f8091a2b3c4d",
+        "sha1": "2fd4e1c67a2d28fced849ee1bb76e7391b93eb12",
+        "md5": "5d41402abc4b2a76b9719d911017c592",
+        "process_name": "invoice_viewer.exe",
+        "parent_process_name": "explorer.exe",
+        "command_line": "C:\\Users\\farah_m\\Downloads\\invoice_viewer.exe",
+        "sessionid": "SID-9205-001",
+        "rid": "RID-END-001",
+        "event_source_id": "ES-Endpoint-11",
+        "attack_tactic": "Execution",
+        "attack_technique": "User Execution: Malicious File",
+        "attack_tid": "T1204.002"
+      }
+    ]
+  }
+]

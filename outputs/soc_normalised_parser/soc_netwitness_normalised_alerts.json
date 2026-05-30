@@ -1,0 +1,405 @@
+[
+    {
+        "schema_version": "1.0",
+        "current_stage": "new_alert",
+        "alert_summary": {
+            "incident_id": "INC-9102",
+            "alert_id": "NW-ALERT-9102-A",
+            "alert_name": "PowerShell Encoded Command with External Connection",
+            "alert_time": "2026-01-17T17:20:19+00:00",
+            "alert_time_epoch_ms": 1768670419000,
+            "severity": "Critical",
+            "incident_priority": "Critical",
+            "risk_score": 92.0,
+            "detection_source": "NetWitness",
+            "detection_name": "PowerShell Encoded Command with External Connection",
+            "event_type": "NetWitness Endpoint",
+            "primary_action": null,
+            "observed_actions": [],
+            "raw_event_count": 3,
+            "analyst_summary": "Critical alert involving suspicious file update_cache.tmp. Network activity was observed from 10.100.30.25:50444 to 91.234.55.66:443. The alert maps to MITRE ATT&CK T1059.001 Command And Scripting Interpreter: Powershell. Event type: NetWitness Endpoint."
+        },
+        "identifiers": {
+            "session_ids": [
+                "SID-9102-001",
+                "SID-9102-002",
+                "SID-9102-003"
+            ],
+            "event_source_ids": [
+                "ES-Endpoint-07",
+                "ES-Network-Proxy-02"
+            ],
+            "record_ids": [
+                "RID-772910",
+                "RID-772911",
+                "RID-772912"
+            ],
+            "signature_ids": [
+                "SIG-PS-ENCODED-443"
+            ]
+        },
+        "network_indicators": {
+            "source_ips": [
+                "10.100.30.25"
+            ],
+            "destination_ips": [
+                "91.234.55.66"
+            ],
+            "internal_ips": [
+                "10.100.30.25"
+            ],
+            "external_ips": [
+                "91.234.55.66"
+            ],
+            "source_ports": [
+                50444,
+                50445
+            ],
+            "destination_ports": [
+                443
+            ],
+            "protocols": [
+                "HTTPS"
+            ],
+            "services": [
+                "HTTPS"
+            ],
+            "direction": "outbound",
+            "community_ids": [
+                "1:abc9102xyz"
+            ],
+            "tcp_flags_seen": [],
+            "network_risk_info": [
+                "Suspicious PowerShell user agent",
+                "External HTTPS check-in"
+            ]
+        },
+        "user_and_host_indicators": {
+            "source_usernames": [],
+            "destination_usernames": [],
+            "source_emails": [],
+            "reply_to_emails": [],
+            "destination_emails": [],
+            "all_usernames": [
+                "nurul_a"
+            ],
+            "all_emails": [],
+            "hostnames": [
+                "RPSOCWSWin7"
+            ],
+            "domains": [
+                "RP-SOC"
+            ]
+        },
+        "email_indicators": {
+            "subjects": [],
+            "from_emails": [],
+            "sender_emails": [],
+            "reply_to_emails": [],
+            "recipient_emails": [],
+            "mail_clients": [],
+            "attachment_names": [
+                "update_cache.tmp"
+            ],
+            "attachment_extensions": [
+                "tmp"
+            ],
+            "attachment_filetypes": []
+        },
+        "file_indicators": {
+            "file_names": [
+                "update_cache.tmp"
+            ],
+            "file_paths": [],
+            "file_hashes": [
+                "a9993e364706816aba3e25717850c26c9cd0d89d",
+                "098f6bcd4621d373cade4e832627b4f6"
+            ],
+            "file_hashes_by_type": {
+                "md5": [
+                    "098f6bcd4621d373cade4e832627b4f6"
+                ],
+                "sha1": [
+                    "a9993e364706816aba3e25717850c26c9cd0d89d"
+                ],
+                "sha256": [],
+                "unknown": []
+            },
+            "file_extensions": [
+                "tmp"
+            ],
+            "file_types": [],
+            "file_sizes": [
+                48291
+            ],
+            "file_analysis": []
+        },
+        "process_indicators": {
+            "process_names": [
+                "powershell.exe",
+                "explorer.exe"
+            ],
+            "process_paths": [],
+            "parent_processes": [
+                "explorer.exe"
+            ],
+            "child_processes": [],
+            "process_relationships": [
+                {
+                    "event_index": 0,
+                    "parent": "explorer.exe",
+                    "child": "powershell.exe"
+                }
+            ],
+            "command_lines": [
+                "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0ACAATgBlAHQALgBXAGUAYgBDAGwAaQBlAG4AdAA="
+            ]
+        },
+        "web_indicators": {
+            "urls": [
+                "https://cdn-update-checker.net/api/v2/checkin"
+            ],
+            "domains": [
+                "cdn-update-checker.net"
+            ],
+            "user_agents": [
+                "Mozilla/5.0 WindowsPowerShell/5.1"
+            ]
+        },
+        "threat_context": {
+            "mitre_tactics": [
+                "Execution"
+            ],
+            "mitre_techniques": [
+                "Command and Scripting Interpreter: PowerShell"
+            ],
+            "mitre_technique_ids": [
+                "T1059.001"
+            ],
+            "threat_categories": [],
+            "risk_indicators": [
+                "Encoded PowerShell command",
+                "Hidden PowerShell window",
+                "Outbound connection to external IP"
+            ],
+            "analysis_services": [],
+            "analysis_sessions": [],
+            "feed_names": [],
+            "related_iocs": [
+                "10.100.30.25",
+                "91.234.55.66",
+                "RPSOCWSWin7",
+                "update_cache.tmp",
+                "a9993e364706816aba3e25717850c26c9cd0d89d",
+                "098f6bcd4621d373cade4e832627b4f6",
+                "https://cdn-update-checker.net/api/v2/checkin",
+                "RP-SOC",
+                "cdn-update-checker.net"
+            ]
+        },
+        "ioc_summary": {
+            "ips": [
+                "10.100.30.25",
+                "91.234.55.66"
+            ],
+            "emails": [],
+            "hostnames": [
+                "RPSOCWSWin7"
+            ],
+            "files": [
+                "update_cache.tmp"
+            ],
+            "hashes": [
+                "a9993e364706816aba3e25717850c26c9cd0d89d",
+                "098f6bcd4621d373cade4e832627b4f6"
+            ],
+            "urls": [
+                "https://cdn-update-checker.net/api/v2/checkin"
+            ],
+            "domains": [
+                "RP-SOC",
+                "cdn-update-checker.net"
+            ]
+        },
+        "normalised_events": [
+            {
+                "event_index": 0,
+                "event_time": "2026-01-17T17:20:19+00:00",
+                "event_time_epoch_ms": 1768670419000,
+                "event_type": "endpoint",
+                "action": null,
+                "source_ip": "10.100.30.25",
+                "destination_ip": "91.234.55.66",
+                "source_port": 50444,
+                "destination_port": 443,
+                "protocol": "HTTPS",
+                "username": null,
+                "hostname": "RPSOCWSWin7",
+                "domain": "RP-SOC",
+                "file_name": "powershell.exe",
+                "file_hash": null,
+                "url": null,
+                "user_agent": null,
+                "process_name": "powershell.exe",
+                "process_path": null,
+                "parent_process_name": "explorer.exe",
+                "child_process_name": null,
+                "child_process_path": null,
+                "command_line": "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0ACAATgBlAHQALgBXAGUAYgBDAGwAaQBlAG4AdAA=",
+                "session_id": "SID-9102-001",
+                "event_source_id": "ES-Endpoint-07",
+                "record_id": "RID-772910"
+            },
+            {
+                "event_index": 1,
+                "event_time": "2026-01-17T17:21:19+00:00",
+                "event_time_epoch_ms": 1768670479000,
+                "event_type": "network",
+                "action": null,
+                "source_ip": "10.100.30.25",
+                "destination_ip": "91.234.55.66",
+                "source_port": 50445,
+                "destination_port": 443,
+                "protocol": "HTTPS",
+                "username": null,
+                "hostname": "RPSOCWSWin7",
+                "domain": null,
+                "file_name": null,
+                "file_hash": null,
+                "url": "https://cdn-update-checker.net/api/v2/checkin",
+                "user_agent": "Mozilla/5.0 WindowsPowerShell/5.1",
+                "process_name": null,
+                "process_path": null,
+                "parent_process_name": null,
+                "child_process_name": null,
+                "child_process_path": null,
+                "command_line": null,
+                "session_id": "SID-9102-002",
+                "event_source_id": "ES-Network-Proxy-02",
+                "record_id": "RID-772911"
+            },
+            {
+                "event_index": 2,
+                "event_time": "2026-01-17T17:22:19+00:00",
+                "event_time_epoch_ms": 1768670539000,
+                "event_type": "endpoint",
+                "action": null,
+                "source_ip": null,
+                "destination_ip": null,
+                "source_port": null,
+                "destination_port": null,
+                "protocol": null,
+                "username": null,
+                "hostname": "RPSOCWSWin7",
+                "domain": null,
+                "file_name": "update_cache.tmp",
+                "file_hash": "a9993e364706816aba3e25717850c26c9cd0d89d",
+                "url": null,
+                "user_agent": null,
+                "process_name": null,
+                "process_path": null,
+                "parent_process_name": null,
+                "child_process_name": null,
+                "child_process_path": null,
+                "command_line": null,
+                "session_id": "SID-9102-003",
+                "event_source_id": "ES-Endpoint-07",
+                "record_id": "RID-772912"
+            }
+        ],
+        "netwitness_links": {
+            "investigation_links": [
+                "/investigation/navigate/query/INC-9102"
+            ]
+        },
+        "parser_metadata": {
+            "parser": "soc_netwitness_parser",
+            "parser_version": "3.3-soc-normalised",
+            "input_format": "full_incident_export",
+            "normalisation_status": "success",
+            "selected_alert_index": 0,
+            "alert_count": 1,
+            "raw_event_count": 3,
+            "raw_meta_key_count": 84,
+            "parser_confidence": "High",
+            "parser_confidence_score": 95,
+            "missing_fields": [
+                "source_email",
+                "destination_email"
+            ],
+            "warnings": [
+                "Missing important fields: source_email, destination_email"
+            ],
+            "debug_available": true,
+            "extraction_summary": {
+                "key_fields_found": [
+                    "alert_id",
+                    "alert_name",
+                    "alert_time",
+                    "severity",
+                    "source_ip",
+                    "destination_ip",
+                    "file_name",
+                    "mitre_technique_id"
+                ],
+                "key_fields_missing": [
+                    "source_email",
+                    "destination_email"
+                ],
+                "fallback_fields_used": true
+            },
+            "generated_at": "2026-05-30T11:33:42.017774+00:00"
+        },
+        "data_quality": {
+            "parser_confidence": "High",
+            "parser_confidence_score": 95,
+            "confidence_explanation": "Main SOC parsing fields were extracted successfully.",
+            "missing_required_fields": [
+                "source_email",
+                "destination_email"
+            ],
+            "missing_optional_fields": [],
+            "warnings": [
+                "Missing important fields: source_email, destination_email"
+            ],
+            "normalised_event_count": 3,
+            "raw_meta_key_count": 84
+        },
+        "compatibility_view": {
+            "current_stage": "new_alert",
+            "incident_id": "INC-9102",
+            "alert_id": "NW-ALERT-9102-A",
+            "alert_title": "PowerShell Encoded Command with External Connection",
+            "alert_type": "NetWitness Endpoint",
+            "alert_source": "NetWitness",
+            "alert_created_time": "2026-01-17T17:20:19+00:00",
+            "incident_title": "Suspicious PowerShell Network Connection",
+            "incident_priority": "Critical",
+            "incident_risk_score": 92,
+            "incident_first_alert_time": 1768670419000,
+            "source_ip": "10.100.30.25",
+            "destination_ip": "91.234.55.66",
+            "source_port": 50444,
+            "destination_port": 443,
+            "source_username": null,
+            "destination_username": null,
+            "username": "nurul_a",
+            "event_domain": "RP-SOC",
+            "possible_file_name": "update_cache.tmp",
+            "file_hash": "a9993e364706816aba3e25717850c26c9cd0d89d",
+            "session_id": "SID-9102-001",
+            "event_source_id": "ES-Endpoint-07",
+            "record_id": "RID-772910",
+            "severity": "Critical",
+            "timestamp": "2026-01-17T17:20:19+00:00",
+            "parser_confidence": "High",
+            "parser_warnings": [
+                "Missing important fields: source_email, destination_email"
+            ],
+            "missing_fields": [
+                "source_email",
+                "destination_email"
+            ]
+        }
+    }
+]

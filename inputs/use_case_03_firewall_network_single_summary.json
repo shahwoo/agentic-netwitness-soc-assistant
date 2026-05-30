@@ -1,0 +1,38 @@
+{
+  "id": "ALERT-9203-FW",
+  "name": "Multiple Denied Inbound Connections",
+  "severity": "Medium",
+  "riskScore": 55,
+  "timestamp": 1768674019000,
+  "type": "Network Firewall",
+  "events": [
+    {
+      "event_time": 1768674019000,
+      "type": "network",
+      "action": "deny",
+      "source_ip": "8.8.4.4",
+      "source_port": 43111,
+      "destination_ip": "10.100.40.10",
+      "destination_port": 22,
+      "protocol": "TCP",
+      "direction": "inbound",
+      "community_id": "1:fw9203a",
+      "rid": "RID-FW-001",
+      "event_source_id": "ES-Firewall-01"
+    },
+    {
+      "event_time": 1768674025000,
+      "type": "network",
+      "action": "deny",
+      "source_ip": "8.8.4.4",
+      "source_port": 43112,
+      "destination_ip": "10.100.40.10",
+      "destination_port": 3389,
+      "protocol": "TCP",
+      "direction": "inbound",
+      "community_id": "1:fw9203b",
+      "rid": "RID-FW-002",
+      "event_source_id": "ES-Firewall-01"
+    }
+  ]
+}

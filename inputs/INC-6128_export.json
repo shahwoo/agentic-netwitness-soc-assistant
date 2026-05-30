@@ -1,0 +1,462 @@
+{
+  "incident_id": "INC-6128",
+  "exported_at": "2026-02-02T04:26:30.749907+00:00",
+  "counts": {
+    "alerts_summary_count": 1,
+    "alerts_full_count": 1,
+    "alerts_extracted_count": 1,
+    "errors_count": 0
+  },
+  "incident_raw": {
+    "id": "INC-6128",
+    "title": "High Risk Alerts: ECAT for 70.0",
+    "summary": "",
+    "priority": "High",
+    "riskScore": 70,
+    "status": "New",
+    "alertCount": 1,
+    "averageAlertRiskScore": 70,
+    "sealed": true,
+    "totalRemediationTaskCount": 0,
+    "openRemediationTaskCount": 0,
+    "created": "2026-01-17T18:03:22.667Z",
+    "lastUpdated": "2026-01-18T09:28:42.449Z",
+    "lastUpdatedBy": null,
+    "assignee": null,
+    "sources": [
+      "ECAT"
+    ],
+    "ruleId": "640adea69e01cd06b9a459e4",
+    "firstAlertTime": "2026-01-17T18:03:21.168Z",
+    "categories": [],
+    "journalEntries": null,
+    "createdBy": "High Risk Alerts: ECAT",
+    "deletedAlertCount": 1,
+    "eventCount": 1,
+    "alertMeta": {
+      "SourceIp": [
+        ""
+      ],
+      "DestinationIp": [
+        ""
+      ]
+    },
+    "tactics": [],
+    "techniques": []
+  },
+  "alerts_summary_raw": {
+    "items": [
+      {
+        "id": "696bcee992fe737340c9e62c",
+        "title": "Lateral Movement With Credentials Using Net Utility",
+        "detail": null,
+        "created": "2026-01-17T18:03:21.168Z",
+        "source": "ECAT",
+        "riskScore": null,
+        "type": "Endpoint",
+        "events": [
+          {
+            "source": {
+              "device": {
+                "ipAddress": null,
+                "port": null,
+                "macAddress": null,
+                "dnsHostname": null,
+                "dnsDomain": null
+              },
+              "user": {
+                "username": "NT AUTHORITY\\SYSTEM",
+                "emailAddress": null,
+                "adUsername": null,
+                "adDomain": null
+              }
+            },
+            "destination": {
+              "device": {
+                "ipAddress": null,
+                "port": null,
+                "macAddress": null,
+                "dnsHostname": null,
+                "dnsDomain": null
+              },
+              "user": {
+                "username": null,
+                "emailAddress": null,
+                "adUsername": null,
+                "adDomain": null
+              }
+            },
+            "domain": "RP-SOC-WS-Win14",
+            "eventSource": "e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005",
+            "eventSourceId": "3634"
+          }
+        ],
+        "tactics": null,
+        "techniques": null
+      }
+    ],
+    "pageNumber": 0,
+    "pageSize": 100,
+    "totalPages": 1,
+    "totalItems": 1,
+    "hasNext": false,
+    "hasPrevious": false
+  },
+  "alerts_full_raw": [
+    {
+      "_id": "696bcee992fe737340c9e62c",
+      "receivedTime": 1768673001174,
+      "status": "GROUPED_IN_INCIDENT",
+      "originalHeaders": {
+        "name": "Lateral Movement With Credentials Using Net Utility",
+        "description": null,
+        "version": 0,
+        "severity": 7,
+        "timestamp": 1768673001168,
+        "signatureId": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+        "deviceVendor": "RSA Netwitness",
+        "deviceProduct": "Event Stream Analysis",
+        "deviceVersion": "12.5",
+        "uebaSource": null,
+        "whiteListAlertSources": [
+          "nwendpoint"
+        ]
+      },
+      "originalAlert": {
+        "severity": 7,
+        "eventSourceId": "e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005:3634",
+        "respondEnabled": true,
+        "engineUri": "",
+        "moduleName": "Lateral Movement With Credentials Using Net Utility",
+        "suppressMessageBus": false,
+        "transientAlert": false,
+        "version": "",
+        "notificationReasons": [],
+        "actualEventsCount": 1,
+        "instanceId": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+        "statement": "Lateral Movement With Credentials Using Net Utility",
+        "contentUuid": "",
+        "id": "9d4bc319-5ece-48fb-82eb-9f7ce63d125e",
+        "time": "Jan 17, 2026 18:03:21 PM UTC",
+        "events": [
+          {
+            "checksum_src": [
+              "ff79d3c4a0b7eb191783c323ab8363ebd1fd10be58d8bcc96b07067743ca81d5",
+              "d7ab69fad18d4a643d84a271dfc0dbdf"
+            ],
+            "process_vid_dst": "180312141403192413",
+            "attack_tid": "T1021.002",
+            "agent_id": "2D5215DE-376E-4418-BB1C-D278975E7FB8",
+            "device_type": "nwendpoint",
+            "sessionid": 3634,
+            "rid": 3634,
+            "feed_name": [
+              "investigation",
+              "investigation"
+            ],
+            "action": [
+              "createProcess"
+            ],
+            "attack_tactic": "lateral-movement",
+            "directory_src": [
+              "C:\\Windows\\System32\\"
+            ],
+            "msg_id": "nwendpoint",
+            "cert_thumbprint": [
+              "ff82bc38e1da5e596df374c53e3617f7eda36b06"
+            ],
+            "event_source_id": "e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005:3634",
+            "process_vid_src": "8140364004713216150",
+            "checksum_dst": [
+              "96cdfd7b263947a6a7c0db54141a6b8d7777db0a03a17cbf95666d98422f937b",
+              "a63df9a6e9098cc189f2a3efc37600f6"
+            ],
+            "esa_time": 1768673001168,
+            "file_cat_dst": [
+              "reconnaissance tool"
+            ],
+            "size": 41,
+            "context_src": [
+              "file.autorun",
+              "file.protected",
+              "cert.rootMicrosoft",
+              "file.exe",
+              "file.arch64",
+              "signature.microsoft",
+              "file.signed",
+              "signature.catalog"
+            ],
+            "boc": [
+              "Potential Abuse of Net Utility",
+              "lateral movement with credentials using net utility",
+              "enumerates local users"
+            ],
+            "nwe_callback_id": "nwe://3267129f-a75b-4147-9f9b-c476b2a7059d",
+            "alias_host": [
+              "RP-SOC-WS-Win14"
+            ],
+            "filename_dst": [
+              "net.exe"
+            ],
+            "com_rsa_netwitness_streams_stream": "RP-SOC2-EndpointHybrid",
+            "medium": 32,
+            "user_src": "NT AUTHORITY\\SYSTEM",
+            "forward_ip": "127.0.0.1",
+            "dir_path_src": [
+              "windows",
+              "windowsSystem32"
+            ],
+            "alias_ip": [
+              "10.100.20.16"
+            ],
+            "device_disc": 30,
+            "owner": "RP-SOC-WS-WIN14\\Admin2",
+            "attack_technique": "smb/windows admin shares",
+            "com_rsa_netwitness_streams_arrival_timestamp": 1768672999605,
+            "OS": [
+              "windows",
+              "Microsoft Windows 10 Pro"
+            ],
+            "filename_src": [
+              "cmd.exe"
+            ],
+            "param_dst": [
+              "net  use y: \\\\10.100.20.74\\shared_files /user:RP-SOC-WS-WIN19\\admin2 Republic1"
+            ],
+            "device_disc_type": "nwendpoint",
+            "com_rsa_netwitness_streams_source_trail": [
+              "admin@10.100.30.35:50005"
+            ],
+            "user_dst": "NT AUTHORITY\\SYSTEM",
+            "netname": [
+              "private misc"
+            ],
+            "risk": [
+              "high",
+              "medium"
+            ],
+            "time": 1768672993000,
+            "category": "Process Event",
+            "com_rsa_netwitness_streams_arrival_sequence": 750561,
+            "did": "rp-soc-nwe-svr2",
+            "dir_path_dst": [
+              "windows",
+              "windowsSystem32"
+            ],
+            "directory_dst": [
+              "C:\\Windows\\system32\\"
+            ],
+            "event_time": 1768672252
+          }
+        ],
+        "suppressNotification": false
+      },
+      "alert": {
+        "groupby_alias_ip": "10.100.20.16",
+        "groupby_source_device_mac_address": "",
+        "user_summary": [
+          "NT AUTHORITY\\SYSTEM"
+        ],
+        "groupby_dst_device_geolocation_domain": "",
+        "source": "ECAT",
+        "type": [
+          "Endpoint"
+        ],
+        "groupby_user_src": "NT AUTHORITY\\SYSTEM",
+        "groupby_src_device_dns_domain": "",
+        "groupby_source_country": "",
+        "groupby_analysis_file": "",
+        "groupby_filename": "cmd.exe",
+        "groupby_source_username": "NT AUTHORITY\\SYSTEM",
+        "groupby_detector_ip": "",
+        "groupby_dst_usr_username": "",
+        "events": [
+          {
+            "agent_id": "2D5215DE-376E-4418-BB1C-D278975E7FB8",
+            "data": [
+              {
+                "filename": "cmd.exe",
+                "size": 41,
+                "hash": "ff79d3c4a0b7eb191783c323ab8363ebd1fd10be58d8bcc96b07067743ca81d5"
+              }
+            ],
+            "destination": {
+              "path": "C:\\Windows\\system32\\",
+              "file_SHA256": "96cdfd7b263947a6a7c0db54141a6b8d7777db0a03a17cbf95666d98422f937b",
+              "filename": "net.exe",
+              "launch_argument": "net  use y: \\\\10.100.20.74\\shared_files /user:RP-SOC-WS-WIN19\\admin2 Republic1",
+              "device": {
+                "compliance_rating": "",
+                "netbios_name": "",
+                "port": "",
+                "mac_address": "",
+                "criticality": "",
+                "asset_type": "",
+                "ip_address": "",
+                "facility": "",
+                "business_unit": ""
+              },
+              "hash": "96cdfd7b263947a6a7c0db54141a6b8d7777db0a03a17cbf95666d98422f937b"
+            },
+            "description": "",
+            "domain_src": "",
+            "port_src": "",
+            "device_type": "nwendpoint",
+            "event_source": "e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005",
+            "source": {
+              "path": "C:\\Windows\\System32\\",
+              "file_SHA256": "ff79d3c4a0b7eb191783c323ab8363ebd1fd10be58d8bcc96b07067743ca81d5",
+              "filename": "cmd.exe",
+              "launch_argument": "",
+              "device": {
+                "compliance_rating": "",
+                "netbios_name": "",
+                "port": "",
+                "mac_address": "",
+                "criticality": "",
+                "asset_type": "",
+                "ip_address": "",
+                "facility": "",
+                "business_unit": ""
+              },
+              "user": {
+                "email_address": "",
+                "ad_username": "",
+                "ad_domain": "",
+                "username": "NT AUTHORITY\\SYSTEM"
+              },
+              "hash": "ff79d3c4a0b7eb191783c323ab8363ebd1fd10be58d8bcc96b07067743ca81d5"
+            },
+            "type": "Endpoint",
+            "analysis_file": "",
+            "directory": "",
+            "registry_key": "",
+            "enrichment": "",
+            "user_src": "NT AUTHORITY\\SYSTEM",
+            "hostname": "RP-SOC-WS-Win14",
+            "analysis_service": "",
+            "process_vid": "8140364004713216150",
+            "host_src": "",
+            "function": null,
+            "context": null,
+            "action": "createProcess",
+            "operating_system": "windows",
+            "alias_ip": "10.100.20.16",
+            "from": "",
+            "attack_tactic": "lateral-movement",
+            "timestamp": 1768672993000,
+            "ec_subject": "",
+            "event_source_id": "3634",
+            "attack_technique": "smb/windows admin shares",
+            "related_links": [
+              {
+                "type": "investigate_original_event",
+                "url": "/investigation/host/e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005/reconstruction/3634/DETAILS"
+              },
+              {
+                "type": "investigate_destination_domain",
+                "url": "/investigation/e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005/navigate/query/alias.host%3D'RP-SOC-WS-Win14'%2Fdate%2F2026-01-17T17%3A53%3A13.000Z%2F2026-01-17T18%3A13%3A13.000Z"
+              }
+            ],
+            "service_name": "",
+            "port_dst": "",
+            "domain_dst": "",
+            "user_dst": "NT AUTHORITY\\SYSTEM",
+            "autorun_type": "",
+            "host_dst": "",
+            "domain": "RP-SOC-WS-Win14",
+            "user_account": "RP-SOC-WS-WIN14\\Admin2",
+            "to": "",
+            "category": "Process Event",
+            "nwe_callback_id": "nwe://3267129f-a75b-4147-9f9b-c476b2a7059d",
+            "cert_common": "",
+            "user": "NT AUTHORITY\\SYSTEM",
+            "analysis_session": "",
+            "event_time": 1768672252,
+            "site_categorization": null,
+            "username": ""
+          }
+        ],
+        "groupby_detector_dns_hostname": "",
+        "host_summary": [
+          "RP-SOC-WS-Win14"
+        ],
+        "groupby_username": "",
+        "groupby_file_sha_256": "",
+        "original_source": "Event Stream Analysis",
+        "groupby_user_dst": "NT AUTHORITY\\SYSTEM",
+        "groupby_dst_device_dns_hostname": "",
+        "groupby_os": "windows",
+        "groupby_src_usr_ad_domain": "",
+        "groupby_dst_usr_ad_username": "",
+        "name": "Lateral Movement With Credentials Using Net Utility",
+        "groupby_detector_dns_domain": "",
+        "groupby_host_src": "",
+        "groupby_analysis_service": "",
+        "groupby_destination_device_mac_address": "",
+        "groupby_version": "0",
+        "groupby_dst_device_netbios_name": "",
+        "destination_country": [],
+        "groupby_type": "Endpoint",
+        "groupby_device_type": "",
+        "groupby_domain": "RP-SOC-WS-Win14",
+        "groupby_destination_country": "",
+        "groupby_dst_device_dns_domain": "",
+        "groupby_analysis_session": "",
+        "signature_id": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+        "groupby_data_hash": "ff79d3c4a0b7eb191783c323ab8363ebd1fd10be58d8bcc96b07067743ca81d5",
+        "groupby_domain_dst": "",
+        "groupby_src_device_netbios_name": "",
+        "groupby_destination_ip": "",
+        "groupby_host_dst": "",
+        "groupby_source_ip": "",
+        "groupby_detector_mac_address": "",
+        "timestamp": 1768673001168,
+        "severity": 70.0,
+        "related_links": [
+          {
+            "type": "investigate_session",
+            "url": "/investigation/e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005/navigate/query/sessionid%3D3634"
+          },
+          {
+            "type": "investigate_destination_domain",
+            "url": "/investigation/e7e65ec7-60dc-47a3-b8e9-92812e391eee:50005/navigate/query/alias.host%3D'RP-SOC-WS-Win14'%2Fdate%2F2026-01-17T17%3A53%3A13.000Z%2F2026-01-17T18%3A13%3A13.000Z"
+          }
+        ],
+        "risk_score": 70.0,
+        "groupby_src_device_geolocation_domain": "",
+        "groupby_dst_usr_ad_domain": "",
+        "groupby_destination_port": "",
+        "groupby_c2domain": "",
+        "groupby_host_name": "RP-SOC-WS-Win14",
+        "groupby_src_usr_ad_username": "",
+        "groupby_src_device_dns_hostname": "",
+        "source_country": [],
+        "groupby_domain_src": "",
+        "numEvents": 1,
+        "groupby_agent_id": "2D5215DE-376E-4418-BB1C-D278975E7FB8"
+      },
+      "partOfIncident": true,
+      "lastUpdated": 1768673002667,
+      "_class": "com.rsa.asoc.respond.commons.domain.Alert",
+      "incidentCreated": 1768673002667,
+      "incidentId": "INC-6128"
+    }
+  ],
+  "alerts_extracted": [
+    {
+      "_id": "696bcee992fe737340c9e62c",
+      "id": null,
+      "name": null,
+      "title": null,
+      "type": null,
+      "severity": null,
+      "riskScore": null,
+      "created": null,
+      "attack_tactic": "lateral-movement",
+      "attack_technique": "smb/windows admin shares",
+      "attack_tid": "T1021.002"
+    }
+  ],
+  "errors": []
+}
