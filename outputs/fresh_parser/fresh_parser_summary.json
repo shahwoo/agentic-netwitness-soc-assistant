@@ -1,0 +1,83 @@
+{
+    "parsing_succeeded": true,
+    "parser_status": "completed",
+    "detected_input_format": "incident_details_with_alerts",
+    "normalised_alert_count": 1,
+    "selected_alert_id": "ALERT-9001",
+    "parser_confidence": "High",
+    "parser_confidence_score": 100,
+    "important_extracted_fields": {
+        "alert_id": "ALERT-9001",
+        "incident_id": "INC-9001",
+        "alert_name": "Suspicious Email Attachment",
+        "alert_time": "2025-07-22T09:06:22.981000+00:00",
+        "severity": "High",
+        "risk_score": 85.0,
+        "source_ips": [
+            "185.199.108.153",
+            "10.100.20.16"
+        ],
+        "destination_ips": [
+            "10.100.10.7",
+            "45.77.88.21"
+        ],
+        "source_ports": [
+            443,
+            49821
+        ],
+        "destination_ports": [
+            25,
+            443
+        ],
+        "services": [
+            "SMTP",
+            "HTTPS"
+        ],
+        "users": [
+            "jolin_j"
+        ],
+        "emails": [
+            "jolin_j@rp-soc.com",
+            "it-support@secure-rp-support.com",
+            "helpdesk@secure-rp-support.com"
+        ],
+        "hosts": [
+            "NW-MAIL-GW01",
+            "RPSOCWSWin2"
+        ],
+        "file_names": [
+            "Password_Reset_Form.docm"
+        ],
+        "file_hashes": [
+            "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+            "3395856ce81f2b7382dee72602f798b642f14140",
+            "44d88612fea8a8f36de82e1278abb02f"
+        ],
+        "process_names": [
+            "WINWORD.EXE",
+            "powershell.exe",
+            "OUTLOOK.EXE"
+        ],
+        "parent_processes": [
+            "OUTLOOK.EXE",
+            "WINWORD.EXE"
+        ],
+        "child_processes": [
+            "powershell.exe"
+        ],
+        "mitre_technique_ids": [
+            "T1566.001"
+        ]
+    },
+    "missing_important_fields": [],
+    "warnings": [],
+    "output_files": {
+        "normalised_alert": "outputs\\fresh_parser\\fresh_normalised_alert.json",
+        "processed_alert": "outputs\\fresh_parser\\fresh_processed_alert.json",
+        "processed_alert_csv": "outputs\\fresh_parser\\fresh_processed_alert.csv",
+        "all_normalised_alerts": "outputs\\fresh_parser\\fresh_netwitness_normalised_alerts.json",
+        "parser_summary": "outputs\\fresh_parser\\fresh_parser_summary.json",
+        "raw_debug": "outputs\\fresh_parser\\fresh_raw_alert_debug.json"
+    },
+    "generated_at": "2026-05-30T11:24:17.189519+00:00"
+}

@@ -1,0 +1,134 @@
+{
+  "incident_raw": {
+    "id": "INC-9102",
+    "title": "Suspicious PowerShell Network Connection",
+    "priority": "Critical",
+    "riskScore": 92,
+    "averageAlertRiskScore": 92,
+    "status": "New",
+    "alertCount": 1,
+    "firstAlertTime": 1768670419000,
+    "lastUpdated": 1768670719000,
+    "alertMeta": {
+      "SourceIp": [
+        "10.100.30.25"
+      ],
+      "DestinationIp": [
+        "91.234.55.66"
+      ],
+      "HostName": [
+        "RPSOCWSWin7"
+      ],
+      "UserName": [
+        "nurul_a"
+      ]
+    }
+  },
+  "alerts_full_raw": [
+    {
+      "_id": "NW-ALERT-9102-A",
+      "receivedTime": 1768670419000,
+      "originalHeaders": {
+        "name": "PowerShell Encoded Command with External Connection",
+        "severity": "Critical",
+        "timestamp": 1768670419000,
+        "deviceProduct": "NetWitness Endpoint",
+        "signatureId": "SIG-PS-ENCODED-443"
+      },
+      "originalAlert": {
+        "moduleName": "Suspicious Endpoint Behaviour",
+        "severity": "Critical",
+        "time": 1768670419000,
+        "events": [
+          {
+            "time": 1768670419000,
+            "type": "endpoint",
+            "event_type": "process_creation",
+            "alias_host": [
+              "RPSOCWSWin7"
+            ],
+            "username": [
+              "nurul_a"
+            ],
+            "domain": "RP-SOC",
+            "filename": "powershell.exe",
+            "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "process_name": "powershell.exe",
+            "parent_process_name": "explorer.exe",
+            "command_line": "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0ACAATgBlAHQALgBXAGUAYgBDAGwAaQBlAG4AdAA=",
+            "ip_src": "10.100.30.25",
+            "ip_dst": "91.234.55.66",
+            "tcp_srcport": 50444,
+            "tcp_dstport": 443,
+            "protocol": "HTTPS",
+            "direction": "outbound",
+            "sessionid": "SID-9102-001",
+            "rid": "RID-772910",
+            "event_source_id": "ES-Endpoint-07",
+            "attack_tactic": "Execution",
+            "attack_technique": "Command and Scripting Interpreter: PowerShell",
+            "attack_tid": "T1059.001",
+            "risk_suspicious": [
+              "Encoded PowerShell command",
+              "Hidden PowerShell window",
+              "Outbound connection to external IP"
+            ]
+          },
+          {
+            "time": 1768670479000,
+            "type": "network",
+            "event_type": "http_connection",
+            "alias_host": [
+              "RPSOCWSWin7"
+            ],
+            "username": [
+              "nurul_a"
+            ],
+            "ip_src": "10.100.30.25",
+            "ip_dst": "91.234.55.66",
+            "tcp_srcport": 50445,
+            "tcp_dstport": 443,
+            "protocol": "HTTPS",
+            "direction": "outbound",
+            "url": "https://cdn-update-checker.net/api/v2/checkin",
+            "user_agent": "Mozilla/5.0 WindowsPowerShell/5.1",
+            "community_id": "1:abc9102xyz",
+            "sessionid": "SID-9102-002",
+            "rid": "RID-772911",
+            "event_source_id": "ES-Network-Proxy-02",
+            "risk_info": [
+              "Suspicious PowerShell user agent",
+              "External HTTPS check-in"
+            ]
+          },
+          {
+            "time": 1768670539000,
+            "type": "endpoint",
+            "event_type": "file_write",
+            "alias_host": [
+              "RPSOCWSWin7"
+            ],
+            "username": [
+              "nurul_a"
+            ],
+            "filename": "update_cache.tmp",
+            "path": "C:\\Users\\nurul_a\\AppData\\Local\\Temp\\update_cache.tmp",
+            "size": 48291,
+            "sha256": "8f14e45fceea167a5a36dedd4bea2543a1234567890abcdef1234567890abcd",
+            "sha1": "a9993e364706816aba3e25717850c26c9cd0d89d",
+            "md5": "098f6bcd4621d373cade4e832627b4f6",
+            "sessionid": "SID-9102-003",
+            "rid": "RID-772912",
+            "event_source_id": "ES-Endpoint-07"
+          }
+        ]
+      },
+      "related_links": [
+        {
+          "name": "NetWitness Investigation",
+          "url": "/investigation/navigate/query/INC-9102"
+        }
+      ]
+    }
+  ]
+}

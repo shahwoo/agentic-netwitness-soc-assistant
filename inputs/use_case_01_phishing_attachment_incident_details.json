@@ -1,0 +1,108 @@
+{
+  "incident_details": {
+    "id": "INC-9201",
+    "title": "Email with Suspicious Attachment Detected",
+    "priority": "High",
+    "riskScore": 86,
+    "alertCount": 1
+  },
+  "alerts": [
+    {
+      "id": "ALERT-9201-A",
+      "name": "Suspicious Email Attachment",
+      "type": "Email Threat",
+      "severity": "High",
+      "riskScore": 86,
+      "timestamp": 1753175182981,
+      "mitre": {
+        "tactic": "Initial Access",
+        "technique": "Phishing: Spearphishing Attachment",
+        "technique_id": "T1566.001"
+      },
+      "events": [
+        {
+          "event_id": "EVT-9201-1",
+          "event_time": 1753175182981,
+          "device": {
+            "type": "mail_gateway",
+            "product": "RSA NetWitness",
+            "hostname": "NW-MAIL-GW01"
+          },
+          "email": {
+            "from": "\"HR Portal\" <hr-notice@rp-hr-portal.com>",
+            "to": "lim_wei@rp-soc.com",
+            "subject": "Updated Leave Balance Report",
+            "message_id": "<9201@rp-hr-portal.com>",
+            "sender_ip": "185.199.108.153",
+            "reply_to": "support@rp-hr-portal.com",
+            "attachments": [
+              {
+                "filename": "Leave_Balance_Report.xlsm",
+                "filetype": "Microsoft Excel Macro-Enabled Workbook",
+                "size": 321889,
+                "md5": "44d88612fea8a8f36de82e1278abb02f",
+                "sha1": "3395856ce81f2b7382dee72602f798b642f14140",
+                "sha256": "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"
+              }
+            ],
+            "urls": [
+              "http://rp-hr-portal.com/login"
+            ]
+          },
+          "network": {
+            "source_ip": "185.199.108.153",
+            "source_port": 443,
+            "destination_ip": "10.100.10.7",
+            "destination_port": 25,
+            "protocol": "SMTP",
+            "direction": "inbound"
+          },
+          "user": {
+            "username": "lim_wei",
+            "email": "lim_wei@rp-soc.com"
+          },
+          "host": {
+            "hostname": "RPSOCWSWin4",
+            "ip": "10.100.20.44"
+          }
+        },
+        {
+          "event_id": "EVT-9201-2",
+          "event_time": 1753175282981,
+          "device": {
+            "type": "endpoint",
+            "product": "RSA NetWitness Endpoint",
+            "hostname": "RPSOCWSWin4"
+          },
+          "host": {
+            "hostname": "RPSOCWSWin4",
+            "ip": "10.100.20.44"
+          },
+          "user": {
+            "username": "lim_wei",
+            "email": "lim_wei@rp-soc.com"
+          },
+          "process": {
+            "process_name": "EXCEL.EXE",
+            "process_path": "C:\\Program Files\\Microsoft Office\\root\\Office16\\EXCEL.EXE",
+            "parent_process_name": "OUTLOOK.EXE",
+            "command_line": "\"C:\\Program Files\\Microsoft Office\\root\\Office16\\EXCEL.EXE\" \"C:\\Users\\lim_wei\\Downloads\\Leave_Balance_Report.xlsm\""
+          },
+          "child_process": {
+            "process_name": "powershell.exe",
+            "process_path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "command_line": "powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand SQBFAFgA"
+          },
+          "network": {
+            "source_ip": "10.100.20.44",
+            "source_port": 49821,
+            "destination_ip": "45.77.88.21",
+            "destination_port": 443,
+            "protocol": "HTTPS",
+            "direction": "outbound"
+          }
+        }
+      ]
+    }
+  ]
+}

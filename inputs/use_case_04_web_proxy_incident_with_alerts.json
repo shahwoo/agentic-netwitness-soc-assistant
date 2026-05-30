@@ -1,0 +1,47 @@
+{
+  "incident": {
+    "id": "INC-9204",
+    "title": "Suspicious Web Proxy Request",
+    "priority": "Medium",
+    "riskScore": 62,
+    "firstAlertTime": 1768675019000
+  },
+  "alerts": [
+    {
+      "_id": "NW-ALERT-9204-WEB",
+      "name": "Suspicious URL Accessed",
+      "severity": "Medium",
+      "riskScore": 62,
+      "receivedTime": 1768675019000,
+      "type": "Web Proxy",
+      "events": [
+        {
+          "time": 1768675019000,
+          "type": "network",
+          "event_type": "web_proxy",
+          "alias_host": [
+            "RPSOCWSWin9"
+          ],
+          "username": [
+            "danial_r"
+          ],
+          "ip_src": "10.100.50.9",
+          "ip_dst": "104.21.32.44",
+          "tcp_srcport": 50555,
+          "tcp_dstport": 443,
+          "protocol": "HTTPS",
+          "direction": "outbound",
+          "url": "https://login-secure-update.example.net/session",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0",
+          "sessionid": "SID-9204-001",
+          "rid": "RID-WEB-001",
+          "event_source_id": "ES-Proxy-01",
+          "risk_info": [
+            "Newly observed domain",
+            "Unusual login-themed URL"
+          ]
+        }
+      ]
+    }
+  ]
+}

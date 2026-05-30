@@ -1,0 +1,475 @@
+{
+    "parser": "soc_netwitness_parser",
+    "parser_version": "3.4-context-aware-normalised",
+    "input_format": "incident_details_with_alerts",
+    "selected_alert_index": 0,
+    "selected_alert_id": "ALERT-9201-A",
+    "selected_alert_raw_evidence": {
+        "raw_meta_key_count": 64,
+        "field_evidence_paths": {
+            "incident_id": [
+                "incident.id"
+            ],
+            "incident_title": [
+                "incident.title"
+            ],
+            "incident_priority": [
+                "incident.priority"
+            ],
+            "incident_risk_score": [
+                "incident.riskScore"
+            ],
+            "alert_id": [
+                "alert.id",
+                "alert.mitre.technique_id",
+                "alert.events[0].event_id",
+                "alert.events[0].email.message_id",
+                "alert.events[1].event_id"
+            ],
+            "alert_name": [
+                "alert.name",
+                "incident.title",
+                "alert.events[0].device.hostname",
+                "alert.events[0].email.attachments[0].filename",
+                "alert.events[0].user.username",
+                "alert.events[0].host.hostname",
+                "alert.events[1].device.hostname",
+                "alert.events[1].host.hostname",
+                "alert.events[1].user.username",
+                "alert.events[1].process.process_name",
+                "alert.events[1].process.parent_process_name",
+                "alert.events[1].child_process.process_name"
+            ],
+            "alert_time": [
+                "alert.timestamp",
+                "alert.events[0].event_time",
+                "alert.events[1].event_time"
+            ],
+            "severity": [
+                "alert.severity",
+                "alert.riskScore",
+                "incident.priority",
+                "incident.riskScore"
+            ],
+            "risk_score": [
+                "alert.riskScore",
+                "incident.riskScore"
+            ],
+            "event_type": [
+                "alert.type",
+                "alert.events[0].device.type",
+                "alert.events[0].email.attachments[0].filetype",
+                "alert.events[1].device.type"
+            ],
+            "source_ip": [
+                "alert.events[0].email.sender_ip",
+                "alert.events[0].network.source_ip",
+                "alert.events[1].network.source_ip"
+            ],
+            "destination_ip": [
+                "alert.events[0].network.destination_ip",
+                "alert.events[1].network.destination_ip"
+            ],
+            "source_port": [
+                "alert.events[0].network.source_port",
+                "alert.events[1].network.source_port"
+            ],
+            "destination_port": [
+                "alert.events[0].network.destination_port",
+                "alert.events[1].network.destination_port"
+            ],
+            "protocol": [
+                "alert.events[0].network.protocol",
+                "alert.events[1].network.protocol"
+            ],
+            "direction": [
+                "alert.events[0].network.direction",
+                "alert.events[1].network.direction"
+            ],
+            "username": [
+                "alert.events[0].user.username",
+                "alert.events[1].user.username"
+            ],
+            "source_email": [
+                "alert.events[0].email.from"
+            ],
+            "reply_to_email": [
+                "alert.events[0].email.reply_to"
+            ],
+            "destination_email": [
+                "alert.events[0].email.to"
+            ],
+            "email": [
+                "alert.events[0].user.email",
+                "alert.events[1].user.email"
+            ],
+            "hostname": [
+                "alert.events[0].device.hostname",
+                "alert.events[0].host.hostname",
+                "alert.events[1].device.hostname",
+                "alert.events[1].host.hostname"
+            ],
+            "email_subject": [
+                "alert.events[0].email.subject"
+            ],
+            "file_name": [
+                "alert.events[0].email.attachments[0].filename"
+            ],
+            "file_hash": [
+                "alert.events[0].email.attachments[0].sha256",
+                "alert.events[0].email.attachments[0].sha1",
+                "alert.events[0].email.attachments[0].md5"
+            ],
+            "file_type": [
+                "alert.events[0].email.attachments[0].filetype"
+            ],
+            "file_size": [
+                "alert.events[0].email.attachments[0].size"
+            ],
+            "mitre_tactic": [
+                "alert.mitre.tactic"
+            ],
+            "mitre_technique": [
+                "alert.mitre.technique"
+            ],
+            "mitre_technique_id": [
+                "alert.mitre.technique_id"
+            ],
+            "url": [
+                "alert.events[0].email.urls[0]"
+            ],
+            "event_time": [
+                "alert.events[0].event_time",
+                "alert.events[1].event_time",
+                "alert.timestamp"
+            ],
+            "process_name": [
+                "alert.events[1].process.process_name",
+                "alert.events[1].child_process.process_name",
+                "alert.events[1].process.parent_process_name"
+            ],
+            "process_path": [
+                "alert.events[1].process.process_path",
+                "alert.events[1].child_process.process_path"
+            ],
+            "parent_process_name": [
+                "alert.events[1].process.parent_process_name"
+            ],
+            "child_process_name": [
+                "alert.events[1].child_process.process_name"
+            ],
+            "child_process_path": [
+                "alert.events[1].child_process.process_path"
+            ],
+            "command_line": [
+                "alert.events[1].process.command_line",
+                "alert.events[1].child_process.command_line"
+            ]
+        },
+        "sample_values": {
+            "incident_id": [
+                "INC-9201"
+            ],
+            "incident_title": [
+                "Email with Suspicious Attachment Detected"
+            ],
+            "incident_priority": [
+                "High"
+            ],
+            "incident_risk_score": [
+                86
+            ],
+            "alert_id": [
+                "ALERT-9201-A",
+                "T1566.001",
+                "EVT-9201-1",
+                "<9201@rp-hr-portal.com>",
+                "EVT-9201-2"
+            ],
+            "alert_name": [
+                "Suspicious Email Attachment",
+                "Email with Suspicious Attachment Detected",
+                "NW-MAIL-GW01",
+                "Leave_Balance_Report.xlsm",
+                "lim_wei",
+                "RPSOCWSWin4"
+            ],
+            "alert_time": [
+                1753175182981,
+                1753175282981
+            ],
+            "severity": [
+                "High",
+                86
+            ],
+            "risk_score": [
+                86
+            ],
+            "event_type": [
+                "Email Threat",
+                "mail_gateway",
+                "Microsoft Excel Macro-Enabled Workbook",
+                "endpoint"
+            ],
+            "source_ip": [
+                "185.199.108.153",
+                "10.100.20.44"
+            ],
+            "destination_ip": [
+                "10.100.10.7",
+                "45.77.88.21"
+            ],
+            "source_port": [
+                443,
+                49821
+            ],
+            "destination_port": [
+                25,
+                443
+            ],
+            "protocol": [
+                "SMTP",
+                "HTTPS"
+            ],
+            "direction": [
+                "inbound",
+                "outbound"
+            ],
+            "username": [
+                "lim_wei"
+            ],
+            "source_email": [
+                "\"HR Portal\" <hr-notice@rp-hr-portal.com>"
+            ],
+            "reply_to_email": [
+                "support@rp-hr-portal.com"
+            ],
+            "destination_email": [
+                "lim_wei@rp-soc.com"
+            ],
+            "email": [
+                "lim_wei@rp-soc.com"
+            ],
+            "hostname": [
+                "NW-MAIL-GW01",
+                "RPSOCWSWin4"
+            ],
+            "email_subject": [
+                "Updated Leave Balance Report"
+            ],
+            "file_name": [
+                "Leave_Balance_Report.xlsm"
+            ],
+            "file_hash": [
+                "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+                "3395856ce81f2b7382dee72602f798b642f14140",
+                "44d88612fea8a8f36de82e1278abb02f"
+            ],
+            "file_type": [
+                "Microsoft Excel Macro-Enabled Workbook"
+            ],
+            "file_size": [
+                321889
+            ],
+            "mitre_tactic": [
+                "Initial Access"
+            ],
+            "mitre_technique": [
+                "Phishing: Spearphishing Attachment"
+            ],
+            "mitre_technique_id": [
+                "T1566.001"
+            ],
+            "url": [
+                "http://rp-hr-portal.com/login"
+            ],
+            "event_time": [
+                1753175182981,
+                1753175282981
+            ],
+            "process_name": [
+                "EXCEL.EXE",
+                "powershell.exe",
+                "OUTLOOK.EXE"
+            ],
+            "process_path": [
+                "C:\\Program Files\\Microsoft Office\\root\\Office16\\EXCEL.EXE",
+                "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+            ],
+            "parent_process_name": [
+                "OUTLOOK.EXE"
+            ],
+            "child_process_name": [
+                "powershell.exe"
+            ],
+            "child_process_path": [
+                "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+            ],
+            "command_line": [
+                "\"C:\\Program Files\\Microsoft Office\\root\\Office16\\EXCEL.EXE\" \"C:\\Users\\lim_wei\\Downloads\\Leave_Balance_Report.xlsm\"",
+                "powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand SQBFAFgA"
+            ]
+        },
+        "event_evidence_paths": {
+            "event_0": {
+                "source_path": "events[0]",
+                "field_evidence_paths": {
+                    "alert_id": [
+                        "event.event_id",
+                        "event.email.message_id"
+                    ],
+                    "alert_name": [
+                        "event.device.hostname",
+                        "event.email.attachments[0].filename",
+                        "event.user.username",
+                        "event.host.hostname"
+                    ],
+                    "alert_time": [
+                        "event.event_time"
+                    ],
+                    "event_type": [
+                        "event.device.type",
+                        "event.email.attachments[0].filetype"
+                    ],
+                    "source_ip": [
+                        "event.email.sender_ip",
+                        "event.network.source_ip"
+                    ],
+                    "destination_ip": [
+                        "event.network.destination_ip"
+                    ],
+                    "source_port": [
+                        "event.network.source_port"
+                    ],
+                    "destination_port": [
+                        "event.network.destination_port"
+                    ],
+                    "protocol": [
+                        "event.network.protocol"
+                    ],
+                    "direction": [
+                        "event.network.direction"
+                    ],
+                    "username": [
+                        "event.user.username"
+                    ],
+                    "source_email": [
+                        "event.email.from"
+                    ],
+                    "reply_to_email": [
+                        "event.email.reply_to"
+                    ],
+                    "destination_email": [
+                        "event.email.to"
+                    ],
+                    "email": [
+                        "event.user.email"
+                    ],
+                    "hostname": [
+                        "event.device.hostname",
+                        "event.host.hostname"
+                    ],
+                    "email_subject": [
+                        "event.email.subject"
+                    ],
+                    "file_name": [
+                        "event.email.attachments[0].filename"
+                    ],
+                    "file_hash": [
+                        "event.email.attachments[0].sha256",
+                        "event.email.attachments[0].sha1",
+                        "event.email.attachments[0].md5"
+                    ],
+                    "file_type": [
+                        "event.email.attachments[0].filetype"
+                    ],
+                    "file_size": [
+                        "event.email.attachments[0].size"
+                    ],
+                    "url": [
+                        "event.email.urls[0]"
+                    ],
+                    "event_time": [
+                        "event.event_time"
+                    ]
+                }
+            },
+            "event_1": {
+                "source_path": "events[1]",
+                "field_evidence_paths": {
+                    "alert_id": [
+                        "event.event_id"
+                    ],
+                    "alert_name": [
+                        "event.device.hostname",
+                        "event.host.hostname",
+                        "event.user.username",
+                        "event.process.process_name",
+                        "event.process.parent_process_name",
+                        "event.child_process.process_name"
+                    ],
+                    "alert_time": [
+                        "event.event_time"
+                    ],
+                    "event_type": [
+                        "event.device.type"
+                    ],
+                    "source_ip": [
+                        "event.network.source_ip"
+                    ],
+                    "destination_ip": [
+                        "event.network.destination_ip"
+                    ],
+                    "source_port": [
+                        "event.network.source_port"
+                    ],
+                    "destination_port": [
+                        "event.network.destination_port"
+                    ],
+                    "protocol": [
+                        "event.network.protocol"
+                    ],
+                    "direction": [
+                        "event.network.direction"
+                    ],
+                    "username": [
+                        "event.user.username"
+                    ],
+                    "email": [
+                        "event.user.email"
+                    ],
+                    "hostname": [
+                        "event.device.hostname",
+                        "event.host.hostname"
+                    ],
+                    "event_time": [
+                        "event.event_time"
+                    ],
+                    "process_name": [
+                        "event.process.process_name",
+                        "event.child_process.process_name",
+                        "event.process.parent_process_name"
+                    ],
+                    "process_path": [
+                        "event.process.process_path",
+                        "event.child_process.process_path"
+                    ],
+                    "parent_process_name": [
+                        "event.process.parent_process_name"
+                    ],
+                    "child_process_name": [
+                        "event.child_process.process_name"
+                    ],
+                    "child_process_path": [
+                        "event.child_process.process_path"
+                    ],
+                    "command_line": [
+                        "event.process.command_line",
+                        "event.child_process.command_line"
+                    ]
+                }
+            }
+        }
+    },
+    "generated_at": "2026-05-30T13:57:10.501679+00:00"
+}

