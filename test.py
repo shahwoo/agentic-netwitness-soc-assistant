@@ -2,6 +2,9 @@ import yaml
 import json
 import os
 
+UNREAD_ALERTS_FOLDER = "triaged_alerts/"
+INCIDENT_REPORTS_FOLDER = "incident_reports/"
+
 def load_yaml_playbook(filepath: str) -> tuple[str, dict]:
     fallback_playbook = {
         "steps": {
@@ -47,9 +50,23 @@ def get_unread_alerts_inventory() -> str:
         except Exception:
             inventory_summary.append(f"- File: {f} (Unreadable JSON)")
     return "\n".join(inventory_summary)
-    
+
+def get_or_create_incident_folder() -> str:
+    existing = [d for d in os.listdir(INCIDENT_REPORTS_FOLDER) if d.startswith("Incident-")]
+    if not existing:
+        print("not existing")
+        next_id = "Incident-001"
+    else:
+        ids = [int(d.split("-")[1]) for d in existing if d.split("-")[1].isdigit()]
+        print(ids)
+        next_id = f"Incident-{max(ids)+1:03d}"
+        print(next_id)
+        
+    print(next_id)
+    path = os.path.join(INCIDENT_REPORTS_FOLDER, next_id)
+    os.makedirs(path, exist_ok=True)
+    return path
+
 PLAYBOOK_TEXT, PLAYBOOK_DICT = load_yaml_playbook("playbooks/phishing.yaml")
 
-e = PLAYBOOK_DICT['steps']['step_1']
-print(type(e))
-print(e)
+get_or_create_incident_folder()

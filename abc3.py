@@ -1,15 +1,14 @@
 import sys
-import json
 import yaml
 import os
 import shutil
-from langchain_ollama import ChatOllama
+from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
+from langchain_core.tools import tool
 from pydantic import BaseModel, Field
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.prompts import ChatPromptTemplate
 from typing import List, Literal, Optional
-import re
-import shutil
+
 
 # --- ANSI COLOR CODES ---
 class Color:
@@ -36,9 +35,8 @@ def log_analyst(step: str, thought: str, answer: str):
 # ==========================================
 UNREAD_ALERTS_FOLDER = "triaged_alerts/"
 INCIDENT_REPORTS_FOLDER = "incident_reports/"
-exhausted_pivots = []
-available_pivots = []
-
+PLAYBOOKS_FOLDER = "playbooks/"
+load_dotenv()
 
 os.makedirs(UNREAD_ALERTS_FOLDER, exist_ok=True)
 os.makedirs(INCIDENT_REPORTS_FOLDER, exist_ok=True)
@@ -84,7 +82,7 @@ def get_or_create_incident_folder() -> str:
         next_id = "Incident-001"
     else:
         ids = [int(d.split("-")[1]) for d in existing if d.split("-")[1].isdigit()]
-        next_id = f"Incident-{max(ids):03d}" if ids else "Incident-001"
+        next_id = f"Incident-{max(ids)+1:03d}" if ids else "Incident-001"
     
     path = os.path.join(INCIDENT_REPORTS_FOLDER, next_id)
     os.makedirs(path, exist_ok=True)
@@ -138,8 +136,6 @@ def search_unread_alerts(query_list: list, destination_folder: str) -> str:
 
     for i in keywords:
         exhausted_pivots.append(i)
-        if i in available_pivots:
-            available_pivots.remove(i)
 
     if not matched_any:
         log_warning(f"Query for tracking values {keywords} returned 0 new records from unread alerts queue.")
@@ -194,8 +190,6 @@ class PlaybookDrivenDecision(BaseModel):
         RULES:
 
         - Only use observed facts.
-        - Never speculate.
-        - Never guess.
         - Never answer the question here.
         - Never use:
           likely
@@ -244,7 +238,7 @@ class PlaybookDrivenDecision(BaseModel):
 
         MUST contain ONLY pivot values given by user, as a list of ONLY values.
 
-        VALID EXAMPLE: (DO NOT USE THESE EXAMPLES AS ACTUAL OUTPUT)
+        VALID EXAMPLE: (DO NOT USE AS ACTUAL OUTPUT)
         - 10.100.20.16
         - WIN-CLIENT01
         - alice@company.com
@@ -252,7 +246,7 @@ class PlaybookDrivenDecision(BaseModel):
         - powershell.exe
         - evil-domain.com
 
-        INVALID EXAMPLE: (DO NOT USE THESE EXAMPLES AS ACTUAL OUTPUT)
+        INVALID EXAMPLE: (DO NOT USE AS ACTUAL OUTPUT)
         - questions
         - sentences
         - instructions
@@ -278,11 +272,11 @@ class PlaybookDrivenDecision(BaseModel):
         -> search_query_string on NEXT iteration = 'process=powershell.exe'
 
         VALID:
-        ["10.100.20.16", "WIN-CLIENT01"]
+        ['10.100.20.16', 'WIN-CLIENT01']
 
         INVALID:
-        ["ip.src == 10.100.20.16"]
-        ["email.dst=abc@company.com AND process=notepad.exe"]
+        ['ip.src == 10.100.20.16']
+        ['email.dst=abc@company.com AND process=notepad.exe']
         """
     )
 
@@ -322,7 +316,7 @@ ABSENCE OF EVIDENCE DOES NOT MEAN IT DIDNT HAPPEN.
 
 Missing telemetry does not prove an event did or did not occur.
 
-To conclude that an event DID NOT occur, telemetry must directly disprove the event.
+Successful attacks are considered when compromise is evident.
 
 ==================================================
 PRIMARY OBJECTIVE
@@ -443,7 +437,7 @@ WORKFLOW
 SEARCH QUERY RULES
 ==================================================
 
-search_query_string must contain ONLY IOC values in investigation history.
+search_query_string must contain ONLY IOC values in investigation history, and EXCLUDE values in exhausted pivots.
 
 Valid examples:
 
@@ -481,13 +475,13 @@ Before generating search_query_string:
 
 6. Select an unexplored IOC value instead.
 
-INVALID EXAMPLE:
+INVALID EXAMPLE: (DO NOT USE AS OUTPUT)
 --- EXHAUSTED PIVOTS ---
 ['powershell.exe', 'invoice.docm']
 
 search_query_string = ['powershell.exe']
 
-VALID EXAMPLE:
+VALID EXAMPLE: (DO NOT USE AS OUTPUT)
 --- EXHAUSTED PIVOTS ---
 ['powershell.exe', 'invoice.docm'] 
 
@@ -543,8 +537,6 @@ prompt_template = ChatPromptTemplate.from_messages([
         "{investigation_history}\n"
         "--- EXHAUSTED PIVOTS(DO NOT USE TO QUERY) ---\n"
         "{exhausted_pivots}\n"
-        #"--- AVAILABLE PIVOTS ---\n"
-        #"{available_pivots}\n"
         "------------------------------------\n\n"
         "{current_node_instruction}\n"
     )
@@ -554,87 +546,94 @@ prompt_template = ChatPromptTemplate.from_messages([
 # 5. MAIN PIPELINE EXECUTION
 # ==========================================
 if __name__ == "__main__":
-    MAX_ITERATIONS = 6
-    active_incident_dir = get_or_create_incident_folder()
-    log_info(f"Dynamic workspace locked onto path target: {active_incident_dir}")
-    
-    # --- DYNAMIC TARGET INITIALIZATION ---
-    # Find all unread alert files and sort them alphabetically
-    unread_files = sorted([f for f in os.listdir(UNREAD_ALERTS_FOLDER) if f.endswith('.json')])
-    
-    if not unread_files:
-        log_error(f"No alert files found in '{UNREAD_ALERTS_FOLDER}' to begin investigation. Exiting.")
-        sys.exit(1)
-        
-    # Pick the first file to seed the baseline incident history context
-    seed_file = unread_files[0]
-    seed_path = os.path.join(UNREAD_ALERTS_FOLDER, seed_file)
-    
-    log_info(f"Seeding investigation with baseline event file: {seed_file}")
-    investigation_history = load_text_file(seed_path)
-    
-    # Isolate the seed file into the incident directory immediately so it isn't parsed by subsequent query loops
-    seed_dest_path = os.path.join(active_incident_dir, seed_file)
-    shutil.move(seed_path, seed_dest_path)
-    log_success(f"Baseline alert isolated! Archived {seed_file} -> {seed_dest_path}")
-    # -------------------------------------
-
+    MAX_ITERATIONS = 12
     PLAYBOOK_TEXT, PLAYBOOK_DICT = load_yaml_playbook("playbooks/phishing.yaml")
     POLICIES_FILE = load_text_file("policies/soc_policies.md")
-    
-    log_info("Powering up Ollama Foundation Security LLM node layer...")
-    llm = ChatOllama(
-        model="hf.co/Mungert/Foundation-Sec-8B-Instruct-GGUF:Q4_K_M", 
-        temperature=0
+    InvestigationComplete = True
+
+    log_info("Initializing LLM...")
+    llm = ChatOpenAI(
+       model="gpt-5-nano",
+       temperature=0,
+       max_tokens=50000
     ).with_structured_output(PlaybookDrivenDecision, method="json_schema")
 
     chain = prompt_template | llm
     current_yaml_node = "step_1"
 
-    for cycle in range(1, MAX_ITERATIONS + 1):
-        log_info(f"Starting Investigation Iteration [{cycle}/{MAX_ITERATIONS}]")
+    while InvestigationComplete == True: # indefinite loop until all alerts have been read, loops per incident
+        InvestigationComplete = False
+        exhausted_pivots = []
+        active_incident_dir = get_or_create_incident_folder()
+        log_info(f"Creating new incident folder: {active_incident_dir}")
         
-        queue_count = count_unread_queue()
-        node_data = PLAYBOOK_DICT.get('steps', {}).get(current_yaml_node, {})
-        node_instruction = node_data.get('instructions', 'No active instruction set.')
-        current_node_routing = node_data.get('routing', 'No routing set.')
-
-        try:
-            decision = chain.invoke({
-                "current_node_instruction": node_instruction,
-                "current_node_routing": current_node_routing,
-                "investigation_history": investigation_history,
-                "exhausted_pivots": exhausted_pivots
-                #"available_pivots": available_pivots
-            })
-        except Exception as e:
-            log_error(f"Schema deserialization failure: {e}")
-            continue
-
-        log_analyst(node_instruction, decision.reasoning, decision.answer)
-        print(decision.search_query_string, exhausted_pivots, decision.investigation_state)
-        # Handle Active Query Tool Call
-        if decision.investigation_state == "NEEDS_MORE_DATA" and decision.search_query_string != []:
-            query_results = search_unread_alerts(decision.search_query_string, active_incident_dir)
-            if query_results:
-                investigation_history += query_results
-            log_warning("Engine requested a hold state waiting for query strings.")
-            continue
+        # --- DYNAMIC TARGET INITIALIZATION ---
+        # Find all unread alert files and sort them alphabetically
+        unread_files = sorted([f for f in os.listdir(UNREAD_ALERTS_FOLDER) if f.endswith('.json')])
         
-        if "complete" in current_node_routing:
-            log_success(f"Routing pointer hit final terminal designation: [{current_node_routing}]")
+        if not unread_files:
+            log_error(f"No alert files found in '{UNREAD_ALERTS_FOLDER}' to begin investigation. Exiting.")
+            sys.exit(1)
             
-            report_path = os.path.join(active_incident_dir, "final_analysis_report.txt")
-            with open(report_path, 'w', encoding='utf-8') as rf:
-                rf.write("EXECUTIVE INCIDENT OUTCOME REPORT\n=================================\n")
-                rf.write(f"Technical Chronology Summary:\n{decision.final_findings_summary}\n")
+        # Pick the first file to seed the baseline incident history context
+        seed_file = unread_files[0]
+        seed_path = os.path.join(UNREAD_ALERTS_FOLDER, seed_file)
+        
+        log_info(f"Starting NEW investigation with baseline event file: {seed_file}")
+        investigation_history = load_text_file(seed_path)
+        
+        # Isolate the seed file into the incident directory immediately so it isn't parsed by subsequent query loops
+        seed_dest_path = os.path.join(active_incident_dir, seed_file)
+        shutil.move(seed_path, seed_dest_path)
+        log_success(f"Baseline alert isolated! Archived {seed_file} -> {seed_dest_path}")
+
+        for cycle in range(1, MAX_ITERATIONS + 1):
+            log_info(f"Starting Investigation Iteration [{cycle}/{MAX_ITERATIONS}]")
+            
+            queue_count = count_unread_queue()
+            node_data = PLAYBOOK_DICT.get('steps', {}).get(current_yaml_node, {})
+            node_instruction = node_data.get('instructions', 'No active instruction set.')
+            current_node_routing = node_data.get('routing', 'No routing set.')
+
+            try:
+                decision = chain.invoke({
+                    "current_node_instruction": node_instruction,
+                    "current_node_routing": current_node_routing,
+                    "investigation_history": investigation_history,
+                    "exhausted_pivots": exhausted_pivots
+                })
+            except Exception as e:
+                log_error(f"Schema deserialization failure: {e}")
+                continue
+
+            log_analyst(node_instruction, decision.reasoning, decision.answer)
+            #print(decision.search_query_string, exhausted_pivots, decision.investigation_state)
+            # Handle Active Query Tool Call
+            if decision.investigation_state == "NEEDS_MORE_DATA" and decision.search_query_string != []:
+                query_results = search_unread_alerts(decision.search_query_string, active_incident_dir)
+                if query_results:
+                    investigation_history += query_results
+                log_warning("Engine requested a hold state waiting for query strings.")
+                continue
+            
+            if "complete" in current_node_routing or cycle == MAX_ITERATIONS:
+                log_success(f"Routing pointer hit final terminal designation: [{current_node_routing}]")
                 
-            log_success(f"Investigation Complete. Case report stored securely inside: {report_path}")
+                report_path = os.path.join(active_incident_dir, "final_analysis_report.txt")
+                with open(report_path, 'w', encoding='utf-8') as rf:
+                    rf.write("EXECUTIVE INCIDENT OUTCOME REPORT\n=================================\n")
+                    rf.write(f"Technical Chronology Summary:\n{decision.final_findings_summary}\n")
+                    InvestigationComplete = True
+                    
+                log_success(f"Investigation Complete. Case report stored securely inside: {report_path}")
+                break
+                
+            log_success(f"Node [{current_yaml_node}] completed. Routing path links -> {current_node_routing}")
+            if decision.investigation_state != "NEEDS_MORE_DATA":
+                current_yaml_node = current_node_routing
+    
+        if count_unread_queue() == 0:
             break
-            
-        log_success(f"Node [{current_yaml_node}] completed. Routing path links -> {current_node_routing}")
-        if decision.investigation_state != "NEEDS_MORE_DATA":
-            current_yaml_node = current_node_routing
             
 
     log_info("Pipeline shutdown.")

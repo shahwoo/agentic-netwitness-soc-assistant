@@ -36,9 +36,7 @@ def log_analyst(step: str, thought: str, answer: str):
 # ==========================================
 UNREAD_ALERTS_FOLDER = "triaged_alerts/"
 INCIDENT_REPORTS_FOLDER = "incident_reports/"
-exhausted_pivots = []
-available_pivots = []
-
+conversation_history = []
 
 os.makedirs(UNREAD_ALERTS_FOLDER, exist_ok=True)
 os.makedirs(INCIDENT_REPORTS_FOLDER, exist_ok=True)
@@ -135,15 +133,9 @@ def search_unread_alerts(query_list: list, destination_folder: str) -> str:
                 log_success(f"Match isolated! Archived {f} -> {dest_path}")
         except Exception as e:
             log_error(f"Failed parsing file {f} during string scan: {e}")
-
-    for i in keywords:
-        exhausted_pivots.append(i)
-        if i in available_pivots:
-            available_pivots.remove(i)
-
+            
     if not matched_any:
-        log_warning(f"Query for tracking values {keywords} returned 0 new records from unread alerts queue.")
-        return
+        return f"\n[System Notification]: EXHAUSTED_PIVOT={keywords}\n Query returned 0 new records.\n"
     return matched_content
 
 def count_unread_queue() -> int:
@@ -164,7 +156,6 @@ class PlaybookDrivenDecision(BaseModel):
         - This includes simple field extraction tasks.
         - This includes investigation questions where sufficient evidence exists.
         - DO NOT enter CONFIRMED if there is no evidence supporting either YES/NO.
-        - DO NOT enter CONFIRMED just because evidence DOESN'T EXIST. Must have evidence to APPROVE/DISPROVE.
 
         NEEDS_MORE_DATA:
         - The current playbook question cannot be answered with available telemetry.
@@ -271,7 +262,7 @@ class PlaybookDrivenDecision(BaseModel):
         If investigation_state = NEEDS_MORE_DATA:
         search_query_string may contain observed IOC values.
 
-        If value is EXHAUSTED PIVOT, USE A DIFFERENT VALUE ON NEXT QUERY
+        If search query returned 0 results, USE A DIFFERENT VALUE ON NEXT QUERY
 
         e.g. (DO NOT USE AS OUTPUT)
         -> Returned 0 results for '10.100.20.16'
@@ -291,8 +282,6 @@ class PlaybookDrivenDecision(BaseModel):
         description="""
         Final SOC incident summary.
 
-        STATE what happend in CHRONOLOGICAL ORDER, based on evidence ONLY GIVEN by user.
-
         Only populate for terminal workflow nodes.
 
         Otherwise return:
@@ -307,8 +296,6 @@ SYSTEM_PROMPT = """You are a SOC Investigation Agent operating inside RSA NetWit
 
 Your responsibility is to execute playbook steps using available telemetry.
 
-UNDERSTAND that all available telemtry is not given immediately, your role is to BUILD the full attack chain by QUERYING for information.
-
 You do not guess.
 You do not speculate.
 You do not assume.
@@ -318,11 +305,10 @@ You only answer questions supported by telemetry.
 CORE PRINCIPLE
 ==================================================
 
-ABSENCE OF EVIDENCE DOES NOT MEAN IT DIDNT HAPPEN.
+ABSENCE OF EVIDENCE IS NOT EVIDENCE OF ABSENCE.
 
-Missing telemetry does not prove an event did or did not occur.
-
-To conclude that an event DID NOT occur, telemetry must directly disprove the event.
+Missing telemetry does not prove an event occurred.
+Missing telemetry does not prove an event did not occur.
 
 ==================================================
 PRIMARY OBJECTIVE
@@ -406,15 +392,79 @@ Related evidence is NOT proof.
 
 Examples:
 
-File Downloaded DOES NOT MEAN File Opened
+File Exists ≠ File Opened
 
-File Opened DOES NOT MEAN File Executed
+File Opened ≠ File Executed
 
-Email Delivered DOES NOT MEAN Email Opened
+Email Delivered ≠ Email Opened
 
-Email Opened DOES NOT MEAN Attachment Executed
+Email Opened ≠ Attachment Executed
 
-URL Exists DOES NOT MEAN URL Clicked
+URL Exists ≠ URL Clicked
+
+Process Name Exists ≠ Process Executed
+
+==================================================
+EVENT TO EVIDENCE MAPPING
+==================================================
+
+FILE EXISTS
+
+Evidence:
+- filename
+- attachment name
+- hash
+
+--------------------------------------------------
+
+FILE OPENED
+
+Required evidence:
+- file access telemetry
+- file open events
+- EDR file activity
+
+--------------------------------------------------
+
+FILE EXECUTED
+
+Required evidence:
+- process creation telemetry
+- process execution telemetry
+- EDR execution events
+- process tree telemetry
+
+--------------------------------------------------
+
+URL EXISTS
+
+Evidence:
+- URL present in logs or email
+
+--------------------------------------------------
+
+URL CLICKED
+
+Required evidence:
+- proxy logs
+- browser telemetry
+- web connection telemetry
+- DNS activity associated with the user
+
+--------------------------------------------------
+
+EMAIL RECEIVED
+
+Required evidence:
+- mail delivery telemetry
+
+--------------------------------------------------
+
+EMAIL OPENED
+
+Required evidence:
+- email open event
+- message read telemetry
 
 ==================================================
 WORKFLOW
@@ -422,9 +472,9 @@ WORKFLOW
 
 1. Read the playbook question.
 
-2. Review all telemetry in investigation history.
+2. Review all telemetry and investigation history.
 
-3. Determine whether enough evidence exists to answer question directly.
+3. Determine whether the required evidence exists.
 
 4. If sufficient evidence exists:
 
@@ -437,13 +487,13 @@ WORKFLOW
     investigation_state = NEEDS_MORE_DATA
     answer = null
 
-    Generate search_query_string using IOC values found in investigation history.
+    Generate search_query_string using observed IOC values.
 
 ==================================================
 SEARCH QUERY RULES
 ==================================================
 
-search_query_string must contain ONLY IOC values in investigation history.
+search_query_string must contain ONLY observed IOC values.
 
 Valid examples:
 
@@ -468,6 +518,23 @@ Never generate:
 - telemetry categories
 
 ==================================================
+SYSTEM NOTIFICATION INTERPRETATION
+==================================================
+
+Investigation history may contain:
+
+[System Notification]:
+Query for tracking values ['powershell.exe']
+returned 0 new records from unread alerts queue.
+
+Interpretation:
+
+- powershell.exe has already been investigated.
+- No additional telemetry was found.
+- powershell.exe is EXHAUSTED.
+- powershell.exe must not be reused as a pivot.
+
+==================================================
 EXHAUSTED PIVOT RULE
 ==================================================
 
@@ -475,23 +542,17 @@ Before generating search_query_string:
 
 1. Review investigation history.
 
-2. Identify all IOC values that are EXHAUSTED PIVOTS, as specified by the user.
+2. Identify all IOC values previously queried.
+
+3. Identify all IOC values that returned:
+
+   "0 new records"
+
+4. Mark those IOC values as exhausted.
 
 5. Never reuse exhausted IOC values.
 
 6. Select an unexplored IOC value instead.
-
-INVALID EXAMPLE:
---- EXHAUSTED PIVOTS ---
-['powershell.exe', 'invoice.docm']
-
-search_query_string = ['powershell.exe']
-
-VALID EXAMPLE:
---- EXHAUSTED PIVOTS ---
-['powershell.exe', 'invoice.docm'] 
-
-search_query_string = ['bob@company.com']
 
 ==================================================
 NO RESULT RULE
@@ -511,7 +572,7 @@ Only newly observed telemetry may justify CONFIRMED.
 ALL PIVOTS EXHAUSTED
 ==================================================
 
-If all observable IOC values have already been queried and EXHAUSTED:
+If all observable IOC values have already been queried and returned 0 results:
 
 investigation_state = NEEDS_MORE_DATA
 
@@ -541,10 +602,10 @@ prompt_template = ChatPromptTemplate.from_messages([
         "human",
         "--- ACTIVE INVESTIGATION HISTORY ---\n"
         "{investigation_history}\n"
-        "--- EXHAUSTED PIVOTS(DO NOT USE TO QUERY) ---\n"
+        "--- EXHAUSTED PIVOTS ---\n"
         "{exhausted_pivots}\n"
-        #"--- AVAILABLE PIVOTS ---\n"
-        #"{available_pivots}\n"
+        "--- AVAILABLE PIVOTS ---\n"
+        "{available_pivots}\n"
         "------------------------------------\n\n"
         "{current_node_instruction}\n"
     )
@@ -598,26 +659,33 @@ if __name__ == "__main__":
         node_data = PLAYBOOK_DICT.get('steps', {}).get(current_yaml_node, {})
         node_instruction = node_data.get('instructions', 'No active instruction set.')
         current_node_routing = node_data.get('routing', 'No routing set.')
+        exhausted_pivots = ""
+        available_pivots = ""
 
         try:
             decision = chain.invoke({
                 "current_node_instruction": node_instruction,
                 "current_node_routing": current_node_routing,
                 "investigation_history": investigation_history,
-                "exhausted_pivots": exhausted_pivots
-                #"available_pivots": available_pivots
+                "exhausted_pivots": exhausted_pivots,
+                "available_pivots": available_pivots
             })
         except Exception as e:
             log_error(f"Schema deserialization failure: {e}")
             continue
+        
+        # Append instruction + answer
+        conversation_history.append(HumanMessage(content=node_instruction))
+        if decision.answer is not None:
+            conversation_history.append(AIMessage(content=decision.answer))
 
         log_analyst(node_instruction, decision.reasoning, decision.answer)
-        print(decision.search_query_string, exhausted_pivots, decision.investigation_state)
+        print(decision.search_query_string, decision.investigation_state)
         # Handle Active Query Tool Call
         if decision.investigation_state == "NEEDS_MORE_DATA" and decision.search_query_string != []:
             query_results = search_unread_alerts(decision.search_query_string, active_incident_dir)
-            if query_results:
-                investigation_history += query_results
+            if query_results
+            investigation_history += query_results
             log_warning("Engine requested a hold state waiting for query strings.")
             continue
         
@@ -634,7 +702,10 @@ if __name__ == "__main__":
             
         log_success(f"Node [{current_yaml_node}] completed. Routing path links -> {current_node_routing}")
         if decision.investigation_state != "NEEDS_MORE_DATA":
-            current_yaml_node = current_node_routing
+            if current_node_routing == "If":
+                current_yaml_node = current_node_routing[decision.answer.lower()]
+            else:
+                current_yaml_node = current_node_routing
             
 
     log_info("Pipeline shutdown.")
