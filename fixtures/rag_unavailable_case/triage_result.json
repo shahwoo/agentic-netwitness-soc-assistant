@@ -1,0 +1,24 @@
+{
+  "schema_version": "triage-result-v1",
+  "incident_id": "INC-0001",
+  "alert_id": "ALERT-0001",
+  "case_title": "Phishing Email with Suspicious Attachment",
+  "triage": {
+    "severity": {
+      "label": "High",
+      "score": 85,
+      "reason": "Confirmed malicious domain and suspicious endpoint activity."
+    },
+    "confidence": {
+      "label": "High",
+      "score": 82,
+      "reason": "Multiple evidence sources support escalation."
+    },
+    "classification": "Likely True Positive",
+    "likely_scenario": "Phishing with malicious attachment",
+    "summary": "Suspicious invoice email triggered alert and malicious IOC enrichment.",
+    "containment_required": true,
+    "containment_status": "pending_approval",
+    "recommended_containment_action": "isolate endpoint if execution is confirmed"
+  }
+}

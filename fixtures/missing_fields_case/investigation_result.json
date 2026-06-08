@@ -1,0 +1,65 @@
+{
+  "schema_version": "investigation-result-v1",
+  "incident_id": "INC-0001",
+  "alert_id": "ALERT-0001",
+  "classification": "True Positive",
+  "likely_scenario": "Phishing with malicious attachment",
+  "investigation_summary": "The user received an invoice-themed phishing email. Endpoint evidence shows attachment access and suspicious PowerShell activity. Threat intelligence confirms malicious reputation for the domain.",
+  "affected_assets": [
+    {
+      "hostname": "HOST-01",
+      "ip_address": "10.10.20.15",
+      "asset_type": "Windows Workstation",
+      "criticality": "Medium",
+      "owner": "Finance Department",
+      "business_function": "Invoice processing",
+      "isolation_status": false
+    }
+  ],
+  "iocs": [
+    {
+      "value": "hxxp://malicious-domain.com/invoice-review",
+      "type": "URL",
+      "reputation": "Malicious",
+      "confidence": "High",
+      "source": "Investigation"
+    }
+  ],
+  "mitre_attack_mapping": [
+    {
+      "tactic": "Initial Access",
+      "technique_id": "T1566.001",
+      "technique_name": "Spearphishing Attachment",
+      "reason": "Suspicious attachment delivered by email."
+    },
+    {
+      "tactic": "Execution",
+      "technique_id": "T1059.001",
+      "technique_name": "PowerShell",
+      "reason": "PowerShell execution observed."
+    }
+  ],
+  "recommended_actions": [
+    {
+      "priority": "P1",
+      "action": "Block malicious-domain.com and related URL.",
+      "owner": "Network Security",
+      "approval_required": false,
+      "rationale": "Threat intelligence reputation is malicious."
+    },
+    {
+      "priority": "P1",
+      "action": "Review endpoint execution and isolate HOST-01 if compromise is confirmed.",
+      "owner": "SOC Analyst",
+      "approval_required": true,
+      "rationale": "Endpoint shows suspicious process activity."
+    }
+  ],
+  "evidence_gaps": [
+    {
+      "priority": "High",
+      "gap": "Confirm whether PowerShell payload completed execution.",
+      "required_data": "Script block logs, process completion status, created files."
+    }
+  ]
+}

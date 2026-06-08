@@ -1,0 +1,119 @@
+# Technical Findings
+
+## 1. Technical Context
+
+| Field | Value |
+|---|---|
+| Incident ID | {{ incident_id }} |
+| Alert ID | {{ alert_id }} |
+| Severity | {{ severity.label }} |
+| Confidence | {{ confidence.label }} |
+| Classification | {{ classification }} |
+| Likely Scenario | {{ likely_scenario }} |
+| Scenario Type | {{ scenario_type }} |
+
+---
+
+## 2. Evidence Inventory
+
+{% if evidence %}
+| Evidence ID | Source | Type | Description | Timestamp | Confidence | Raw Reference |
+|---|---|---|---|---|---|---|
+{% for item in evidence %}
+| {{ item.id }} | {{ item.source }} | {{ item.type }} | {{ item.description }} | {{ item.timestamp }} | {{ item.confidence }} | {{ item.raw_reference }} |
+{% endfor %}
+{% else %}
+No evidence was provided.
+{% endif %}
+
+---
+
+## 3. Affected Assets
+
+{% if affected_assets %}
+| Hostname | IP Address | Type | Criticality | Owner |
+|---|---|---|---|---|
+{% for asset in affected_assets %}
+| {{ asset.hostname }} | {{ asset.ip_address }} | {{ asset.asset_type }} | {{ asset.criticality }} | {{ asset.owner }} |
+{% endfor %}
+{% else %}
+No affected assets were provided.
+{% endif %}
+
+---
+
+## 4. Affected Users
+
+{% if affected_users %}
+| Username | Email | Role | Privilege | MFA |
+|---|---|---|---|---|
+{% for user in affected_users %}
+| {{ user.username }} | {{ user.email }} | {{ user.role }} | {{ user.privilege_level }} | {{ user.mfa_status }} |
+{% endfor %}
+{% else %}
+No affected users were provided.
+{% endif %}
+
+---
+
+## 5. IOC Analysis
+
+{% if iocs %}
+| IOC | Type | Reputation | Source | Evidence |
+|---|---|---|---|---|
+{% for ioc in iocs %}
+| `{{ ioc.value }}` | {{ ioc.type }} | {{ ioc.reputation }} | {{ ioc.source }} | {{ ioc.evidence_refs | join(", ") if ioc.evidence_refs else "Not linked" }} |
+{% endfor %}
+{% else %}
+No IOCs were provided.
+{% endif %}
+
+---
+
+## 6. Timeline
+
+{% if timeline %}
+| Time | Event | Source | Evidence |
+|---|---|---|---|
+{% for event in timeline %}
+| {{ event.time | default(event.timestamp | default("Not Provided")) }} | {{ event.event | default(event.description | default("Not Provided")) }} | {{ event.source | default("Not Provided") }} | {{ event.evidence_refs | default([]) | join(", ") }} |
+{% endfor %}
+{% else %}
+No timeline was provided.
+{% endif %}
+
+---
+
+## 7. MITRE ATT&CK / Kill Chain Mapping
+
+{% if mitre_attack_mapping %}
+| Tactic | Technique | Reason / Evidence |
+|---|---|---|
+{% for item in mitre_attack_mapping %}
+| {{ item.tactic | default("Not Provided") }} | {{ item.technique_id | default(item.technique | default("Not Provided")) }} {{ item.technique_name | default("") }} | {{ item.reason | default(item.evidence_refs | default([]) | join(", ")) }} |
+{% endfor %}
+{% else %}
+No MITRE ATT&CK mapping was provided.
+{% endif %}
+
+---
+
+## 8. Evidence Gaps
+
+{% if evidence_gaps %}
+| Priority | Gap | Required Data |
+|---|---|---|
+{% for gap in evidence_gaps %}
+| {{ gap.priority | default("Not Provided") }} | {{ gap.gap | default(gap.missing_field | default("Not Provided")) }} | {{ gap.required_data | default(gap.reason_needed | default("Not Provided")) }} |
+{% endfor %}
+{% else %}
+No evidence gaps were recorded.
+{% endif %}
+
+---
+
+## 9. Technical Conclusion
+
+{{ active_narrative.technical_analysis }}
+
+{{ active_narrative.conclusion }}

@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: reporting_agent_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: reporting_agent
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./database/postgres/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+      - reporting_agent_pgdata:/var/lib/postgresql/data
+volumes:
+  reporting_agent_pgdata:

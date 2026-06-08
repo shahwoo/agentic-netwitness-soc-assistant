@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS incidents (incident_id TEXT PRIMARY KEY, alert_id TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW(), severity TEXT, confidence TEXT, classification TEXT, likely_scenario TEXT);
+CREATE TABLE IF NOT EXISTS report_results (id SERIAL PRIMARY KEY, incident_id TEXT NOT NULL, alert_id TEXT NOT NULL, report_status TEXT NOT NULL, validation_status TEXT NOT NULL, report_generation_mode TEXT NOT NULL, llm_used BOOLEAN DEFAULT FALSE, rag_used BOOLEAN DEFAULT FALSE, result_json JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS generated_report_paths (id SERIAL PRIMARY KEY, incident_id TEXT NOT NULL, report_type TEXT NOT NULL, file_path TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS missing_fields (id SERIAL PRIMARY KEY, incident_id TEXT NOT NULL, field_name TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS recovered_fields (id SERIAL PRIMARY KEY, incident_id TEXT NOT NULL, field_name TEXT NOT NULL, recovered_from TEXT NOT NULL, reason TEXT, created_at TIMESTAMPTZ DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS warnings (id SERIAL PRIMARY KEY, incident_id TEXT NOT NULL, warning_text TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS analyst_review_status (incident_id TEXT PRIMARY KEY, review_status TEXT DEFAULT 'pending', analyst_decision TEXT, analyst_comments TEXT, updated_at TIMESTAMPTZ DEFAULT NOW());

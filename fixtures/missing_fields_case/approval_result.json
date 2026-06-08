@@ -1,0 +1,9 @@
+{
+  "schema_version": "approval-result-v1",
+  "incident_id": "INC-0001",
+  "alert_id": "ALERT-0001",
+  "approval_required": true,
+  "approval_status": "pending",
+  "analyst_decision": "pending",
+  "analyst_comments": "Awaiting SOC analyst decision."
+}

@@ -1,0 +1,69 @@
+# Executive Summary
+
+## 1. Executive Snapshot
+
+| Field | Value |
+|---|---|
+| Incident ID | {{ incident_id }} |
+| Alert ID | {{ alert_id }} |
+| Severity | {{ severity.label }} |
+| Confidence | {{ confidence.label }} |
+| Classification | {{ classification }} |
+| Likely Scenario | {{ likely_scenario }} |
+| Report Status | {{ report_status }} |
+
+---
+
+## 2. What Happened
+
+{{ active_narrative.executive_summary }}
+
+---
+
+## 3. Why It Matters
+
+This case may affect business operations depending on the affected asset criticality, affected user privilege level, containment status, and whether additional related activity is found.
+
+---
+
+## 4. Known Scope
+
+| Scope Area | Count |
+|---|---:|
+| Affected Assets | {{ affected_assets | length }} |
+| Affected Users | {{ affected_users | length }} |
+| IOCs | {{ iocs | length }} |
+| Evidence Items | {{ evidence | length }} |
+| Timeline Events | {{ timeline | length }} |
+
+---
+
+## 5. Business Impact
+
+| Area | Assessment |
+|---|---|
+| Business Impact | {{ impact_assessment.business }} |
+| Security Risk | {{ impact_assessment.security }} |
+| Not Yet Confirmed | {{ impact_assessment.unconfirmed }} |
+
+---
+
+## 6. Decisions Required
+
+- Review containment and approval status: **{{ approval.approval_status }}**
+- Validate missing fields and evidence gaps before final closure.
+- Confirm whether SOC analyst approval is needed before finalisation.
+
+---
+
+## 7. Current Status
+
+| Field | Value |
+|---|---|
+| Report Status | {{ report_status }} |
+| Validation Status | {{ validation_status }} |
+| Missing Fields | {{ missing_required_fields | join(", ") if missing_required_fields else "None" }} |
+| RAG Status | {{ rag_status }} |
+| LLM Status | {{ llm_status }} |
+| LLM Quality Status | {{ llm_quality_status }} |
+| LLM Quality Issues | {{ llm_quality_issues | join(", ") if llm_quality_issues else "None" }} |

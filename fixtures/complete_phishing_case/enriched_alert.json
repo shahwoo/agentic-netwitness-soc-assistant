@@ -1,0 +1,24 @@
+{
+  "schema_version": "enriched-alert-v1",
+  "incident_id": "INC-0001",
+  "alert_id": "ALERT-0001",
+  "alert_name": "Suspicious Invoice Attachment",
+  "alert_timestamp": "2026-06-02T09:10:00+08:00",
+  "source": "RSA NetWitness SIEM",
+  "iocs": [
+    {
+      "value": "malicious-domain.com",
+      "type": "Domain",
+      "reputation": "Malicious",
+      "confidence": "High",
+      "source": "Threat Intelligence"
+    },
+    {
+      "value": "203.0.113.45",
+      "type": "IP Address",
+      "reputation": "Suspicious",
+      "confidence": "Medium",
+      "source": "NetWitness"
+    }
+  ]
+}

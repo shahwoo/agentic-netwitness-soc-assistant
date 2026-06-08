@@ -1,0 +1,365 @@
+{
+    "schema_version": "enriched-reporting-context-v2",
+    "created_at": "2026-06-02T21:10:32+08:00",
+    "incident_id": "INC-0001",
+    "alert_id": "ALERT-0001",
+    "case_title": "Phishing Email with Suspicious Attachment",
+    "alert": {
+        "name": "Suspicious Invoice Attachment",
+        "source": "RSA NetWitness SIEM",
+        "timestamp": "2026-06-02T09:10:00+08:00"
+    },
+    "severity": {
+        "label": "High",
+        "score": 85,
+        "reason": "Confirmed malicious domain and suspicious endpoint activity."
+    },
+    "confidence": {
+        "label": "High",
+        "score": 82,
+        "reason": "Multiple evidence sources support escalation."
+    },
+    "classification": "True Positive",
+    "likely_scenario": "Phishing with malicious attachment",
+    "scenario_type": "phishing",
+    "investigation_summary": "The user received an invoice-themed phishing email. Endpoint evidence shows attachment access and suspicious PowerShell activity. Threat intelligence confirms malicious reputation for the domain.",
+    "triage_summary": "Suspicious invoice email triggered alert and malicious IOC enrichment.",
+    "affected_assets": [
+        {
+            "hostname": "HOST-01",
+            "ip_address": "10.10.20.15",
+            "asset_type": "Windows Workstation",
+            "criticality": "Medium",
+            "owner": "Finance Department",
+            "business_function": "Invoice processing",
+            "isolation_status": "No"
+        }
+    ],
+    "affected_users": [
+        {
+            "username": "user@example.com",
+            "email": "user@example.com",
+            "role": "Finance User",
+            "privilege_level": "Standard User",
+            "groups": [
+                "Finance-Users"
+            ],
+            "mfa_status": "Enabled",
+            "account_status": "Active"
+        }
+    ],
+    "iocs": [
+        {
+            "value": "malicious-domain.com",
+            "type": "Domain",
+            "reputation": "Malicious",
+            "confidence": "High",
+            "source": "Threat Intelligence",
+            "evidence_refs": [
+                "EVID-001"
+            ]
+        },
+        {
+            "value": "203.0.113.45",
+            "type": "IP Address",
+            "reputation": "Suspicious",
+            "confidence": "Medium",
+            "source": "NetWitness",
+            "evidence_refs": [
+                "Not linked"
+            ]
+        },
+        {
+            "value": "hxxp://malicious-domain.com/invoice-review",
+            "type": "URL",
+            "reputation": "Malicious",
+            "confidence": "High",
+            "source": "Investigation",
+            "evidence_refs": [
+                "EVID-001"
+            ]
+        }
+    ],
+    "evidence": [
+        {
+            "id": "EVID-001",
+            "source": "Email Gateway",
+            "type": "Email Detection",
+            "description": "Suspicious invoice email delivered to user@example.com.",
+            "timestamp": "2026-06-02T09:10:00+08:00",
+            "confidence": "High",
+            "raw_reference": "email:event:1001"
+        },
+        {
+            "id": "EVID-002",
+            "source": "Endpoint Telemetry",
+            "type": "Process Activity",
+            "description": "WINWORD.EXE spawned powershell.exe with encoded command.",
+            "timestamp": "2026-06-02T09:14:00+08:00",
+            "confidence": "Medium",
+            "raw_reference": "edr:event:2002"
+        }
+    ],
+    "timeline": [
+        {
+            "time": "2026-06-02T09:10:00+08:00",
+            "event": "Suspicious email delivered.",
+            "source": "Email Gateway",
+            "evidence_refs": [
+                "EVID-001"
+            ]
+        },
+        {
+            "time": "2026-06-02T09:14:00+08:00",
+            "event": "Suspicious PowerShell observed.",
+            "source": "Endpoint Telemetry",
+            "evidence_refs": [
+                "EVID-002"
+            ]
+        }
+    ],
+    "mitre_attack_mapping": [
+        {
+            "tactic": "Initial Access",
+            "technique_id": "T1566.001",
+            "technique_name": "Spearphishing Attachment",
+            "reason": "Suspicious attachment delivered by email."
+        },
+        {
+            "tactic": "Execution",
+            "technique_id": "T1059.001",
+            "technique_name": "PowerShell",
+            "reason": "PowerShell execution observed."
+        }
+    ],
+    "evidence_gaps": [
+        {
+            "priority": "High",
+            "gap": "Confirm whether PowerShell payload completed execution.",
+            "required_data": "Script block logs, process completion status, created files."
+        },
+        {
+            "priority": "High",
+            "gap": "Confirm whether the user clicked the link, opened the attachment, or enabled macros.",
+            "required_data": "Email gateway click logs, endpoint file open events, Office telemetry, macro execution logs."
+        },
+        {
+            "priority": "High",
+            "gap": "Confirm whether credentials, tokens, mailbox rules, or OAuth grants were abused.",
+            "required_data": "Identity provider logs, MFA logs, mailbox audit logs, inbox rule changes, OAuth consent logs."
+        },
+        {
+            "priority": "Medium",
+            "gap": "Confirm whether similar phishing emails were delivered to other recipients.",
+            "required_data": "Email gateway search by sender, subject, URL, attachment hash, and campaign indicators."
+        },
+        {
+            "priority": "Medium",
+            "gap": "Confirm whether data exfiltration or sensitive mailbox access occurred.",
+            "required_data": "Mailbox access logs, cloud storage audit logs, outbound proxy logs, suspicious upload events."
+        }
+    ],
+    "recommended_actions": [
+        {
+            "priority": "P1",
+            "action": "Block malicious-domain.com and related URL.",
+            "owner": "Network Security",
+            "approval_required": "No",
+            "rationale": "Threat intelligence reputation is malicious."
+        },
+        {
+            "priority": "P1",
+            "action": "Review endpoint execution and isolate HOST-01 if compromise is confirmed.",
+            "owner": "SOC Analyst",
+            "approval_required": "Yes",
+            "rationale": "Endpoint shows suspicious process activity."
+        }
+    ],
+    "approval": {
+        "approval_required": "Yes",
+        "approval_status": "Pending Analyst Decision",
+        "approved_by": "Not Provided",
+        "approved_action": "Not Provided",
+        "analyst_decision": "Pending Analyst Decision",
+        "analyst_comments": "Awaiting SOC analyst decision."
+    },
+    "containment": {
+        "status": "Pending Analyst Decision",
+        "recommended_action": "isolate endpoint if execution is confirmed",
+        "decision_source": "approval_result.json"
+    },
+    "recovered_fields": [
+        {
+            "field": "severity",
+            "recovered_from": "triage_result.json",
+            "reason": "Investigation output did not explicitly provide severity."
+        },
+        {
+            "field": "confidence",
+            "recovered_from": "triage_result.json",
+            "reason": "Investigation output did not explicitly provide confidence."
+        }
+    ],
+    "warnings": [],
+    "missing_required_fields": [],
+    "validation_status": "passed",
+    "report_status": "ready_for_analyst_review",
+    "evidence_backed_findings": [
+        {
+            "statement": "The incident classification is True Positive.",
+            "status": "Fact",
+            "confidence": "High",
+            "evidence_refs": [
+                "EVID-001",
+                "EVID-002"
+            ],
+            "interpretation": "Classification is taken from investigation output first, with triage as fallback."
+        },
+        {
+            "statement": "Suspicious phishing email delivery was observed.",
+            "status": "Evidence-Backed Finding",
+            "confidence": "High",
+            "evidence_refs": [
+                "EVID-001"
+            ],
+            "interpretation": "Email delivery is supported by existing email/timeline evidence."
+        },
+        {
+            "statement": "Suspicious PowerShell or process activity was observed after the phishing event.",
+            "status": "Evidence-Backed Finding",
+            "confidence": "Medium",
+            "evidence_refs": [
+                "EVID-002"
+            ],
+            "interpretation": "This supports deeper validation of payload execution, script activity, and created artefacts."
+        },
+        {
+            "statement": "3 malicious or suspicious IOC(s) are present in the reporting context.",
+            "status": "Evidence-Backed Finding",
+            "confidence": "Medium",
+            "evidence_refs": [
+                "EVID-001"
+            ],
+            "interpretation": "The Reporting Agent consolidated these IOCs from enrichment and investigation outputs only."
+        },
+        {
+            "statement": "An incident timeline was provided by the investigation output.",
+            "status": "Fact",
+            "confidence": "Medium",
+            "evidence_refs": [
+                "EVID-001",
+                "EVID-002"
+            ],
+            "interpretation": "Timeline entries are rendered as supplied and should be validated by the SOC analyst."
+        },
+        {
+            "statement": "Containment/approval status is Pending Analyst Decision.",
+            "status": "Fact",
+            "confidence": "High",
+            "evidence_refs": [
+                "approval_result.json"
+            ],
+            "interpretation": "Approval data is taken only from approval_result.json and is not decided by the Reporting Agent."
+        }
+    ],
+    "impact_assessment": {
+        "business": "Current business impact is limited to HOST-01 (Invoice processing, Medium criticality) and user@example.com (Finance User, Standard User). Because this involves invoice-processing context, containment or credential reset may temporarily affect finance workflow.",
+        "security": "Security risk is centred on phishing delivery, suspicious attachment interaction, possible PowerShell execution, credential exposure, and possible follow-on access if the payload completed successfully.",
+        "unconfirmed": "Payload completion, credential submission, mailbox/OAuth abuse, similar recipient exposure, and data exfiltration are not fully confirmed."
+    },
+    "rag_used": true,
+    "rag_status": "success_direct_file_retrieval",
+    "rag_context_used": [
+        {
+            "source": "policies/incident_severity_policy.md",
+            "chunk_id": "policies/incident_severity_policy.md::chunk-3",
+            "content": "- Confirmed malicious IOC is detected\n- Malware execution is suspected or observed\n- Suspicious process execution is detected\n- Credential misuse is suspected\n- Multiple related alerts are linked to the same host or user\n- A suspicious external connection is made to known malicious infrastructure\n- Threat intelligence shows strong malicious reputation\n- The affected asset is important to business operations\n- There is evidence of persistence, privilege escalation, or command-and-control activity\n\n### Example Scenarios\n\n- Endpoint connects to a known malicious IP address\n- File hash is detected as malicious by multiple threat intelligence sources\n- Suspicious PowerShell activity downloads a payload\n- User account shows abnormal login behaviour from impossible travel or unusual geolocation\n- Malware is detected but spread is not confirmed\n\n### Recommended Action\n\n- Send to Investigation Agent immediately\n- Recommend SOC analyst review\n- Recommend containment if endpoint, account, or network compromise is likely\n- Increase monitoring of related users, hosts, and IOCs\n- Prepare evidence for incident reporting\n\n---\n\n## 6. Critical Severity\n\nAn alert should be classified as **Critical** when there is confirmed or highly likely compromise with significant impact or urgent containment needs.\n\n### Conditions\n\nClassify as Critical if one or more of the following are true:",
+            "score": 10
+        },
+        {
+            "source": "policies/containment_approval_policy.md",
+            "chunk_id": "policies/containment_approval_policy.md::chunk-3",
+            "content": "### Example Scenarios\n\n- Suspicious email attachment was delivered but not executed\n- User clicked a suspicious link but no payload is confirmed\n- Suspicious PowerShell command observed without confirmed malware\n- External IP has abuse reports but limited evidence of active attack\n\n### Required Output\n\n```json\n{\n  \"containment_required\": false,\n  \"containment_status\": \"recommended\",\n  \"soc_analyst_approval_status\": \"not_required\",\n  \"recommended_next_step\": \"Send to Investigation Agent\"\n}\n```\n\n---\n\n## 7. When SOC Analyst Approval Is Required\n\nSOC analyst approval is required before containment when the action may disrupt users, systems, services, or business operations.\n\n### Conditions\n\nContainment should be marked as `pending_approval` when one or more of the following are true:\n\n- Severity is High or Critical\n- Confidence is Medium or High\n- Malware execution is suspected or confirmed\n- Endpoint compromise is likely\n- Credential compromise is suspected or confirmed\n- Privileged account misuse is detected\n- Lateral movement is detected\n- Command-and-control communication is detected\n- Data exfiltration is suspected or confirmed\n- Ransomware activity is suspected or confirmed\n- Business-critical asset is affected\n- Multiple hosts or users are affected\n- Threat intelligence confirms malicious IOCs\n\n### Example Scenarios",
+            "score": 10
+        },
+        {
+            "source": "policies/containment_approval_policy.md",
+            "chunk_id": "policies/containment_approval_policy.md::chunk-10",
+            "content": "```json\n{\n  \"containment_required\": true,\n  \"containment_status\": \"pending_approval\",\n  \"soc_analyst_approval_status\": \"pending\",\n  \"approval_type\": \"containment_approval\",\n  \"recommended_containment_action\": \"isolate endpoint\",\n  \"containment_reason\": \"Confirmed malicious IOC and likely endpoint compromise\",\n  \"containment_impact\": \"Affected endpoint may be disconnected from the network\",\n  \"risk_of_no_containment\": \"Malware may spread or continue command-and-control communication\"\n}\n```\n\n---\n\n## 20. Policy Summary\n\nUse this simplified logic:\n\n| Situation | Decision |\n|---|---|\n| Low severity, weak evidence | No containment |\n| Medium severity, suspicious activity | Investigate first |\n| High severity, likely compromise | Recommend containment, require approval |\n| Critical severity, confirmed compromise | Urgent containment recommendation, require approval |\n| Approval granted | Execute approved containment |\n| Approval rejected | Do not execute containment, continue investigation or reporting |\n\nThe system must never perform disruptive containment actions without SOC analyst approval.",
+            "score": 10
+        },
+        {
+            "source": "policies/reporting_timeline_policy.md",
+            "chunk_id": "policies/reporting_timeline_policy.md::chunk-0",
+            "content": "# Reporting Timeline Policy\n\n## 1. Purpose\n\nThis policy defines when incident reports should be generated, reviewed, escalated, and finalised within the Agentic AI Threat Hunting and Autonomous Investigation Assistant.\n\nThe purpose is to ensure that alerts and incidents are reported according to their severity, confidence, business impact, and investigation status.\n\nThis policy supports the Reporting Agent, Triage Agent, Investigation Agent, and Orchestration Agent in deciding:\n\n- Whether a report is required\n- How urgent the report is\n- What type of report should be generated\n- Whether SOC analyst review is required\n- Whether escalation is required\n- What information must be included before the report can be finalised\n\n---\n\n## 2. Scope\n\nThis policy applies to all alerts and incidents processed by the system, including:\n\n- Low severity alerts\n- Medium severity alerts\n- High severity incidents\n- Critical severity incidents\n- Confirmed true positives\n- False positives\n- Incidents requiring containment\n- Incidents requiring SOC analyst approval\n- Incidents requiring threat hunting\n\n---\n\n## 3. Report Types\n\nThe system may generate the following report types:",
+            "score": 10
+        },
+        {
+            "source": "policies/reporting_timeline_policy.md",
+            "chunk_id": "policies/reporting_timeline_policy.md::chunk-1",
+            "content": "| Report Type | Purpose |\n|---|---|\n| Triage Summary | Short summary of the alert, severity, confidence, and next action |\n| Investigation Report | Detailed technical report after investigation |\n| Containment Report | Records containment recommendation, approval, and action taken |\n| Final Incident Report | Complete incident report for confirmed or serious cases |\n| False Positive Report | Documents why an alert was closed as benign or non-malicious |\n| Executive Summary | Short non-technical summary for management or stakeholders |\n\n---\n\n## 4. Reporting Requirements by Severity\n\n| Severity | Reporting Requirement | Timeline |\n|---|---|---|\n| Low | Triage summary only | Before closure |\n| Medium | Triage summary and investigation notes | After investigation |\n| High | Investigation report and SOC analyst review | As soon as investigation evidence is available |\n| Critical | Immediate incident report draft and SOC analyst review | Immediately after triage or investigation confirms critical risk |\n\n---\n\n## 5. Low Severity Reporting\n\nLow severity alerts usually do not require a full incident report.\n\n### Conditions\n\nA Low severity alert should receive a short triage summary when:\n\n- The alert is suspicious but low impact\n- There is no confirmed malicious IOC\n- No compromise is observed\n- No containment is required\n- No escalation is required\n- The alert may be closed or monitored",
+            "score": 10
+        }
+    ],
+    "loaded_knowledge_files": [
+        "policies/incident_severity_policy.md",
+        "policies/containment_approval_policy.md",
+        "policies/reporting_timeline_policy.md",
+        "procedures/report_writing_sop.md",
+        "procedures/evidence_collection_sop.md",
+        "procedures/investigation_sop.md",
+        "playbooks/phishing_response_playbook.md"
+    ],
+    "excluded_playbooks": [
+        "malware_response_playbook.md",
+        "ransomware_response_playbook.md"
+    ],
+    "policy_application_summary": [
+        {
+            "source": "incident_severity_policy.md",
+            "relevant_guidance": "High severity is appropriate when malicious IOCs, suspicious process execution, likely compromise, or business impact are present.",
+            "application": "Supports the current severity rating of High based on malicious/suspicious indicators and endpoint activity."
+        },
+        {
+            "source": "containment_approval_policy.md",
+            "relevant_guidance": "High or Critical severity containment actions that may disrupt users or systems require SOC analyst approval.",
+            "application": "Containment/approval remains Pending Analyst Decision; the report records the decision without executing containment."
+        },
+        {
+            "source": "reporting_timeline_policy.md",
+            "relevant_guidance": "High severity incidents require investigation reporting and SOC analyst review as soon as evidence is available.",
+            "application": "Supports the current report status: ready_for_analyst_review."
+        },
+        {
+            "source": "report_writing_sop.md",
+            "relevant_guidance": "The Reporting Agent must consolidate triage, investigation, IOCs, timeline, containment, and analyst decision data without inventing missing evidence.",
+            "application": "The report separates evidence-backed findings, interpretation, and evidence gaps."
+        },
+        {
+            "source": "phishing_response_playbook.md",
+            "relevant_guidance": "Phishing reporting should document sender/recipient context, URLs/domains/hashes, user interaction, endpoint activity, and missing validation steps.",
+            "application": "The incident is treated as a phishing case and includes phishing-specific evidence gaps for analyst follow-up."
+        }
+    ],
+    "deterministic_narrative": {
+        "executive_summary": "This True Positive incident is assessed as High severity with High confidence and is currently framed as Phishing with malicious attachment. The known affected scope is HOST-01 (Invoice processing, Medium criticality, Windows Workstation) and user@example.com (Finance User, Standard User, MFA: Enabled). The case is supported by the following evidence: EVID-001: Suspicious invoice email delivered to user@example.com. EVID-002: WINWORD.EXE spawned powershell.exe with encoded command. Key malicious or suspicious indicators include malicious-domain.com (Domain, Malicious), 203.0.113.45 (IP Address, Suspicious), hxxp://malicious-domain.com/invoice-review (URL, Malicious). Containment is currently Pending Analyst Decision, and analyst approval is Pending Analyst Decision. The report remains review-ready but not finalised because these validation items remain open: High: Confirm whether PowerShell payload completed execution. High: Confirm whether the user clicked the link, opened the attachment, or enabled macros. High: Confirm whether credentials, tokens, mailbox rules, or OAuth grants were abused. Medium: Confirm whether similar phishing emails were delivered to other recipients. Medium: Confirm whether data exfiltration or sensitive mailbox access occurred.",
+        "technical_analysis": "From a SOC investigation perspective, the case sequence is: Suspicious email delivered. Suspicious PowerShell observed. The evidence indicates phishing delivery followed by suspicious endpoint/process activity. MITRE context: Initial Access: T1566.001 Spearphishing Attachment; Execution: T1059.001 PowerShell. The primary technical risk is that the suspicious attachment or related URL may have triggered PowerShell-based payload retrieval, credential exposure, or follow-on access. The Reporting Agent has not created any new incident facts. It has preserved the upstream evidence, linked findings to evidence where possible, and listed unresolved pivots as evidence gaps.",
+        "business_impact_explanation": "Current business impact is limited to HOST-01 (Invoice processing, Medium criticality) and user@example.com (Finance User, Standard User). Because this involves invoice-processing context, containment or credential reset may temporarily affect finance workflow. Security risk: Security risk is centred on phishing delivery, suspicious attachment interaction, possible PowerShell execution, credential exposure, and possible follow-on access if the payload completed successfully. Not yet confirmed: Payload completion, credential submission, mailbox/OAuth abuse, similar recipient exposure, and data exfiltration are not fully confirmed.",
+        "conclusion": "The report is suitable for SOC analyst review with status ready_for_analyst_review. Before closure, the analyst should validate payload execution, credential or session exposure, similar recipient exposure, containment approval, and data exposure. Any disruptive action, such as endpoint isolation or credential revocation, should follow the recorded approval workflow.",
+        "analyst_friendly_explanation": "The Reporting Agent generated this report from structured enriched alert, triage, investigation, approval, and knowledge-base context. Deterministic logic produced the facts, evidence-backed findings, IOC consolidation, evidence gaps, and policy application summary. LLM text, if accepted, is restricted to SOC-style narrative refinement and does not alter severity, confidence, classification, IOCs, assets, users, evidence, timeline, approval status, or containment decisions."
+    },
+    "llm_enhanced_narrative": {},
+    "llm_used": false,
+    "llm_status": "disabled",
+    "llm_model": "not_used",
+    "llm_quality_status": "not_used",
+    "llm_quality_issues": [],
+    "active_narrative": {
+        "executive_summary": "This True Positive incident is assessed as High severity with High confidence and is currently framed as Phishing with malicious attachment. The known affected scope is HOST-01 (Invoice processing, Medium criticality, Windows Workstation) and user@example.com (Finance User, Standard User, MFA: Enabled). The case is supported by the following evidence: EVID-001: Suspicious invoice email delivered to user@example.com. EVID-002: WINWORD.EXE spawned powershell.exe with encoded command. Key malicious or suspicious indicators include malicious-domain.com (Domain, Malicious), 203.0.113.45 (IP Address, Suspicious), hxxp://malicious-domain.com/invoice-review (URL, Malicious). Containment is currently Pending Analyst Decision, and analyst approval is Pending Analyst Decision. The report remains review-ready but not finalised because these validation items remain open: High: Confirm whether PowerShell payload completed execution. High: Confirm whether the user clicked the link, opened the attachment, or enabled macros. High: Confirm whether credentials, tokens, mailbox rules, or OAuth grants were abused. Medium: Confirm whether similar phishing emails were delivered to other recipients. Medium: Confirm whether data exfiltration or sensitive mailbox access occurred.",
+        "technical_analysis": "From a SOC investigation perspective, the case sequence is: Suspicious email delivered. Suspicious PowerShell observed. The evidence indicates phishing delivery followed by suspicious endpoint/process activity. MITRE context: Initial Access: T1566.001 Spearphishing Attachment; Execution: T1059.001 PowerShell. The primary technical risk is that the suspicious attachment or related URL may have triggered PowerShell-based payload retrieval, credential exposure, or follow-on access. The Reporting Agent has not created any new incident facts. It has preserved the upstream evidence, linked findings to evidence where possible, and listed unresolved pivots as evidence gaps.",
+        "business_impact_explanation": "Current business impact is limited to HOST-01 (Invoice processing, Medium criticality) and user@example.com (Finance User, Standard User). Because this involves invoice-processing context, containment or credential reset may temporarily affect finance workflow. Security risk: Security risk is centred on phishing delivery, suspicious attachment interaction, possible PowerShell execution, credential exposure, and possible follow-on access if the payload completed successfully. Not yet confirmed: Payload completion, credential submission, mailbox/OAuth abuse, similar recipient exposure, and data exfiltration are not fully confirmed.",
+        "conclusion": "The report is suitable for SOC analyst review with status ready_for_analyst_review. Before closure, the analyst should validate payload execution, credential or session exposure, similar recipient exposure, containment approval, and data exposure. Any disruptive action, such as endpoint isolation or credential revocation, should follow the recorded approval workflow.",
+        "analyst_friendly_explanation": "The Reporting Agent generated this report from structured enriched alert, triage, investigation, approval, and knowledge-base context. Deterministic logic produced the facts, evidence-backed findings, IOC consolidation, evidence gaps, and policy application summary. LLM text, if accepted, is restricted to SOC-style narrative refinement and does not alter severity, confidence, classification, IOCs, assets, users, evidence, timeline, approval status, or containment decisions."
+    },
+    "report_generation_mode": "deterministic_only"
+}

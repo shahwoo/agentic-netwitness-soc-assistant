@@ -1,0 +1,39 @@
+{
+    "schema_version": "reporting-result-v1",
+    "incident_id": "INC-0001",
+    "alert_id": "ALERT-0001",
+    "report_status": "ready_for_analyst_review",
+    "report_generation_mode": "deterministic_plus_llm_narrative",
+    "validation_status": "passed",
+    "missing_required_fields": [],
+    "recovered_fields": [
+        {
+            "field": "severity",
+            "recovered_from": "triage_result.json",
+            "reason": "Investigation output did not explicitly provide severity."
+        },
+        {
+            "field": "confidence",
+            "recovered_from": "triage_result.json",
+            "reason": "Investigation output did not explicitly provide confidence."
+        }
+    ],
+    "generated_reports": {
+        "final_report": "C:\\Users\\24016932\\Desktop\\AgenticThreatHunting\\agentic-netwitness-soc-assistant\\outputs\\INC-0001\\final_report.md",
+        "executive_summary": "C:\\Users\\24016932\\Desktop\\AgenticThreatHunting\\agentic-netwitness-soc-assistant\\outputs\\INC-0001\\executive_summary.md",
+        "technical_findings": "C:\\Users\\24016932\\Desktop\\AgenticThreatHunting\\agentic-netwitness-soc-assistant\\outputs\\INC-0001\\technical_findings.md",
+        "soc_analyst_review": "C:\\Users\\24016932\\Desktop\\AgenticThreatHunting\\agentic-netwitness-soc-assistant\\outputs\\INC-0001\\soc_analyst_review.md"
+    },
+    "warnings": [],
+    "rag_used": true,
+    "rag_status": "success_direct_file_retrieval",
+    "llm_used": true,
+    "llm_status": "partial_fallback_used",
+    "llm_quality_status": "partial_fallback_used",
+    "llm_quality_issues": [
+        "executive_summary:unsafe_overclaim:payload completed"
+    ],
+    "created_at": "2026-06-03T14:53:07+08:00",
+    "postgres_used": false,
+    "postgres_status": "postgres_disabled"
+}

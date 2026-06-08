@@ -1,0 +1,210 @@
+# SOC Incident Report
+
+## 1. Report Metadata
+
+| Field | Value |
+|---|---|
+| Incident ID | {{ incident_id }} |
+| Alert ID | {{ alert_id }} |
+| Case Title | {{ case_title }} |
+| Created At | {{ created_at }} |
+| Report Status | {{ report_status }} |
+| Validation Status | {{ validation_status }} |
+| Generation Mode | {{ report_generation_mode }} |
+| LLM Used | {{ llm_used }} |
+| LLM Status | {{ llm_status }} |
+| LLM Quality Status | {{ llm_quality_status }} |
+| LLM Quality Issues | {{ llm_quality_issues | join(", ") if llm_quality_issues else "None" }} |
+| RAG Used | {{ rag_used }} |
+| RAG Status | {{ rag_status }} |
+
+---
+
+## 2. Incident Overview
+
+| Field | Value |
+|---|---|
+| Alert Name | {{ alert.name }} |
+| Alert Source | {{ alert.source }} |
+| Alert Timestamp | {{ alert.timestamp }} |
+| Severity | {{ severity.label }} |
+| Severity Reason | {{ severity.reason }} |
+| Confidence | {{ confidence.label }} |
+| Confidence Reason | {{ confidence.reason }} |
+| Classification | {{ classification }} |
+| Likely Scenario | {{ likely_scenario }} |
+| Scenario Type | {{ scenario_type }} |
+
+---
+
+## 3. Executive Summary
+
+{{ active_narrative.executive_summary }}
+
+---
+
+## 4. Affected Entities
+
+### Affected Assets
+
+{% if affected_assets %}
+| Hostname | IP Address | Type | Criticality | Owner | Business Function | Isolation Status |
+|---|---|---|---|---|---|---|
+{% for asset in affected_assets %}
+| {{ asset.hostname }} | {{ asset.ip_address }} | {{ asset.asset_type }} | {{ asset.criticality }} | {{ asset.owner }} | {{ asset.business_function }} | {{ asset.isolation_status }} |
+{% endfor %}
+{% else %}
+No affected assets were provided.
+{% endif %}
+
+### Affected Users
+
+{% if affected_users %}
+| Username | Email | Role | Privilege | Groups | MFA | Status |
+|---|---|---|---|---|---|---|
+{% for user in affected_users %}
+| {{ user.username }} | {{ user.email }} | {{ user.role }} | {{ user.privilege_level }} | {{ user.groups | join(", ") }} | {{ user.mfa_status }} | {{ user.account_status }} |
+{% endfor %}
+{% else %}
+No affected users were provided.
+{% endif %}
+
+---
+
+## 5. Indicators of Compromise
+
+{% if iocs %}
+| IOC | Type | Reputation | Confidence | Source | Evidence |
+|---|---|---|---|---|---|
+{% for ioc in iocs %}
+| `{{ ioc.value }}` | {{ ioc.type }} | {{ ioc.reputation }} | {{ ioc.confidence }} | {{ ioc.source }} | {{ ioc.evidence_refs | join(", ") if ioc.evidence_refs else "Not linked" }} |
+{% endfor %}
+{% else %}
+No IOCs were provided.
+{% endif %}
+
+---
+
+## 6. Evidence-Backed Findings
+
+{% if evidence_backed_findings %}
+| Finding | Status | Confidence | Evidence References | Interpretation |
+|---|---|---|---|---|
+{% for finding in evidence_backed_findings %}
+| {{ finding.statement }} | {{ finding.status }} | {{ finding.confidence }} | {{ finding.evidence_refs | join(", ") }} | {{ finding.interpretation }} |
+{% endfor %}
+{% else %}
+No evidence-backed findings were generated.
+{% endif %}
+
+---
+
+## 7. Timeline
+
+{% if timeline %}
+| Time | Event | Source | Evidence |
+|---|---|---|---|
+{% for event in timeline %}
+| {{ event.time | default(event.timestamp | default("Not Provided")) }} | {{ event.event | default(event.description | default("Not Provided")) }} | {{ event.source | default("Not Provided") }} | {{ event.evidence_refs | default([]) | join(", ") }} |
+{% endfor %}
+{% else %}
+No timeline was provided. This is recorded as an evidence gap if required.
+{% endif %}
+
+---
+
+## 8. Policy and Playbook Context
+
+### 8.1 Policy Application Summary
+
+| Source | Relevant Guidance | Application to This Case |
+|---|---|---|
+{% for item in policy_application_summary %}
+| {{ item.source }} | {{ item.relevant_guidance }} | {{ item.application }} |
+{% endfor %}
+
+### 8.2 Knowledge Files Used
+
+{% for file in loaded_knowledge_files %}
+- {{ file }}
+{% endfor %}
+
+### 8.3 Playbooks Excluded in This Version
+
+{% for file in excluded_playbooks %}
+- {{ file }}
+{% endfor %}
+
+> Raw retrieved RAG snippets are stored in `enriched_reporting_context.json` for traceability, but this report only shows the analyst-friendly policy application summary.
+
+---
+
+## 9. Containment and Approval Status
+
+| Field | Value |
+|---|---|
+| Containment Status | {{ containment.status }} |
+| Recommended Containment Action | {{ containment.recommended_action }} |
+| Approval Required | {{ approval.approval_required }} |
+| Approval Status | {{ approval.approval_status }} |
+| Analyst Decision | {{ approval.analyst_decision }} |
+| Approved By | {{ approval.approved_by }} |
+| Approved Action | {{ approval.approved_action }} |
+| Analyst Comments | {{ approval.analyst_comments }} |
+
+---
+
+## 10. Impact Assessment
+
+| Impact Area | Assessment |
+|---|---|
+| Business Impact | {{ impact_assessment.business }} |
+| Security Risk | {{ impact_assessment.security }} |
+| Not Yet Confirmed | {{ impact_assessment.unconfirmed }} |
+
+---
+
+## 11. Recommended Actions
+
+{% if recommended_actions %}
+| Priority | Action | Owner | Approval Required | Rationale |
+|---|---|---|---|---|
+{% for action in recommended_actions %}
+| {{ action.priority }} | {{ action.action }} | {{ action.owner }} | {{ action.approval_required }} | {{ action.rationale }} |
+{% endfor %}
+{% else %}
+No recommended actions were provided.
+{% endif %}
+
+---
+
+## 12. Evidence Gaps
+
+{% if evidence_gaps %}
+| Priority | Gap | Required Data |
+|---|---|---|
+{% for gap in evidence_gaps %}
+| {{ gap.priority | default("Not Provided") }} | {{ gap.gap | default(gap.missing_field | default("Not Provided")) }} | {{ gap.required_data | default(gap.reason_needed | default("Not Provided")) }} |
+{% endfor %}
+{% else %}
+No evidence gaps were recorded.
+{% endif %}
+
+---
+
+## 13. Analyst Review
+
+This report is generated for SOC analyst review. The Reporting Agent does not close the case, approve containment, or replace analyst judgement.
+
+| Field | Value |
+|---|---|
+| SOC Review Required | Yes |
+| Review Status | Pending |
+| Missing Required Fields | {{ missing_required_fields | join(", ") if missing_required_fields else "None" }} |
+| Warnings | {{ warnings | join("; ") if warnings else "None" }} |
+
+---
+
+## 14. Conclusion
+
+{{ active_narrative.conclusion }}
