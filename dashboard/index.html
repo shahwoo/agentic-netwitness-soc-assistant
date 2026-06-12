@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agentic SOC Assistant Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <h1 class="sr-only">Agentic SOC Assistant Dashboard</h1>
+
+  <div class="app">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <div class="sidebar-logo">
+        <div class="logo-icon"><i class="ti ti-shield-bolt"></i></div>
+        <div class="logo-copy">
+          <div class="logo-title">Agentic SOC</div>
+          <div class="logo-sub">Assistant</div>
+        </div>
+      </div>
+
+      <nav>
+        <div class="nav-section">
+          <div class="nav-label">Overview</div>
+          <button class="nav-item active" data-page="dashboard"><i class="ti ti-layout-dashboard"></i><span>Dashboard</span></button>
+          <button class="nav-item" data-page="agents"><i class="ti ti-cpu"></i><span>Agents</span></button>
+          <button class="nav-item" data-page="reports"><i class="ti ti-file-description"></i><span>Reports</span></button>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-label">SOC Workflow</div>
+          <button class="nav-item" data-page="triage"><i class="ti ti-alert-triangle"></i><span>Triage</span><span id="triage-nav-badge" class="nav-badge muted-badge">...</span></button>
+          <button class="nav-item" data-page="investigation"><i class="ti ti-search"></i><span>Investigation</span><span id="investigation-nav-badge" class="nav-badge muted-badge">...</span></button>
+          <button class="nav-item" data-page="reporting"><i class="ti ti-file-report"></i><span>Reporting</span><span id="reporting-nav-badge" class="nav-badge muted-badge">...</span></button>
+        </div>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <button class="nav-item" id="refresh-button"><i class="ti ti-refresh"></i><span>Refresh JSON</span></button>
+        <button class="nav-item" id="toggle-theme"><i class="ti ti-moon"></i><span>Toggle Theme</span></button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div id="top-title" class="top-title">Main Dashboard</div>
+          <div id="top-sub" class="top-sub">Reading available agent outputs from the outputs folder</div>
+        </div>
+        <div class="top-actions">
+          <button class="btn btn-ghost" data-page="agents"><i class="ti ti-cpu"></i> Agent Panel</button>
+          <button class="btn btn-ghost" data-page="reports"><i class="ti ti-file-report"></i> Open Report</button>
+          <button class="btn btn-blue" id="reload-api"><i class="ti ti-refresh"></i> Reload</button>
+        </div>
+        <div class="user-pill">
+          <div class="avatar">SA</div>
+          <div>
+            <div class="user-name">SOC Analyst</div>
+            <div class="user-role">Reviewer</div>
+          </div>
+        </div>
+      </header>
+
+      <section id="content" class="content">
+        <div class="empty-state">Loading dashboard...</div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
