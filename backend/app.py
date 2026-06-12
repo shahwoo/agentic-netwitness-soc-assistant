@@ -207,6 +207,9 @@ def not_found(_error):
 
 
 if __name__ == "__main__":
-    # Run from the project root using:
-    # python backend/app.py
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(
+        host="127.0.0.1",
+        port=5000,
+        debug=False,
+        use_reloader=False
+    )
