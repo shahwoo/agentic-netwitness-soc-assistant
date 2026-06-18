@@ -19,5 +19,5 @@ steps:
     routing: step_5
 
   step_5:
-    instructions: Based on the analysis, determine if the phishing attempt was successful and if any further containment or investigation steps are necessary.
+    instructions: Based on the analysis, determine if further investigation is necessary and the containment steps
     routing: complete
