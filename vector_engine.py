@@ -83,16 +83,71 @@ def get_alerts_by_temporal_window(timestamp_epoch: int, time_window_sec: int = 8
             parsed.append((alert_id, doc, meta))
     return parsed
 
+def has_technical_token_overlap(candidate_meta: dict, active_seeds: list) -> bool:
+    """Performs a strict check for any technical token overlap (IPs/subnets, domains, hashes, users, hosts)."""
+    if not active_seeds:
+        return False
+        
+    # 1. Normalize active seeds (lowercase, trimmed)
+    active_set = {str(s).strip().lower() for s in active_seeds if s}
+    
+    # 2. Extract candidate tokens
+    candidate_tokens = set()
+    candidate_ips = []
+    candidate_domains = []
+    
+    # Singular tracking fields
+    for field in ["username", "hostname", "incident_id"]:
+        val = candidate_meta.get(field)
+        if val and str(val).lower() not in ("unknown", "null", "none", ""):
+            val_clean = str(val).strip().lower()
+            candidate_tokens.add(val_clean)
+            if field == "hostname":
+                candidate_domains.append(val_clean)
+            
+    # Comma-separated array fields
+    for field in ["ips", "domains", "emails", "sha256s", "md5s"]:
+        val = candidate_meta.get(field)
+        if val and isinstance(val, str):
+            items = [x.strip().lower() for x in val.split(",") if x.strip()]
+            for item in items:
+                if item not in ("unknown", "null", "none", ""):
+                    candidate_tokens.add(item)
+                    if field == "ips":
+                        candidate_ips.append(item)
+                    elif field == "domains":
+                        candidate_domains.append(item)
+                        
+    # 3. Perform intersection check using disjoint
+    if not candidate_tokens.isdisjoint(active_set):
+        return True
+        
+    # 4. Handle Subnet and Domain wildcard matching
+    for seed in active_set:
+        # Subnet match (ends with dot, e.g., '10.100.20.')
+        if seed.endswith('.'):
+            for ip in candidate_ips:
+                if ip.startswith(seed):
+                    return True
+        # Parent domain match (e.g., 'domain.com' matching 'sub.domain.com')
+        elif '.' in seed:
+            for d in candidate_domains:
+                if d == seed or d.endswith('.' + seed):
+                    return True
+                    
+    return False
+
 def correlate_rrf(active_indicators: list, query_text: str = None, timestamp_epoch: int = None, time_window_sec: int = 86400, k: int = 60, n_results: int = 10) -> list:
-    """Correlates alerts using Reciprocal Rank Fusion (RRF) of semantic search and metadata matches."""
+    """Correlates alerts using Reciprocal Rank Fusion (RRF) of semantic search and metadata matches.
+    CRITICAL GUARDRAIL: Candidates must pass has_technical_token_overlap to be ranked."""
     if not active_indicators and not query_text:
         return []
         
     if not query_text:
         query_text = " ".join(str(ind) for ind in active_indicators)
         
-    # 1. Semantic query
-    semantic_candidates = query_semantic(
+    # 1. Retrieve raw semantic candidates
+    raw_semantic = query_semantic(
         query_text=query_text,
         timestamp_epoch=timestamp_epoch,
         time_window_sec=time_window_sec,
@@ -101,19 +156,30 @@ def correlate_rrf(active_indicators: list, query_text: str = None, timestamp_epo
     
     # 2. Retrieve candidates for metadata matching (optionally scoped by time)
     if timestamp_epoch is not None:
-        all_candidates = get_alerts_by_temporal_window(timestamp_epoch, time_window_sec)
+        raw_all = get_alerts_by_temporal_window(timestamp_epoch, time_window_sec)
     else:
         results = collection.get()
-        all_candidates = []
+        raw_all = []
         if results and results["ids"]:
             for idx in range(len(results["ids"])):
-                all_candidates.append((
+                raw_all.append((
                     results["ids"][idx],
                     results["documents"][idx] if results["documents"] else "",
                     results["metadatas"][idx]
                 ))
                 
-    # Calculate metadata match scores
+    # CRITICAL GUARDRAIL: Filter out documents lacking technical token overlap
+    semantic_candidates = [
+        item for item in raw_semantic
+        if has_technical_token_overlap(item[3], active_indicators)
+    ]
+    
+    all_candidates = [
+        item for item in raw_all
+        if has_technical_token_overlap(item[2], active_indicators)
+    ]
+    
+    # Calculate metadata match scores for the filtered candidates
     metadata_ranked_candidates = []
     for alert_id, doc, meta in all_candidates:
         match_count = 0
@@ -132,6 +198,11 @@ def correlate_rrf(active_indicators: list, query_text: str = None, timestamp_epo
             elif ind_lower in [x.strip().lower() for x in meta.get("emails", "").split(",") if x.strip()]:
                 match_count += 1
             elif meta.get("incident_id", "").lower() == ind_lower:
+                match_count += 1
+            # Subnet / parent domain wildcard match
+            elif ind_lower.endswith('.') and any(ip.startswith(ind_lower) for ip in [x.strip().lower() for x in meta.get("ips", "").split(",") if x.strip()]):
+                match_count += 1
+            elif '.' in ind_lower and any(d == ind_lower or d.endswith('.' + ind_lower) for d in [x.strip().lower() for x in meta.get("domains", "").split(",") if x.strip()]):
                 match_count += 1
                 
         if match_count > 0:

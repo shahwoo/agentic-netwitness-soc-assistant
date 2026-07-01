@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import yaml
+import re
 from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -36,7 +37,7 @@ class MilestoneCheck(BaseModel):
     milestone_met: bool = Field(description="True if the active playbook step can be fully answered with the current incident timeline, otherwise False.")
     reasoning: str = Field(description="Explanation of whether the milestone is met, detailing what was found or what is missing.")
     extracted_data: Optional[str] = Field(description="The extracted data for this step if the milestone is met, otherwise null.")
-    suggested_pivots: List[str] = Field(default_factory=list, description="List of suspected IOCs/keys/pivots to query ChromaDB for to gather more context.")
+    suggested_pivots: List[str] = Field(default_factory=list, description="List of suspected IOCs/keys/pivots to query ChromaDB for to gather more context. Return concrete indicators (values), not descriptions.")
 
 class MilestoneExecution(BaseModel):
     step_id: str
@@ -54,7 +55,7 @@ class FinalIncidentAnalysis(BaseModel):
     lessons_learnt: str
     recommended_containment: List[str] = Field(description="Recommended containment actions based on policies.")
 
-# --- LLM INITIALIZATION AND TOOLS ---
+# --- LLM INITIALIZATION ---
 
 def get_llm():
     api_key = os.getenv("OPENAI_API_KEY")
@@ -77,7 +78,7 @@ def filter_suspicious_seeds(raw_tokens: List[str]) -> List[str]:
         "You are an expert SOC Analyst. You are given a list of extracted tokens from raw SIEM logs.\n"
         "Filter out benign infrastructure noise (such as localhost, 127.0.0.1, 8.8.8.8, 1.1.1.1, common microsoft/windows domains,\n"
         "generic system files like svchost.exe or cmd.exe, and empty/invalid values).\n"
-        "Return a clean list of only suspicious or investigative tokens (IPs, domains, hashes, usernames, hosts) to serve as search seeds."
+        "Return a clean list of only suspicious or investigative tokens (IPs, subnets, domains, hashes, usernames, hosts) to serve as search seeds."
     )
     
     prompt = ChatPromptTemplate.from_messages([
@@ -92,7 +93,6 @@ def filter_suspicious_seeds(raw_tokens: List[str]) -> List[str]:
         return result.seeds
     except Exception as e:
         log_error(f"Failed to filter seeds with LLM: {e}. Falling back to original tokens.")
-        # Fallback to keep everything that isn't trivially benign
         benign = {"127.0.0.1", "0.0.0.0", "localhost", "svchost.exe", "Unknown"}
         return [t for t in raw_tokens if t not in benign]
 
@@ -105,7 +105,7 @@ def check_milestone_sufficiency(timeline_str: str, instruction: str, step_id: st
         "Review the chronological Incident Timeline provided, and determine if it contains enough evidence\n"
         "to satisfy the active step instruction.\n"
         "If yes, set milestone_met = True and populate the extracted_data field with a direct answer to the instruction.\n"
-        "If no, set milestone_met = False, explain in reasoning what is missing, and suggest new IOCs/pivots to search for."
+        "If no, set milestone_met = False, explain in reasoning what is missing, and suggest new IOCs/pivots (values only) to search for."
     )
     
     prompt = ChatPromptTemplate.from_messages([
@@ -157,7 +157,6 @@ def generate_final_analysis(incident_id: str, playbook_name: str, timeline_str: 
         return result
     except Exception as e:
         log_error(f"Failed to generate final structured report: {e}")
-        # Build manual fallback object
         return FinalIncidentAnalysis(
             incident_id=incident_id,
             severity="High",
@@ -174,7 +173,6 @@ def generate_final_analysis(incident_id: str, playbook_name: str, timeline_str: 
 def build_timeline_text(correlated_alerts: List[dict]) -> str:
     """Formats list of correlated alerts into a chronological summary string."""
     lines = []
-    # Sort chronologically by epoch
     sorted_alerts = sorted(correlated_alerts, key=lambda x: x["metadata"]["timestamp_epoch"])
     
     for alert in sorted_alerts:
@@ -185,10 +183,65 @@ def build_timeline_text(correlated_alerts: List[dict]) -> str:
         
     return "\n".join(lines)
 
+# --- INFRASTRUCTURE BROADENING ---
+
+IP_PAT = re.compile(r'^(\d{1,3}\.\d{1,3}\.\d{1,3}\.)\d{1,3}$')
+
+def broaden_indicators(indicators: List[str]) -> List[str]:
+    """Returns the indicators list directly without broadening (subnet/domain expansion disabled)."""
+    return list(indicators)
+
+# --- SEED PREPARATION AND FILTER WHITELISTING ---
+
+def prepare_seeds(raw_tokens: List[str]) -> List[str]:
+    """Protects high-fidelity indicators (private IPs, subnets, hashes, emails, names) from LLM filter."""
+    high_fidelity = []
+    to_filter = []
+    
+    for token in raw_tokens:
+        token_str = str(token).strip()
+        token_lower = token_str.lower()
+        if not token_str or token_lower in ("unknown", "null", "none", ""):
+            continue
+            
+        # Check if it's an IP address or subnet
+        is_ip_or_subnet = False
+        if token_lower.endswith('.'):
+            is_ip_or_subnet = True
+        elif re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', token_str):
+            is_ip_or_subnet = True
+            
+        if is_ip_or_subnet:
+            # Check if it is a private (RFC 1918) network
+            if (token_str.startswith("10.") or 
+                token_str.startswith("192.168.") or 
+                (token_str.startswith("172.") and len(token_str.split('.')) > 1 and token_str.split('.')[1].isdigit() and 16 <= int(token_str.split('.')[1]) <= 31)):
+                high_fidelity.append(token_str)
+            else:
+                to_filter.append(token_str)
+        # Check if it is a cryptographic hash (MD5 or SHA256)
+        elif len(token_str) in (32, 64) and re.match(r'^[a-fA-F0-9]+$', token_str):
+            high_fidelity.append(token_str)
+        # Check if it is an email
+        elif '@' in token_str and '.' in token_str:
+            high_fidelity.append(token_str)
+        # Check if hostname or username (usually doesn't have dots)
+        elif '.' not in token_str:
+            high_fidelity.append(token_str)
+        else:
+            # Public IPs and external domains go to the LLM filter
+            to_filter.append(token_str)
+            
+    # Filter noisy domains/public IPs using Micro-Task 1
+    filtered = filter_suspicious_seeds(to_filter)
+    
+    # Combine whitelisted structural indicators and filtered seeds
+    return list(set(high_fidelity + filtered))
+
 # --- HYBRID ORCHESTRATOR CORRELATION FLOW ---
 
 def orchestrate_incident(seed_alert_path: str, playbook_path: str) -> dict:
-    """Orchestrates ingestion, metadata pivoting, milestone checks, and final reporting."""
+    """Orchestrates ingestion, transitive-closure metadata pivoting, milestone checks, and final reporting."""
     # 1. Process Seed Alert
     seed_log = ingest_pipeline.process_log_file(seed_alert_path)
     seed_id = seed_log["id"]
@@ -208,21 +261,35 @@ def orchestrate_incident(seed_alert_path: str, playbook_path: str) -> dict:
     if seed_log["metadata"]["hostname"] and seed_log["metadata"]["hostname"] != "Unknown":
         raw_tokens.append(seed_log["metadata"]["hostname"])
         
-    # Get clean active search seeds via Micro-Task 1
-    active_seeds = filter_suspicious_seeds(list(set(raw_tokens)))
+    # Apply initial broadening and prepare clean whitelisted seeds
+    broadened_initial = broaden_indicators(list(set(raw_tokens)))
+    active_seeds = prepare_seeds(broadened_initial)
     
     # Initialize pivoting collections
     correlated_alerts = [seed_log]
     correlated_ids = {seed_id}
     processed_seeds = set()
     
-    # Pivot up to 5 iterations
-    for cycle in range(1, 6):
-        new_seeds = [s for s in active_seeds if s not in processed_seeds]
-        if not new_seeds:
+    # Transitive Closure fixed-point loop
+    stable = False
+    hop_count = 0
+    MAX_HOPS = 6
+    
+    while not stable:
+        hop_count += 1
+        if hop_count > MAX_HOPS:
+            log_warning(f"CIRCUIT BREAKER TRIGGERED: Attack chain topology runs deeper than {MAX_HOPS} hops!")
             break
             
-        log_info(f"Pivoting Iteration [{cycle}/5] on seeds: {new_seeds}")
+        previous_ids = set(correlated_ids)
+        
+        # Get seeds not yet queried
+        new_seeds = [s for s in active_seeds if s not in processed_seeds]
+        if not new_seeds:
+            stable = True
+            break
+            
+        log_info(f"Pivoting Hop [{hop_count}] on seeds: {new_seeds}")
         seed_epoch = seed_log["metadata"]["timestamp_epoch"]
         
         # Query ChromaDB using RRF
@@ -233,10 +300,10 @@ def orchestrate_incident(seed_alert_path: str, playbook_path: str) -> dict:
             time_window_sec=86400  # 24 hour window
         )
         
+        # Mark seeds as processed
         for s in new_seeds:
             processed_seeds.add(s)
             
-        added_new = False
         for alert_id, score, doc, meta in fused:
             if alert_id not in correlated_ids:
                 correlated_ids.add(alert_id)
@@ -246,7 +313,6 @@ def orchestrate_incident(seed_alert_path: str, playbook_path: str) -> dict:
                     "metadata": meta
                 }
                 correlated_alerts.append(new_alert)
-                added_new = True
                 log_success(f"Correlated related alert {alert_id} (RRF Score: {score:.4f})")
                 
                 # Scan new alert for additional indicators
@@ -263,15 +329,19 @@ def orchestrate_incident(seed_alert_path: str, playbook_path: str) -> dict:
                 if meta.get("hostname") and meta.get("hostname") != "Unknown":
                     new_tokens.append(meta["hostname"])
                     
-                new_filtered = filter_suspicious_seeds(list(set(new_tokens)))
-                for nf in new_filtered:
-                    if nf not in active_seeds:
-                        active_seeds.append(nf)
+                # Apply broadening and filter
+                broadened_new = broaden_indicators(list(set(new_tokens)))
+                new_active = prepare_seeds(broadened_new)
+                
+                for ns in new_active:
+                    if ns not in active_seeds:
+                        active_seeds.append(ns)
                         
-        if not added_new:
-            break
+        # Check if set of correlated alerts has changed
+        if correlated_ids == previous_ids:
+            stable = True
 
-    log_success(f"Pivoting complete. Total correlated alerts: {len(correlated_alerts)}")
+    log_success(f"Transitive closure complete in {hop_count} hops. Total correlated alerts: {len(correlated_alerts)}")
     
     # Load playbook
     with open(playbook_path, "r", encoding="utf-8") as f:
@@ -318,7 +388,8 @@ def orchestrate_incident(seed_alert_path: str, playbook_path: str) -> dict:
                 current_node = routing
         else:
             # Check if there are suggested pivots to perform additional dynamic retrieval
-            new_pivots = [p for p in check.suggested_pivots if p not in processed_seeds]
+            broadened_suggested = broaden_indicators(check.suggested_pivots)
+            new_pivots = [p for p in broadened_suggested if p not in processed_seeds]
             if new_pivots:
                 log_info(f"Playbook step {current_node} requested extra queries for: {new_pivots}")
                 seed_epoch = seed_log["metadata"]["timestamp_epoch"]
