@@ -11,16 +11,18 @@ SOC Platform v4
 
 import re
 import streamlit as st
+import streamlit.components.v1 as components
 import requests
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import time
 import os
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from collections import Counter
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 try:
     from dotenv import load_dotenv, set_key, find_dotenv
@@ -66,7 +68,7 @@ def get_cisco_cfg() -> CiscoLLMConfig:
         api_key     = st.session_state.get("cisco_key",   "").strip() or "changeme",
         model       = st.session_state.get("cisco_model", "").strip()
                       or "fdtn-ai/Foundation-Sec-8B-Reasoning",
-        temperature = 0.1,
+        temperature = 0.0,
         max_tokens  = 1024,
         timeout     = 300,
     )
@@ -221,7 +223,7 @@ def nw_login(host: str, username: str, password: str) -> tuple[bool, str, str]:
 # PAGE CONFIG
 # ══════════════════════════════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="SOC Platform",
+    page_title="Security Dashboard",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -232,7 +234,7 @@ st.set_page_config(
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
 
 :root {
   --bg:      #04080F;
@@ -244,101 +246,173 @@ st.markdown("""
   --warn:    #FFB700;
   --danger:  #FF3B3B;
   --orange:  #FF7700;
-  --muted:   #3A607A;
-  --text:    #B8D4E8;
+  --muted:   #5A80A0;
+  --text:    #C8DCF0;
   --mono:    'Share Tech Mono', monospace;
-  --sans:    'Barlow', sans-serif;
+  --sans:    'Inter', sans-serif;
 }
 
-html, body, [class*="css"] { font-family: var(--sans); background: var(--bg); color: var(--text); }
+html, body, [class*="css"] {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+}
 .main { background: var(--bg); padding-top: 0.5rem; }
 
+/* ── Sidebar ── */
 section[data-testid="stSidebar"] > div:first-child {
   background: linear-gradient(180deg, #040810 0%, #06101A 100%);
   border-right: 1px solid #0E1E30;
   padding-top: 1rem;
 }
 
-h1,h2,h3 { font-family: var(--mono); color: var(--accent); letter-spacing: 2px; margin-bottom: 0.3rem; }
-h1 { font-size: 1.3rem !important; }
+/* ── Headings ── */
+h1,h2,h3 {
+  font-family: var(--sans);
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.4rem;
+}
+h1 { font-size: 1.4rem !important; letter-spacing: 0.5px; }
+h2 { font-size: 1.1rem !important; }
+h3 { font-size: 0.95rem !important; }
 
+/* ── Metric cards ── */
 [data-testid="metric-container"] {
   background: linear-gradient(135deg, #070D18 0%, #0A1628 100%);
   border: 1px solid var(--border);
-  border-radius: 8px; padding: 14px 18px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
-  transition: border-color 0.2s;
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.4);
+  transition: all 0.2s;
 }
-[data-testid="metric-container"]:hover { border-color: #1E4060; }
+[data-testid="metric-container"]:hover {
+  border-color: #1E4060;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 24px rgba(0,212,255,0.08);
+}
 [data-testid="metric-container"] label {
-  color: var(--muted); font-size: 0.65rem;
-  letter-spacing: 2px; font-family: var(--mono); text-transform: uppercase;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-family: var(--sans);
 }
 [data-testid="metric-container"] [data-testid="stMetricValue"] {
-  color: var(--accent); font-family: var(--mono); font-size: 1.6rem;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 1.8rem;
+  font-weight: 400;
 }
 
+/* ── Buttons ── */
 .stButton > button {
   background: linear-gradient(90deg, #052030, #083050);
-  color: var(--accent); border: 1px solid #0E4A6A;
-  border-radius: 5px; font-family: var(--mono);
-  font-size: 0.72rem; letter-spacing: 1px;
-  padding: 6px 14px; transition: all 0.15s;
+  color: var(--accent);
+  border: 1px solid #0E4A6A;
+  border-radius: 8px;
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  transition: all 0.15s;
 }
 .stButton > button:hover {
   background: linear-gradient(90deg, #083050, #0E4A6A);
-  box-shadow: 0 0 14px rgba(0,212,255,0.2);
-  color: #fff; border-color: var(--accent);
+  box-shadow: 0 0 18px rgba(0,212,255,0.2);
+  color: #fff;
+  border-color: var(--accent);
+  transform: translateY(-1px);
 }
+.stButton > button:active { transform: translateY(0); }
 
+/* ── Inputs ── */
 .stTextInput > div > div > input,
 .stTextArea textarea {
   background: #060E1A !important;
-  border: 1px solid #0E2030 !important;
+  border: 1px solid #1A3050 !important;
   color: var(--text) !important;
-  border-radius: 5px; font-family: var(--sans); font-size: 0.85rem;
+  border-radius: 8px;
+  font-family: var(--sans);
+  font-size: 0.88rem;
+  padding: 10px 14px !important;
 }
 .stTextInput > div > div > input:focus,
 .stTextArea textarea:focus {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 2px rgba(0,212,255,0.12) !important;
+  box-shadow: 0 0 0 3px rgba(0,212,255,0.1) !important;
+}
+.stTextInput label, .stTextArea label, .stSelectbox label {
+  color: var(--text) !important;
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
+  margin-bottom: 4px !important;
 }
 .stSelectbox > div > div {
   background: #060E1A !important;
-  border: 1px solid #0E2030 !important;
-  color: var(--text) !important; border-radius: 5px;
+  border: 1px solid #1A3050 !important;
+  color: var(--text) !important;
+  border-radius: 8px;
 }
 
+/* ── Tabs ── */
 .stTabs [data-baseweb="tab-list"] {
-  background: transparent; border-bottom: 1px solid var(--border); gap: 2px;
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+  gap: 4px;
 }
 .stTabs [data-baseweb="tab"] {
-  font-family: var(--mono); font-size: 0.7rem;
-  letter-spacing: 1.5px; color: var(--muted);
-  border: none; padding: 8px 18px; background: transparent;
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--muted);
+  border: none;
+  padding: 10px 20px;
+  background: transparent;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.15s;
+}
+.stTabs [data-baseweb="tab"]:hover {
+  color: var(--text);
+  background: rgba(0,212,255,0.04);
 }
 .stTabs [aria-selected="true"] {
   color: var(--accent) !important;
   border-bottom: 2px solid var(--accent) !important;
-  background: rgba(0,212,255,0.04) !important;
+  background: rgba(0,212,255,0.06) !important;
+  font-weight: 600 !important;
 }
 
+/* ── Cards ── */
 .card {
   background: linear-gradient(135deg, #070D18 0%, #08111E 100%);
   border: 1px solid var(--border);
-  border-radius: 8px; padding: 14px 18px; margin: 5px 0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin: 6px 0;
   transition: all 0.15s;
 }
-.card:hover { border-color: #1E4060; transform: translateX(2px); }
+.card:hover {
+  border-color: #1E4060;
+  transform: translateX(3px);
+  box-shadow: 0 2px 16px rgba(0,0,0,0.3);
+}
 .card-critical { border-left: 4px solid var(--danger) !important; }
 .card-high     { border-left: 4px solid var(--orange) !important; }
-.card-medium   { border-left: 4px solid var(--warn) !important; }
-.card-low      { border-left: 4px solid var(--green) !important; }
+.card-medium   { border-left: 4px solid var(--warn)   !important; }
+.card-low      { border-left: 4px solid var(--green)  !important; }
 
+/* ── Badges ── */
 .badge {
-  padding: 2px 9px; border-radius: 3px;
-  font-family: var(--mono); font-size: 0.62rem;
-  display: inline-block; letter-spacing: 0.5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  display: inline-block;
+  font-family: var(--sans);
 }
 .badge-critical { background:#200808; color:var(--danger);  border:1px solid #4A1010; }
 .badge-high     { background:#201200; color:var(--orange);  border:1px solid #4A2A00; }
@@ -346,43 +420,118 @@ h1 { font-size: 1.3rem !important; }
 .badge-low      { background:#001810; color:var(--green);   border:1px solid #004025; }
 .badge-info     { background:#001828; color:var(--accent);  border:1px solid #003850; }
 
+/* ── Chat bubbles ── */
 .bubble-user {
-  background: #080F1A; border-left: 3px solid #005C8A;
-  padding: 10px 15px; border-radius: 0 8px 8px 0; margin: 6px 0; font-size: 0.88rem;
+  background: #080F1A;
+  border-left: 3px solid #005C8A;
+  padding: 12px 16px;
+  border-radius: 0 10px 10px 0;
+  margin: 8px 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
 }
 .bubble-agent {
-  background: #040A12; border-left: 3px solid var(--accent);
-  padding: 10px 15px; border-radius: 0 8px 8px 0; margin: 6px 0; font-size: 0.88rem;
+  background: #040A12;
+  border-left: 3px solid var(--accent);
+  padding: 12px 16px;
+  border-radius: 0 10px 10px 0;
+  margin: 8px 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
 }
 .bubble-label {
-  font-family: var(--mono); font-size: 0.58rem;
-  letter-spacing: 2px; margin-bottom: 5px; color: var(--accent);
+  font-family: var(--sans);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 5px;
+  color: var(--accent);
+  text-transform: uppercase;
 }
 
-.dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; vertical-align:middle; }
-.dot-green  { background:var(--green);  box-shadow:0 0 6px var(--green);  animation:pulse 2s infinite; }
-.dot-red    { background:var(--danger); box-shadow:0 0 4px var(--danger); }
-.dot-yellow { background:var(--warn);   box-shadow:0 0 4px var(--warn);   animation:pulse 1s infinite; }
+/* ── Status dots ── */
+.dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px; vertical-align:middle; }
+.dot-green  { background:var(--green);  box-shadow:0 0 8px var(--green);  animation:pulse 2s infinite; }
+.dot-red    { background:var(--danger); box-shadow:0 0 6px var(--danger); }
+.dot-yellow { background:var(--warn);   box-shadow:0 0 6px var(--warn);   animation:pulse 1s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 
+/* ── Section labels ── */
 .sec-label {
-  font-family: var(--mono); font-size: 0.58rem; color: #2A4A62;
-  letter-spacing: 3px; text-transform: uppercase;
-  margin: 18px 0 8px; padding-bottom: 5px;
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #4A7090;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 20px 0 10px;
+  padding-bottom: 6px;
   border-bottom: 1px solid #0E1E2E;
 }
 
+/* ── Stat mini cards ── */
 .stat-mini {
-  background: #070D18; border: 1px solid var(--border);
-  border-radius: 6px; padding: 10px 14px; text-align: center; font-family: var(--mono);
+  background: #070D18;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  text-align: center;
+  font-family: var(--sans);
 }
-.stat-mini .val { font-size: 1.4rem; color: var(--accent); }
-.stat-mini .lbl { font-size: 0.6rem; color: var(--muted); letter-spacing: 2px; margin-top: 2px; }
+.stat-mini .val { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+.stat-mini .lbl { font-size: 0.68rem; font-weight: 500; color: var(--muted); margin-top: 3px; text-transform: uppercase; }
 
-hr { border-color: #0E1E2E; margin: 1rem 0; }
-::-webkit-scrollbar { width: 4px; }
+/* ── Tooltips / info boxes ── */
+.info-box {
+  background: #060E1A;
+  border: 1px solid #1A3050;
+  border-radius: 10px;
+  padding: 14px 18px;
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.6;
+  margin: 8px 0;
+}
+.info-box .title {
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+}
+
+/* ── Expanders ── */
+.streamlit-expanderHeader {
+  font-family: var(--sans) !important;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  color: var(--text) !important;
+}
+
+/* ── Scrollbar ── */
+hr { border-color: #0E1E2E; margin: 1.2rem 0; }
+::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: #0E2030; border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: #1E3050; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #2A4060; }
+
+/* ── Sidebar logo / app name ── */
+.app-logo {
+  text-align: center;
+  padding: 10px 0 16px;
+  border-bottom: 1px solid #0E1E2E;
+  margin-bottom: 4px;
+}
+.app-logo .name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.app-logo .sub {
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -419,8 +568,12 @@ DEFAULTS = {
     "nw_cert_path":     _env.get("nw_cert_path", ""),  # ← path to CA/server cert for TLS verification
     "incidents":        [],
     "last_fetch":       None,
+    "last_full_fetch":  None,   # ← last time a full (non-incremental) fetch ran
+    "last_fetch_mode":  None,   # ← "full" | "incremental", shown in diagnostics
     "chat_history":     [],
     "chat_incident":    None,
+    "pending_auto_triage": False,   # set by "🩺 Triage" button — auto-runs the pipeline
+    "jump_to_ask_tab":     False,   # set by "🩺 Triage" button — switches to Ask a Question tab
     "chroma_client":    None,
     "chroma_col":       None,
     "search_results":   [],
@@ -438,7 +591,9 @@ for k, v in DEFAULTS.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-REFRESH_INTERVAL = 30   # seconds
+REFRESH_INTERVAL     = 30                      # seconds
+INCREMENTAL_OVERLAP  = timedelta(minutes=5)    # clock-skew / indexing-lag buffer
+FULL_RESYNC_INTERVAL = timedelta(minutes=10)   # periodic ground-truth resync
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -564,11 +719,24 @@ def nw_verify_token() -> tuple[bool, str]:
     except Exception as e:
         return False, f"Cannot reach server: {e}"
 
-def nw_fetch_incidents(limit: int = 500) -> tuple[bool, list, str]:
+def nw_fetch_incidents(
+    limit: int | None = None, since: str | None = None
+) -> tuple[bool, list, str]:
     """
     Returns (ok, items, diagnostic_message).
     ok=True even if items is empty (empty just means no incidents in NW right now).
     ok=False means a real error occurred (auth, network, etc).
+
+    limit=None (default) means load every incident the API has — pagination
+    keeps going until the API reports hasNext=False. MAX_PAGES is a safety
+    valve, not a real-world cap, in case an API bug ever returns hasNext=True
+    forever.
+
+    since=None (default) means a full fetch — every incident NetWitness has.
+    Pass an ISO8601 cutoff (see incremental_since()) to ask NetWitness for
+    only incidents created/updated after that point — used by the periodic
+    auto-refresh so it isn't re-fetching + re-enriching the entire incident
+    history (and every incident's full alert history) every 30s.
     """
     if not st.session_state.nw_verified or not st.session_state.nw_token:
         return False, [], "Not authenticated."
@@ -576,8 +744,9 @@ def nw_fetch_incidents(limit: int = 500) -> tuple[bool, list, str]:
     all_items = []
     page = 0
     diag = ""
-    # Include a wide date range — some NW versions return 400 without it
-    since = "2020-01-01T00:00:00.000Z"
+    MAX_PAGES = 1000   # 1000 * pageSize(100) = 100,000 incidents ceiling
+    # Include a wide date range by default — some NW versions return 400 without it
+    since = since or "2020-01-01T00:00:00.000Z"
     try:
         while True:
             r = requests.get(
@@ -593,7 +762,8 @@ def nw_fetch_incidents(limit: int = 500) -> tuple[bool, list, str]:
                 total_api = data.get("totalItems", "?")
                 all_items.extend(items)
                 has_next  = data.get("hasNext", False)
-                if not has_next or len(all_items) >= limit:
+                reached_limit = limit is not None and len(all_items) >= limit
+                if not has_next or reached_limit or page >= MAX_PAGES:
                     diag = (
                         f"API reports {total_api} total incident(s) — "
                         f"fetched {len(all_items)} across {page+1} page(s)."
@@ -610,29 +780,57 @@ def nw_fetch_incidents(limit: int = 500) -> tuple[bool, list, str]:
                 )
             else:
                 return False, [], f"HTTP {r.status_code}: {r.text[:200]}"
-        # Fetch associated alerts/logs for each incident
+        # Fetch associated alerts/logs for each incident — in parallel.
+        # This used to be a serial for-loop doing one blocking request per
+        # incident (up to 15s timeout each), so on a list of N incidents the
+        # whole fetch took N * request-time. Since this runs on every
+        # auto-refresh and on every rerun after one is due (sending a chat
+        # message, uploading a file — any Streamlit interaction reruns the
+        # whole script), that serial loop is what made the entire UI look
+        # frozen. Fetching concurrently bounds the wall-clock time to
+        # roughly one request instead of N.
         clean_path = st.session_state.get("nw_incidents_path", "/rest/api/incidents").strip()
         if clean_path.endswith("/list"):
             clean_path = clean_path[:-5]
-        for inc in all_items:
+
+        def _fetch_alerts(inc: dict) -> None:
             inc_id = str(inc.get("id") or inc.get("incidentId") or "").strip()
-            if inc_id:
-                alerts_url = f"{host.rstrip('/')}{clean_path}/{inc_id}/alerts"
-                try:
+            if not inc_id:
+                inc["alerts"] = []
+                return
+            alerts_url = f"{host.rstrip('/')}{clean_path}/{inc_id}/alerts"
+            # Paginate fully — this used to fetch only pageNumber=0, so any
+            # incident with more than 100 alerts silently lost the rest.
+            collected: list = []
+            a_page = 0
+            try:
+                while a_page < MAX_PAGES:
                     r_alerts = requests.get(
                         alerts_url,
                         headers=nw_headers(),
-                        params={"pageSize": 100, "pageNumber": 0},
-                        timeout=15,
+                        params={"pageSize": 100, "pageNumber": a_page},
+                        timeout=10,
                         verify=False,
                     )
-                    if r_alerts.status_code == 200:
-                        alerts_data = r_alerts.json()
-                        inc["alerts"] = alerts_data.get("items", [])
-                    else:
-                        inc["alerts"] = []
-                except Exception:
-                    inc["alerts"] = []
+                    if r_alerts.status_code != 200:
+                        break
+                    a_data = r_alerts.json()
+                    collected.extend(a_data.get("items", []))
+                    if not a_data.get("hasNext", False):
+                        break
+                    a_page += 1
+            except Exception:
+                pass
+            # Tag every alert with its parent incident ID so alerts are
+            # traceable back to the incident they came from.
+            for a in collected:
+                a["incident_id"] = inc_id
+            inc["alerts"] = collected
+
+        if all_items:
+            with ThreadPoolExecutor(max_workers=min(16, len(all_items))) as pool:
+                list(pool.map(_fetch_alerts, all_items))
+
         return True, all_items, diag
     except requests.exceptions.Timeout:
         return False, [], "Request timed out — check VPN/network."
@@ -1148,12 +1346,43 @@ if not st.session_state._startup_done and _env["host"] and _env["username"] and 
         st.session_state.nw_msg      = msg
         ok2, items, _diag = nw_fetch_incidents()
         if ok2:
-            st.session_state.incidents  = items
-            st.session_state.last_fetch = datetime.now()
+            st.session_state.incidents       = items
+            st.session_state.last_fetch      = datetime.now()
+            st.session_state.last_full_fetch = datetime.now()
+            st.session_state.last_fetch_mode = "full"
             db_upsert_incidents(items)
     else:
         st.session_state.nw_msg = msg
     st.session_state._startup_done = True
+
+def incremental_since(last_fetch: datetime) -> str:
+    """
+    ISO8601 cutoff for an incremental refresh — everything since the last
+    successful fetch, minus a 5-minute overlap to tolerate clock skew and
+    NetWitness indexing lag. Incidents re-fetched inside that overlap just
+    get upserted again by id — harmless, not duplicated.
+    """
+    cutoff = last_fetch - INCREMENTAL_OVERLAP
+    return cutoff.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+
+def _merge_incidents(cached: list, fresh: list) -> list:
+    """
+    Upsert `fresh` incidents into `cached` by id, keeping everything else
+    untouched. Used for incremental refreshes, where `fresh` is only the
+    new/updated subset NetWitness returned for the `since` window — not
+    the full incident set, so a plain replace would drop everything older.
+    """
+    by_id = {
+        str(inc.get("id") or inc.get("incidentId") or f"_unkeyed_{i}"): inc
+        for i, inc in enumerate(cached)
+    }
+    for inc in fresh:
+        key = str(inc.get("id") or inc.get("incidentId") or "").strip()
+        if key:
+            by_id[key] = inc
+    return list(by_id.values())
+
 
 def maybe_auto_fetch():
     if not st.session_state.nw_verified:
@@ -1161,10 +1390,28 @@ def maybe_auto_fetch():
     now  = datetime.now()
     last = st.session_state.last_fetch
     if last is None or (now - last).total_seconds() >= REFRESH_INTERVAL:
-        ok, items, _diag = nw_fetch_incidents()
+        # We don't actually know whether NetWitness's `since` filter matches
+        # on incident creation time or last-updated time — the API isn't
+        # documented clearly enough to bet on it. If it's creation-time only,
+        # a purely incremental refresh would silently miss status/alert
+        # changes on older incidents. So: incremental fetches most cycles
+        # (cheap — only new/updated incidents come back), but force a full
+        # ground-truth resync every FULL_RESYNC_INTERVAL regardless, which
+        # caps how stale the cache can ever get at a known worst case.
+        last_full  = st.session_state.last_full_fetch
+        needs_full = last_full is None or (now - last_full) >= FULL_RESYNC_INTERVAL
+        since = None if needs_full else incremental_since(last)
+
+        ok, items, _diag = nw_fetch_incidents(since=since)
         if ok:
-            st.session_state.incidents  = items
-            st.session_state.last_fetch = now
+            st.session_state.incidents = (
+                items if since is None
+                else _merge_incidents(st.session_state.incidents, items)
+            )
+            st.session_state.last_fetch      = now
+            st.session_state.last_fetch_mode = "full" if since is None else "incremental"
+            if since is None:
+                st.session_state.last_full_fetch = now
             db_upsert_incidents(items)   # ← persist every fetch to SQLite
 
 def chroma_connect(path: str = "./chroma_db") -> tuple[bool, str]:
@@ -1245,10 +1492,10 @@ maybe_auto_fetch()
 with st.sidebar:
 
     st.markdown(
-        '<div style="font-family:var(--mono);font-size:1.05rem;color:var(--accent);'
-        'letter-spacing:3px;padding:2px 0">🛡️ SOC PLATFORM</div>'
-        '<div style="font-family:var(--mono);font-size:0.55rem;color:var(--muted);'
-        'letter-spacing:2px;margin-bottom:4px">SECURITY OPERATIONS CENTER</div>',
+        '<div class="app-logo">'
+        '<div class="name">🛡️ Security Dashboard</div>'
+        '<div class="sub">Powered by NetWitness</div>'
+        '</div>',
         unsafe_allow_html=True,
     )
     st.markdown("---")
@@ -1275,7 +1522,7 @@ with st.sidebar:
             f'<div style="background:#040C14;border:1px solid #0E2030;'
             f'border-radius:7px;padding:11px 13px">'
             f'<div style="font-family:var(--mono);font-size:0.68rem">'
-            f'<span class="dot dot-green"></span>CONNECTED</div>'
+            f'<span class="dot dot-green"></span>Connected ✓</div>'
             f'<div style="margin-top:4px">{_gp_status}</div>'
             f'<div style="font-family:var(--mono);font-size:0.58rem;'
             f'color:var(--muted);margin-top:3px">{st.session_state.nw_msg}</div>'
@@ -1296,14 +1543,14 @@ with st.sidebar:
         st.markdown(
             '<div style="background:#0A0608;border:1px solid #2A1010;'
             'border-radius:7px;padding:11px 13px;font-family:var(--mono);font-size:0.68rem">'
-            '<span class="dot dot-red"></span>NOT CONNECTED<br>'
+            '<span class="dot dot-red"></span>Not Connected<br>'
             '<span style="font-size:0.57rem;color:var(--muted)">'
-            'Enter credentials below</span></div>',
+            'Please enter your login details below</span></div>',
             unsafe_allow_html=True,
         )
 
     # ── NetWitness credentials ─────────────────────────────────
-    st.markdown('<div class="sec-label">■ NETWITNESS</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec-label">🔌  Connection</div>', unsafe_allow_html=True)
 
     # If already auto-connected from .env, show a clean status + update option
     if st.session_state.nw_verified and _env["username"]:
@@ -1514,7 +1761,7 @@ with st.sidebar:
             st.rerun()
 
     # ── TLS Certificate (Option B — verified HTTPS) ─────────────
-    st.markdown('<div class="sec-label">■ TLS CERTIFICATE</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec-label">🔒  Security Certificate</div>', unsafe_allow_html=True)
 
     # Auto-clear bad cert if last message was an SSL error
     _last_msg = st.session_state.get("nw_msg", "")
@@ -1581,7 +1828,7 @@ with st.sidebar:
         st.rerun()
 
     # ── Foundation LLM (HuggingFace) ──────────────────────────
-    st.markdown('<div class="sec-label">■ FOUNDATION LLM</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec-label">🤖  AI Settings</div>', unsafe_allow_html=True)
 
     # Connection status indicator
     if st.session_state.cisco_connected:
@@ -1670,7 +1917,7 @@ with st.sidebar:
         st.rerun()
 
     # ── ChromaDB ───────────────────────────────────────────────
-    st.markdown('<div class="sec-label">■ CHROMADB</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec-label">🧠  Knowledge Base</div>', unsafe_allow_html=True)
 
     chroma_path = st.text_input("Persist path", value="./chroma_db")
     cc1, cc2 = st.columns(2)
@@ -1751,14 +1998,64 @@ st.markdown("---")
 # ══════════════════════════════════════════════════════════════════════════════
 # TABS
 # ══════════════════════════════════════════════════════════════════════════════
+_connected = st.session_state.nw_verified
+_inc_count = len(incidents)
+st.markdown(
+    f'<div style="display:flex;align-items:center;justify-content:space-between;'
+    f'padding:10px 0 16px">'
+    f'<div>'
+    f'<div style="font-size:1.3rem;font-weight:700;color:var(--accent)">🛡️ Security Dashboard</div>'
+    f'<div style="font-size:0.8rem;color:var(--muted);margin-top:2px">'
+    f'{"✅ Connected — " + str(_inc_count) + " alerts loaded" if _connected else "⚠️ Not connected — please log in using the left panel"}'
+    f'</div></div>'
+    f'<div style="font-size:0.72rem;color:var(--muted);text-align:right">'
+    f'{datetime.now().strftime("%A, %d %B %Y")}</div>'
+    f'</div>',
+    unsafe_allow_html=True,
+)
+
 tab_dash, tab_inc, tab_chat, tab_chroma, tab_log, tab_pipeline = st.tabs([
-    "📊  DASHBOARD",
-    "📋  INCIDENTS",
-    "💬  CHAT",
-    "🗄️  CHROMADB",
-    "📁  LOG HISTORY",
-    "🔁  PIPELINE DB",
+    "📊  Overview",
+    "🚨  Security Alerts",
+    "💬  Ask a Question",
+    "🧠  Knowledge Base",
+    "📁  History",
+    "🔁  Data Pipeline",
 ])
+
+# Streamlit's st.tabs has no server-side "set active tab" API — the click
+# from the "🩺 Triage" button is simulated client-side by finding the tab
+# button whose label contains "Ask a Question" and clicking it. One-shot:
+# the flag is cleared immediately so this doesn't refire on later reruns.
+if st.session_state.jump_to_ask_tab:
+    st.session_state.jump_to_ask_tab = False
+    components.html(
+        """
+        <script>
+        (function() {
+            function clickAskTab() {
+                const doc = window.parent.document;
+                const tabs = doc.querySelectorAll('button[role="tab"], [data-baseweb="tab"]');
+                for (const t of tabs) {
+                    if (t.innerText && t.innerText.includes("Ask a Question")) {
+                        t.click();
+                        return true;
+                    }
+                }
+                return false;
+            }
+            let attempts = 0;
+            const timer = setInterval(() => {
+                attempts++;
+                if (clickAskTab() || attempts > 20) {
+                    clearInterval(timer);
+                }
+            }, 100);
+        })();
+        </script>
+        """,
+        height=0,
+    )
 
 SEV_COLORS = {
     "CRITICAL": "#FF3B3B",
@@ -1783,8 +2080,11 @@ with tab_dash:
     # ── Live diagnostic banner ─────────────────────────────────
     if st.session_state.nw_verified:
         _last = st.session_state.last_fetch
+        _mode = st.session_state.last_fetch_mode
+        _mode_str = {"full": "🌐 full", "incremental": "⚡ incremental"}.get(_mode, "—")
         _diag_str = (
-            f"🕐 Last fetch: {_last.strftime('%H:%M:%S') if _last else 'never'} · "
+            f"🕐 Last fetch: {_last.strftime('%H:%M:%S') if _last else 'never'} "
+            f"({_mode_str}) · "
             f"Incidents in session: {len(incidents)} · "
             f"Host: {st.session_state.nw_host}"
         )
@@ -1796,11 +2096,13 @@ with tab_dash:
             unsafe_allow_html=True,
         )
         rc1, rc2 = st.columns([1, 4])
-        if rc1.button("🔄 Force Refresh", use_container_width=True):
+        if rc1.button("🔄 Refresh Data", use_container_width=True, help="Forces a full resync, not incremental"):
             ok_r, items_r, diag_r = nw_fetch_incidents()
             if ok_r:
-                st.session_state.incidents  = items_r
-                st.session_state.last_fetch = datetime.now()
+                st.session_state.incidents       = items_r
+                st.session_state.last_fetch      = datetime.now()
+                st.session_state.last_full_fetch = datetime.now()
+                st.session_state.last_fetch_mode = "full"
                 db_upsert_incidents(items_r)
                 st.success(f"✅ {diag_r}")
             else:
@@ -1810,23 +2112,22 @@ with tab_dash:
     if not incidents:
         if st.session_state.nw_verified:
             st.warning(
-                "✅ Connected but **no incidents returned** by NetWitness. "
-                "This is normal if there are genuinely no incidents, or if the account "
-                "lacks the `integration-server.api.access` permission. "
-                "Check NW Admin → Security → Roles → Administrators."
+                "✅ Connected successfully, but there are **no security alerts** to show right now. "
+                "This is normal if everything is quiet. If you expected to see data, please "
+                "contact your IT administrator to check your account permissions."
             )
         else:
             # ── Connection Test Panel ──────────────────────────
             st.markdown(
                 '<div style="font-family:var(--mono);font-size:0.65rem;'
                 'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
-                '■ CONNECTION TEST</div>',
+                '🔧  Getting Started — Connection Setup</div>',
                 unsafe_allow_html=True,
             )
             st.markdown(
-                '<div style="font-family:var(--mono);font-size:0.62rem;'
+                '<div style="font-family:var(--sans);font-size:0.78rem;'
                 'color:var(--muted);margin-bottom:14px">'
-                'Use the steps below to diagnose why data is not loading.</div>',
+                "Let's get you connected. Follow the steps below.</div>",
                 unsafe_allow_html=True,
             )
 
@@ -1842,7 +2143,7 @@ with tab_dash:
                 f'background:{"#041A0A" if s1_ok else "#1A0505"};'
                 f'border-left:3px solid {"#00E676" if s1_ok else "#FF5252"}">'
                 f'{"✅" if s1_ok else "❌"} '
-                f'<strong>Step 1 — Host URL</strong> &nbsp;'
+                f'<strong>Step 1 — Server Address</strong> &nbsp;'
                 f'<span style="color:var(--muted)">'
                 f'{"Set to: " + host if s1_ok else "Not set — enter https://192.168.x.x in the sidebar"}'
                 f'</span></div>',
@@ -1859,7 +2160,7 @@ with tab_dash:
                 f'background:{"#041A0A" if s2_ok else "#1A0505"};'
                 f'border-left:3px solid {"#00E676" if s2_ok else "#FF5252"}">'
                 f'{"✅" if s2_ok else "❌"} '
-                f'<strong>Step 2 — Auth Token</strong> &nbsp;'
+                f'<strong>Step 2 — Login Session</strong> &nbsp;'
                 f'<span style="color:var(--muted)">'
                 f'{"Token present: " + token_preview if s2_ok else "No token — login with credentials in the sidebar"}'
                 f'</span></div>',
@@ -1875,7 +2176,7 @@ with tab_dash:
             t3a, t3b, t3c = st.columns(3)
 
             # Test A: Can we reach the host at all?
-            if t3a.button("🌐 Ping Host", use_container_width=True,
+            if t3a.button("🌐 Check Network", use_container_width=True,
                           disabled=not s1_ok, key="ping_host"):
                 with st.spinner("Reaching host…"):
                     try:
@@ -1889,7 +2190,7 @@ with tab_dash:
                         st.session_state["_test_ping"] = (False, str(e)[:100])
 
             # Test B: Does the auth endpoint respond?
-            if t3b.button("🔑 Test Auth URL", use_container_width=True,
+            if t3b.button("🔑 Check Login Page", use_container_width=True,
                           disabled=not s1_ok, key="test_auth"):
                 with st.spinner("Testing auth endpoint…"):
                     try:
@@ -1909,7 +2210,7 @@ with tab_dash:
                         st.session_state["_test_auth"] = (False, str(e)[:100])
 
             # Test C: Does the incidents endpoint respond with the current token?
-            if t3c.button("📋 Test Incidents", use_container_width=True,
+            if t3c.button("📋 Check Data Access", use_container_width=True,
                           disabled=not (s1_ok and s2_ok), key="test_incidents"):
                 with st.spinner("Testing incidents endpoint…"):
                     try:
@@ -1955,7 +2256,7 @@ with tab_dash:
                 unsafe_allow_html=True,
             )
             fa, fb = st.columns(2)
-            if fa.button("🔌 Re-login with .env credentials",
+            if fa.button("🔌 Connect Automatically",
                          use_container_width=True, key="quick_relogin",
                          disabled=not (bool(_env.get("host")) and bool(_env.get("username")) and bool(_env.get("password")))):
                 with st.spinner("Logging in…"):
@@ -1973,7 +2274,7 @@ with tab_dash:
                 else:
                     st.error(f"❌ {msg}")
 
-            if fb.button("🗑️ Clear test results",
+            if fb.button("🗑️ Reset",
                          use_container_width=True, key="clear_tests"):
                 for k in ["_test_ping", "_test_auth", "_test_inc"]:
                     st.session_state.pop(k, None)
@@ -1986,10 +2287,10 @@ with tab_dash:
             st.markdown(
                 '<div style="font-family:var(--mono);font-size:0.65rem;'
                 'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
-                '■ SEVERITY</div>', unsafe_allow_html=True,
+                '🎯  Alert Priority Breakdown</div>', unsafe_allow_html=True,
             )
             sev_total = sum(by_sev.values()) or 1
-            for s in ["CRITICAL","HIGH","MEDIUM","LOW"]:
+            for s in ["CRITICAL","HIGH","MEDIUM","LOW"]:  # shown with friendly labels below
                 cnt   = by_sev.get(s, 0)
                 pct   = cnt / sev_total
                 color = SEV_COLORS[s]
@@ -1997,7 +2298,7 @@ with tab_dash:
                     f'<div style="margin:8px 0">'
                     f'<div style="display:flex;justify-content:space-between;'
                     f'font-family:var(--mono);font-size:0.63rem;margin-bottom:4px">'
-                    f'<span style="color:{color}">{s}</span>'
+                    f'<span style="color:{color}">{{"CRITICAL":"🔴 Critical","HIGH":"🟠 High","MEDIUM":"🟡 Medium","LOW":"🟢 Low"}}.get(s, s)</span>'
                     f'<span style="color:var(--muted)">{cnt}</span></div>'
                     f'<div style="background:#0A1420;border-radius:3px;height:7px">'
                     f'<div style="width:{pct*100:.1f}%;height:100%;border-radius:3px;'
@@ -2011,7 +2312,7 @@ with tab_dash:
             st.markdown(
                 '<div style="font-family:var(--mono);font-size:0.65rem;'
                 'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
-                '■ STATUS</div>', unsafe_allow_html=True,
+                '📌  Current Status</div>', unsafe_allow_html=True,
             )
             status_counts = Counter(
                 str(i.get("status") or "UNKNOWN").upper() for i in incidents
@@ -2038,7 +2339,7 @@ with tab_dash:
             st.markdown(
                 '<div style="font-family:var(--mono);font-size:0.65rem;'
                 'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
-                '■ LATEST INCIDENTS</div>', unsafe_allow_html=True,
+                '🕐  Most Recent Alerts</div>', unsafe_allow_html=True,
             )
             for inc in incidents[:10]:
                 sev     = normalise_sev(inc)
@@ -2064,7 +2365,7 @@ with tab_dash:
         st.markdown(
             '<div style="font-family:var(--mono);font-size:0.65rem;'
             'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
-            '■ WORKLOAD BY ASSIGNEE</div>', unsafe_allow_html=True,
+            '👤  Team Workload</div>', unsafe_allow_html=True,
         )
         assignee_counts = Counter(
             str(i.get("assignee") or "Unassigned") for i in incidents
@@ -2093,13 +2394,20 @@ with tab_dash:
 # TAB 2 — INCIDENTS
 # ─────────────────────────────────────────────────────────────
 with tab_inc:
+    st.markdown(
+        '<div class="info-box"><div class="title">🚨 Security Alerts</div>'
+        'This page lists all security incidents detected by NetWitness. '
+        'Use the filter below to focus on the most urgent alerts. '
+        'Click any alert to see full details.</div>',
+        unsafe_allow_html=True,
+    )
     col_filter, col_sync, col_info = st.columns([1.4, 1.2, 5])
 
     sev_filter = col_filter.selectbox(
-        "Filter", ["ALL","CRITICAL","HIGH","MEDIUM","LOW"],
-        label_visibility="collapsed",
+        "Filter by priority", ["ALL","CRITICAL","HIGH","MEDIUM","LOW"],
+        label_visibility="visible",
     )
-    if col_sync.button("⬆️ Sync ChromaDB", use_container_width=True):
+    if col_sync.button("⬆️ Sync to Knowledge Base", use_container_width=True):
         if not incidents:
             st.warning("No incidents loaded yet.")
         elif st.session_state.chroma_col is None:
@@ -2292,11 +2600,49 @@ with tab_inc:
             unsafe_allow_html=True,
         )
     else:
+        # Rendering a card (+ 2 buttons, + a possible nested alerts expander)
+        # per incident used to loop over the *entire* incidents list — with
+        # tens of thousands of incidents that's tens of thousands of widgets
+        # dumped into the DOM at once. Streamlit renders every tab's content
+        # into the page regardless of which tab is active, so this was
+        # slowing down the whole app, not just this tab. Filter first, then
+        # only render one page of cards at a time.
+        filtered = [
+            inc for inc in incidents
+            if sev_filter == "ALL" or normalise_sev(inc) == sev_filter
+        ]
+        total_filtered = len(filtered)
+
+        PAGE_SIZE   = 25
+        total_pages = max(1, -(-total_filtered // PAGE_SIZE))   # ceil div
+
+        # Jump back to page 1 whenever the filter changes, so you don't land
+        # on a now-empty page after narrowing the results.
+        if st.session_state.get("_sec_alerts_filter") != sev_filter:
+            st.session_state._sec_alerts_filter = sev_filter
+            st.session_state.sec_alerts_page    = 1
+        page = min(max(1, st.session_state.get("sec_alerts_page", 1)), total_pages)
+
+        pg1, pg2, pg3 = st.columns([1, 3, 1])
+        if pg1.button("◀ Prev", disabled=page <= 1, use_container_width=True):
+            st.session_state.sec_alerts_page = page - 1
+            st.rerun()
+        pg2.markdown(
+            f'<div style="text-align:center;font-family:var(--mono);'
+            f'font-size:0.68rem;color:var(--muted);padding-top:8px">'
+            f'Page {page} of {total_pages} &nbsp;·&nbsp; '
+            f'{total_filtered} incident(s) matching filter'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        if pg3.button("Next ▶", disabled=page >= total_pages, use_container_width=True):
+            st.session_state.sec_alerts_page = page + 1
+            st.rerun()
+
+        start = (page - 1) * PAGE_SIZE
         shown = 0
-        for inc in incidents:
+        for inc in filtered[start:start + PAGE_SIZE]:
             sev = normalise_sev(inc)
-            if sev_filter != "ALL" and sev != sev_filter:
-                continue
             shown += 1
 
             inc_id   = str(inc.get("id") or inc.get("incidentId") or "—")
@@ -2311,6 +2657,7 @@ with tab_inc:
                 f'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
                 f'<span class="badge badge-{sev.lower()}">{sev}</span>'
                 f'<strong style="flex:1;font-size:0.9rem">{title}</strong>'
+                f'<span style="color:var(--muted);font-size:0.62rem">Incident ID:</span>'
                 f'<code style="color:var(--muted);font-size:0.68rem">{inc_id}</code>'
                 f'</div>'
                 f'<div style="margin-top:8px;font-size:0.75rem;color:var(--muted);'
@@ -2321,13 +2668,15 @@ with tab_inc:
                 unsafe_allow_html=True,
             )
             b1, b2, _ = st.columns([0.9, 0.7, 6])
-            if b1.button("💬 Chat", key=f"chat_{inc_id}"):
-                st.session_state.chat_incident = inc
+            if b1.button("🩺 Triage", key=f"chat_{inc_id}"):
+                st.session_state.chat_incident       = inc
+                st.session_state.pending_auto_triage = True
+                st.session_state.jump_to_ask_tab     = True
                 st.rerun()
             if b2.button("{ }", key=f"json_{inc_id}"):
                 with st.expander(f"JSON — {inc_id}", expanded=True):
                     st.json(inc)
-            
+
             # Associated Alerts / Logs
             alerts_list = inc.get("alerts")
             if alerts_list:
@@ -2345,6 +2694,7 @@ with tab_inc:
                             f'<code style="color:var(--muted);font-size:0.7rem;margin-left:auto">{a_id}</code>'
                             f'</div>'
                             f'<div style="font-size:0.72rem;color:var(--muted);margin-top:4px">'
+                            f'Incident ID: <strong style="color:var(--accent)">{inc_id}</strong> &nbsp;·&nbsp; '
                             f'Source: {a_source} &nbsp;·&nbsp; Type: {a_type} &nbsp;·&nbsp; Time: {a_created}'
                             f'</div>'
                             f'</div>',
@@ -2376,6 +2726,14 @@ with tab_inc:
 # TAB 3 — CHAT
 # ─────────────────────────────────────────────────────────────
 with tab_chat:
+    st.markdown(
+        '<div class="info-box"><div class="title">💬 Ask a Question</div>'
+        'You can ask plain-language questions about your security alerts here. '
+        'For example: <em>"What are the most critical incidents today?"</em> or '
+        '<em>"Summarise the latest high-priority alerts."</em> '
+        'You do not need any technical knowledge to use this.</div>',
+        unsafe_allow_html=True,
+    )
 
     # ── Global CSS for the spinning phase icon (injected once, never reset) ──
     st.markdown("""
@@ -2584,6 +2942,13 @@ with tab_chat:
     # ── Chat input  (called first — always fixed at page bottom by Streamlit)
     user_input = st.chat_input("Ask the SOC agent…")
 
+    # The "🩺 Triage" button sets this flag instead of the user typing a
+    # message — synthesize the trigger word so it flows through the exact
+    # same pipeline below, with no manual typing required.
+    if not user_input and st.session_state.pending_auto_triage and active_inc:
+        st.session_state.pending_auto_triage = False
+        user_input = "Triage this incident"
+
     # Append user message immediately so it shows in the history render below
     if user_input:
         now = datetime.now().strftime("%H:%M:%S")
@@ -2756,11 +3121,18 @@ with tab_chat:
 # TAB 4 — CHROMADB
 # ─────────────────────────────────────────────────────────────
 with tab_chroma:
+    st.markdown(
+        '<div class="info-box"><div class="title">🧠 Knowledge Base</div>'
+        'This is where the AI stores its understanding of your security alerts. '
+        'Once synced, the AI can answer questions much more accurately. '
+        'Use the search box below to find specific incidents by description.</div>',
+        unsafe_allow_html=True,
+    )
     if st.session_state.chroma_col is None:
-        st.warning("Connect ChromaDB from the sidebar first.")
+        st.warning("⚠️ The Knowledge Base isn't connected yet. Connect it from the left panel under 🧠 Knowledge Base.")
     else:
         col = st.session_state.chroma_col
-        st.markdown(f"### CHROMADB — soc_incidents &nbsp; `{col.count()} vectors`")
+        st.markdown(f"### Knowledge Base — {col.count()} incidents indexed")
         st.markdown("---")
 
         st.markdown(
@@ -2847,12 +3219,19 @@ return chain.invoke(user_msg)["result"]
 # TAB 5 — LOG HISTORY  (permanent SQLite store)
 # ─────────────────────────────────────────────────────────────
 with tab_log:
+    st.markdown(
+        '<div class="info-box"><div class="title">📁 History</div>'
+        'All security alerts that have ever been loaded are saved here permanently, '
+        'even after a restart. You can search, filter, export to Excel, or generate '
+        'a report for any incident.</div>',
+        unsafe_allow_html=True,
+    )
     stats = db_stats()
 
     # ── Summary stats ──────────────────────────────────────────
     st.markdown(
-        '<div style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);'
-        'letter-spacing:2px;margin-bottom:12px">■ PERMANENT LOG STATS</div>',
+        '<div style="font-size:0.75rem;font-weight:600;color:var(--muted);'
+        'text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">📊 Summary</div>',
         unsafe_allow_html=True,
     )
     ls1, ls2, ls3, ls4 = st.columns(4)
@@ -2942,6 +3321,7 @@ with tab_log:
                 f'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
                 f'<span class="badge badge-{sev.lower()}">{sev}</span>'
                 f'<strong style="flex:1;font-size:0.88rem">{title}</strong>'
+                f'<span style="color:var(--muted);font-size:0.62rem">Incident ID:</span>'
                 f'<code style="color:var(--muted);font-size:0.68rem">{inc_id}</code>'
                 f'</div>'
                 f'<div style="margin-top:8px;font-size:0.73rem;color:var(--muted);'
@@ -2986,6 +3366,7 @@ with tab_log:
                             f'<code style="color:var(--muted);font-size:0.7rem;margin-left:auto">{a_id}</code>'
                             f'</div>'
                             f'<div style="font-size:0.72rem;color:var(--muted);margin-top:4px">'
+                            f'Incident ID: <strong style="color:var(--accent)">{inc_id}</strong> &nbsp;·&nbsp; '
                             f'Source: {a_source} &nbsp;·&nbsp; Type: {a_type} &nbsp;·&nbsp; Time: {a_created}'
                             f'</div>'
                             f'</div>',
@@ -3015,6 +3396,13 @@ with tab_log:
 # st.stop() removed from tab_chroma so this tab always renders.
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab_pipeline:
+    st.markdown(
+        '<div class="info-box"><div class="title">🔁 Data Pipeline</div>'
+        'This tool helps IT staff manage how security data flows through the system — '
+        'from collection, to review, to archiving. If you are not sure what this is for, '
+        'you likely do not need to use it.</div>',
+        unsafe_allow_html=True,
+    )
 
     # ── session defaults ──────────────────────────────────────────────────────
     if "pl_stage"      not in st.session_state: st.session_state.pl_stage      = None
