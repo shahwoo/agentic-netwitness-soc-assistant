@@ -4,8 +4,8 @@
     "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1783446822.1930065,
-    "updated_at": 1783446822.1930068,
+    "created_at": 1783448706.0821502,
+    "updated_at": 1783448706.0821507,
     "source_type": "Network",
     "similar_to_incident": null
   },
@@ -22,7 +22,7 @@
         "timestamp_epoch": 1769826646,
         "tactic": "command-and-control",
         "technique": "Unknown",
-        "ips": "10.100.20.121,10.100.10.3",
+        "ips": "10.100.10.3,10.100.20.121",
         "sha256s": "",
         "md5s": "",
         "emails": "",
@@ -30,12 +30,12 @@
       }
     }
   ],
-  "summary_text": "On January 31, 2026, an incident was detected involving multiple DNS responses for the hostname 'bankofmoney.com', which is categorized as a Lookalike/Phishing Domain. The incident was classified with a high severity risk score of 70, indicating potential command-and-control activity as per MITRE ATT&CK ID T1071.004. The source IP was identified as 10.100.20.121, and the destination IP was 10.100.10.3, with the destination port being 64659.",
+  "summary_text": "On 2026-01-31, an incident was reported (INC-6142) regarding multiple DNS responses for the same hostname, with a high-risk classification. The suspicious domain 'bankofmoney.com' was flagged as a lookalike/phishing domain, indicating potential malicious activity.",
   "indicators": [
     "bankofmoney.com",
-    "10.100.20.",
     "10.100.20.121",
-    "10.100.10.3",
-    "10.100.10."
+    "10.100.20.",
+    "10.100.10.",
+    "10.100.10.3"
   ]
 }

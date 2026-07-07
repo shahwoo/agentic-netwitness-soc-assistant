@@ -4,8 +4,8 @@
     "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1783446847.2612917,
-    "updated_at": 1783446847.2612917,
+    "created_at": 1783448713.5023756,
+    "updated_at": 1783448713.5023756,
     "source_type": "Network",
     "similar_to_incident": null
   },
@@ -30,11 +30,11 @@
       }
     }
   ],
-  "summary_text": "On January 31, 2026, an incident was detected involving DNS tunneling over TCP Port, classified as high risk with a score of 70. The source IP was identified as 155.140.254.2, and the destination IP was 64.64.211.3, which was flagged for non-standard DNS query tunnels. The incident was linked to command-and-control tactics as per MITRE ATT&CK framework (ID T1572).",
+  "summary_text": "On 2026-01-31, an incident was reported involving DNS tunneling over TCP Port, classified as high risk with a score of 70. The source IP was identified as 155.140.254.2 and the destination IP as 64.64.211.3, which is flagged for non-standard DNS query tunnels.",
   "indicators": [
+    "64.64.211.",
     "64.64.211.3",
     "155.140.254.",
-    "64.64.211.",
     "155.140.254.2"
   ]
 }

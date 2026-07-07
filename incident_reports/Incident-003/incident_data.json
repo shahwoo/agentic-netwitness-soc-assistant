@@ -4,8 +4,8 @@
     "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1783446775.0704865,
-    "updated_at": 1783446775.0704865,
+    "created_at": 1783448690.9754674,
+    "updated_at": 1783448690.9754674,
     "source_type": "Authentication",
     "similar_to_incident": null
   },
@@ -26,18 +26,18 @@
         "sha256s": "",
         "md5s": "",
         "emails": "",
-        "domains": "bnpparibasgroup.com,Auth.Failures.User"
+        "domains": "Auth.Failures.User,bnpparibasgroup.com"
       }
     }
   ],
-  "summary_text": "On January 30, 2026, a high-risk alert was triggered due to multiple authentication failures for user 'sally', indicating a brute force login attempt from an IP address in Czechia targeting a domain in France. The incident was classified with a high severity and a risk score of 70, indicating a significant threat level.",
+  "summary_text": "On 2026-01-30, an incident was reported involving a brute force login attempt targeting user 'sally'. The source IP address was identified as 5.1.57.22 from Czechia, and the destination IP was 155.140.254.100 in France. The incident was classified as high severity with a risk score of 70, indicating a potential credential access attempt.",
   "indicators": [
+    "sally",
+    "5.1.57.22",
     "bnpparibasgroup.com",
     "5.1.57.",
     "155.140.254.",
-    "sally",
     "155.140.254.100",
-    "auth.failures.user",
-    "5.1.57.22"
+    "auth.failures.user"
   ]
 }

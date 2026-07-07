@@ -4,8 +4,8 @@
     "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1783446753.5095453,
-    "updated_at": 1783446753.5095456,
+    "created_at": 1783448680.556422,
+    "updated_at": 1783448680.5564227,
     "source_type": "LogIndicators",
     "similar_to_incident": null
   },
@@ -30,11 +30,11 @@
       }
     }
   ],
-  "summary_text": "On January 30, 2026, an alert was triggered for multiple failed privilege escalations involving the user 'philly' on the device with IP address 10.100.30.37. The incident was classified with a high severity risk score of 70, indicating potential malicious activity related to privilege escalation attempts.",
+  "summary_text": "On January 30, 2026, an incident was reported involving multiple failed privilege escalations on the machine RP-SOC/PHILLYVDI, associated with the user 'philly' and IP address '10.100.30.37'. The incident was classified as high risk with a score of 70, indicating potential privilege escalation attempts.",
   "indicators": [
-    "rp-soc/phillyvdi",
-    "philly",
+    "10.100.30.",
     "10.100.30.37",
-    "10.100.30."
+    "philly",
+    "rp-soc/phillyvdi"
   ]
 }

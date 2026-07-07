@@ -161,7 +161,8 @@ async def main_async():
     engine = CorrelationEngine(INCIDENT_REPORTS_FOLDER, "ChromaDatabase")
     
     # 3. Drain & Sort Clear-Out Control Loop
-    processed_incident_ids = set()
+    dirty_incidents = set()
+    incident_playbooks = {}
     
     while True:
         # Re-scan current files in triaged_alerts/
@@ -204,6 +205,7 @@ async def main_async():
             
         decision = res["decision"]
         similar_to = res.get("similar_to_incident")
+        playbook_path = args.playbook if args.playbook else select_playbook_automatically(seed_path)
         
         if decision == "MERGE":
             target_inc_id = res["incident_id"]
@@ -218,35 +220,57 @@ async def main_async():
                 orchestrator.log_success(f"Confirmed Match. Merging alert {alert_log['id']} into Incident {target_inc_id}")
                 incident.raw_alerts.append(alert_log)
                 
-                # Re-run playbook analysis
-                playbook_path = args.playbook if args.playbook else select_playbook_automatically(seed_path)
+                # Re-run playbook analysis synchronously (supporting active indicator pivoting)
                 analysis_res = orchestrator.analyze_alert_group(incident.raw_alerts, playbook_path)
+                
+                # Retrieve the updated list of alerts (including any new ones pulled in via pivots)
+                updated_alerts = analysis_res["correlated_alerts"]
+                incident.raw_alerts = updated_alerts
                 report = analysis_res["report"]
                 
-                # Update incident state
+                # Update incident state indicators
                 incident.summary_text = report.incident_summary
-                indicators_set = set(incident.indicators)
+                
+                # severity mapping
+                sev_map = {
+                    "low": IncidentSeverity.LOW,
+                    "medium": IncidentSeverity.MEDIUM,
+                    "high": IncidentSeverity.HIGH,
+                    "critical": IncidentSeverity.CRITICAL
+                }
+                mapped_severity = sev_map.get(report.severity.lower(), IncidentSeverity.MEDIUM)
+                incident.metadata.severity = mapped_severity
+                incident.metadata.updated_at = time.time()
+                
+                indicators_set = set()
                 for alert in incident.raw_alerts:
                     for ind in engine._extract_indicators(alert):
                         indicators_set.add(ind)
                 incident.indicators = list(indicators_set)
-                incident.metadata.updated_at = time.time()
                 
                 # Save & sync updated incident
                 await engine.sync_update_incident(incident)
                 
-                # Archive target seed file into the incident folder
+                # Archive all files in the updated group
                 dest_dir = os.path.join(INCIDENT_REPORTS_FOLDER, target_inc_id)
-                shutil.move(seed_path, os.path.join(dest_dir, seed_file))
+                cluster_ids = []
+                for alert in incident.raw_alerts:
+                    alert_id = alert["id"]
+                    cluster_ids.append(alert_id)
+                    
+                    filepath = find_file_by_incident_id(alert_id)
+                    if filepath and os.path.exists(filepath):
+                        filename = os.path.basename(filepath)
+                        shutil.move(filepath, os.path.join(dest_dir, filename))
                 
-                # Overwrite/update markdown report
+                # Write final markdown report
                 write_markdown_report(dest_dir, target_inc_id, report)
                 
-                # Delete alert from raw collection
+                # Delete matched alerts from raw collection
                 try:
-                    vector_engine.collection.delete(ids=[alert_log["id"]])
+                    vector_engine.collection.delete(ids=cluster_ids)
                 except Exception as e:
-                    orchestrator.log_error(f"Failed to delete alert {alert_log['id']} from raw collection: {e}")
+                    orchestrator.log_error(f"Failed to delete alert items from ChromaDB: {e}")
 
         if decision in ("NEW_CLUSTER", "STANDALONE"):
             # Create brand new incident
@@ -256,11 +280,11 @@ async def main_async():
             action_desc = f"New Incident Cluster of {len(cluster_alerts)} alerts" if decision == "NEW_CLUSTER" else "Standalone Incident"
             orchestrator.log_info(f"Forming {action_desc} -> {inst_id}")
             
-            # Select playbook based on seed alert
-            playbook_path = args.playbook if args.playbook else select_playbook_automatically(seed_path)
-            
-            # Run playbook analysis
+            # Run playbook analysis synchronously (supporting active indicator pivoting)
             analysis_res = orchestrator.analyze_alert_group(cluster_alerts, playbook_path)
+            
+            # Retrieve the updated list of alerts (including any new ones pulled in via pivots)
+            updated_alerts = analysis_res["correlated_alerts"]
             report = analysis_res["report"]
             
             # severity mapping
@@ -274,7 +298,7 @@ async def main_async():
             
             # Gather indicators
             indicators_set = set()
-            for alert in cluster_alerts:
+            for alert in updated_alerts:
                 for ind in engine._extract_indicators(alert):
                     indicators_set.add(ind)
                     
@@ -286,10 +310,10 @@ async def main_async():
                     assigned_analyst="Automated Agent",
                     created_at=time.time(),
                     updated_at=time.time(),
-                    source_type=cluster_alerts[0]["metadata"].get("source_type", "Default"),
+                    source_type=updated_alerts[0]["metadata"].get("source_type", "Default"),
                     similar_to_incident=similar_to
                 ),
-                raw_alerts=cluster_alerts,
+                raw_alerts=updated_alerts,
                 summary_text=report.incident_summary,
                 indicators=list(indicators_set)
             )
@@ -302,7 +326,7 @@ async def main_async():
             
             # Archive files and delete from vector store
             cluster_ids = []
-            for alert in cluster_alerts:
+            for alert in updated_alerts:
                 alert_id = alert["id"]
                 cluster_ids.append(alert_id)
                 
