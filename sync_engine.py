@@ -42,6 +42,7 @@ class IncidentMetadata(BaseModel):
     created_at: float = Field(default_factory=time.time)
     updated_at: float = Field(default_factory=time.time)
     source_type: str = "Default"
+    similar_to_incident: Optional[str] = None
 
     @model_validator(mode='before')
     @classmethod
@@ -367,7 +368,8 @@ class ChromaIncidentVectorStore(BaseVectorIndex):
             "created_at": incident.metadata.created_at,
             "updated_at": incident.metadata.updated_at,
             "source_type": incident.metadata.source_type,
-            "indicators": ",".join(incident.indicators)
+            "indicators": ",".join(incident.indicators),
+            "similar_to_incident": incident.metadata.similar_to_incident or "None"
         }
         
         def execute_upsert():

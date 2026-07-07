@@ -433,3 +433,93 @@ def orchestrate_incident(seed_alert_path: str, playbook_path: str) -> dict:
         "correlated_alerts": correlated_alerts,
         "report": final_report
     }
+
+def analyze_alert_group(correlated_alerts: List[dict], playbook_path: str) -> dict:
+    """Runs playbook checkpoints and final analysis on a pre-selected/correlated group of alerts."""
+    # Load playbook
+    with open(playbook_path, "r", encoding="utf-8") as f:
+        playbook_dict = yaml.safe_load(f)
+        
+    playbook_name = playbook_dict.get("name", "Unknown Playbook")
+    
+    correlated_ids = {a["id"] for a in correlated_alerts}
+    seed_alert = correlated_alerts[0]
+    seed_id = seed_alert["id"]
+    processed_seeds = set()
+    
+    current_node = "step_1"
+    execution_trace = []
+    visited_nodes = set()
+    
+    while current_node and current_node != "complete":
+        if current_node in visited_nodes:
+            break
+        visited_nodes.add(current_node)
+        
+        node_data = playbook_dict.get("steps", {}).get(current_node, {})
+        if not node_data:
+            break
+            
+        instruction = node_data.get("instructions", "No instruction available.")
+        routing = node_data.get("routing", "complete")
+        
+        timeline_str = build_timeline_text(correlated_alerts)
+        check = check_milestone_sufficiency(timeline_str, instruction, current_node)
+        
+        status = "MET" if check.milestone_met else "NOT_MET"
+        execution_trace.append(MilestoneExecution(
+            step_id=current_node,
+            instruction=instruction,
+            status=status,
+            findings=check.reasoning + (f" | Extracted Findings: {check.extracted_data}" if check.extracted_data else "")
+        ))
+        
+        if check.milestone_met:
+            if isinstance(routing, dict):
+                current_node = routing.get("yes", "complete")
+            else:
+                current_node = routing
+        else:
+            # Playbook-Guided Gap Analysis: search for relating alert in ChromaDB
+            broadened_suggested = broaden_indicators(check.suggested_pivots)
+            new_pivots = [p for p in broadened_suggested if p not in processed_seeds]
+            if new_pivots:
+                log_info(f"Playbook step {current_node} requested extra queries for: {new_pivots}")
+                seed_epoch = seed_alert["metadata"]["timestamp_epoch"]
+                extra_fused = vector_engine.correlate_rrf(
+                    active_indicators=new_pivots,
+                    query_text=" ".join(new_pivots),
+                    timestamp_epoch=seed_epoch,
+                    time_window_sec=86400
+                )
+                
+                added_any_extra = False
+                for alert_id, score, doc, meta in extra_fused:
+                    if alert_id not in correlated_ids:
+                        correlated_ids.add(alert_id)
+                        correlated_alerts.append({
+                            "id": alert_id,
+                            "document": doc,
+                            "metadata": meta
+                        })
+                        added_any_extra = True
+                        log_success(f"Dynamic retrieval matched alert {alert_id} (RRF: {score:.4f})")
+                        
+                for p in new_pivots:
+                    processed_seeds.add(p)
+                    
+                if added_any_extra:
+                    continue
+            
+            if isinstance(routing, dict):
+                current_node = routing.get("no", "complete")
+            else:
+                current_node = routing
+
+    timeline_str = build_timeline_text(correlated_alerts)
+    final_report = generate_final_analysis(seed_id, playbook_name, timeline_str, execution_trace)
+    
+    return {
+        "correlated_alerts": correlated_alerts,
+        "report": final_report
+    }

@@ -166,6 +166,11 @@ def process_log_file(filepath: str) -> dict:
     # Serialize to narrative
     document = serialize_json_to_narrative(data)
     
+    # Extract mitre tactic and technique
+    mitre_data = data.get("incident_details", {}).get("mitre_att&ck", {})
+    tactic = mitre_data.get("tactic", "Unknown") if mitre_data else "Unknown"
+    technique = mitre_data.get("technique", "Unknown") if mitre_data else "Unknown"
+    
     # Pack flat metadata fields for ChromaDB
     metadata = {
         "incident_id": incident_id,
@@ -174,6 +179,8 @@ def process_log_file(filepath: str) -> dict:
         "hostname": mapped["hostname"],
         "timestamp_str": mapped["timestamp_str"],
         "timestamp_epoch": epoch,
+        "tactic": tactic,
+        "technique": technique,
         "ips": ",".join(indicators["ips"]),
         "sha256s": ",".join(indicators["sha256s"]),
         "md5s": ",".join(indicators["md5s"]),

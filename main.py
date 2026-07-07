@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 import ingest_pipeline
 import vector_engine
 import orchestrator
+from correlation_engine import CorrelationEngine
 from sync_engine import (
     RealtimeSyncService,
     Incident,
@@ -123,7 +124,7 @@ def select_playbook_automatically(seed_file_path: str) -> str:
         orchestrator.log_warning(f"Error auto-detecting playbook: {e}. Defaulting to phishing.yaml")
         return os.path.join(PLAYBOOKS_FOLDER, "phishing.yaml")
 
-def main():
+async def main_async():
     parser = argparse.ArgumentParser(description="Advanced Hybrid SOC Incident Response Pipeline")
     parser.add_argument("--playbook", help="Path to playbook YAML file (omitted for auto-selection)")
     args = parser.parse_args()
@@ -156,7 +157,10 @@ def main():
     # Start background realtime sync daemon
     sync_service, sync_thread, sync_loop = start_background_sync(INCIDENT_REPORTS_FOLDER, "ChromaDatabase")
     
-    # 2. Drain & Sort Clear-Out Control Loop
+    # 2. Instantiate the Two-Tier Correlation Engine
+    engine = CorrelationEngine(INCIDENT_REPORTS_FOLDER, "ChromaDatabase")
+    
+    # 3. Drain & Sort Clear-Out Control Loop
     processed_incident_ids = set()
     
     while True:
@@ -171,31 +175,95 @@ def main():
         
         orchestrator.log_info(f"Evaluating remaining queue. Picked investigative Seed Alert: {seed_file}")
         
-        # Auto-select or use command line playbook
-        playbook_path = args.playbook if args.playbook else select_playbook_automatically(seed_path)
-        
-        # Run correlation and playbook checkpoints
+        # Load the seed alert
         try:
-            result = orchestrator.orchestrate_incident(seed_path, playbook_path)
+            alert_log = ingest_pipeline.process_log_file(seed_path)
         except Exception as e:
-            orchestrator.log_error(f"Failed during orchestration of seed {seed_file}: {e}")
-            # Safe recovery: move seed out of queue to prevent infinite loop
+            orchestrator.log_error(f"Failed to process seed file {seed_file}: {e}")
             dest_dir, inst_id = get_or_create_incident_folder()
             shutil.move(seed_path, os.path.join(dest_dir, seed_file))
             continue
             
-        correlated_alerts = result["correlated_alerts"]
-        report = result["report"]
-        
-        # Create incident archive directory
-        dest_dir, inst_id = get_or_create_incident_folder()
-        orchestrator.log_info(f"Archiving correlated cluster under incident folder: {dest_dir}")
-        
-        # Write final markdown report
-        write_markdown_report(dest_dir, inst_id, report)
-        
-        # Write structured incident_data.json for real-time sync
+        # Parse all OTHER unassigned alerts currently in the queue
+        unassigned_alerts = []
+        for other_file in current_files[1:]:
+            other_path = os.path.join(UNREAD_ALERTS_FOLDER, other_file)
+            try:
+                unassigned_alerts.append(ingest_pipeline.process_log_file(other_path))
+            except Exception:
+                pass
+
+        # Execute Two-Tier Correlation
         try:
+            res = await engine.correlate_alert(alert_log, unassigned_alerts)
+        except Exception as e:
+            orchestrator.log_error(f"Failed during correlation of seed {seed_file}: {e}")
+            dest_dir, inst_id = get_or_create_incident_folder()
+            shutil.move(seed_path, os.path.join(dest_dir, seed_file))
+            continue
+            
+        decision = res["decision"]
+        similar_to = res.get("similar_to_incident")
+        
+        if decision == "MERGE":
+            target_inc_id = res["incident_id"]
+            incident = engine.active_incidents.get(target_inc_id)
+            if not incident:
+                incident = await engine.repo.get(target_inc_id)
+                
+            if not incident:
+                orchestrator.log_error(f"Target incident {target_inc_id} not found in repository. Defaulting to standalone incident creation.")
+                decision = "STANDALONE"
+            else:
+                orchestrator.log_success(f"Confirmed Match. Merging alert {alert_log['id']} into Incident {target_inc_id}")
+                incident.raw_alerts.append(alert_log)
+                
+                # Re-run playbook analysis
+                playbook_path = args.playbook if args.playbook else select_playbook_automatically(seed_path)
+                analysis_res = orchestrator.analyze_alert_group(incident.raw_alerts, playbook_path)
+                report = analysis_res["report"]
+                
+                # Update incident state
+                incident.summary_text = report.incident_summary
+                indicators_set = set(incident.indicators)
+                for alert in incident.raw_alerts:
+                    for ind in engine._extract_indicators(alert):
+                        indicators_set.add(ind)
+                incident.indicators = list(indicators_set)
+                incident.metadata.updated_at = time.time()
+                
+                # Save & sync updated incident
+                await engine.sync_update_incident(incident)
+                
+                # Archive target seed file into the incident folder
+                dest_dir = os.path.join(INCIDENT_REPORTS_FOLDER, target_inc_id)
+                shutil.move(seed_path, os.path.join(dest_dir, seed_file))
+                
+                # Overwrite/update markdown report
+                write_markdown_report(dest_dir, target_inc_id, report)
+                
+                # Delete alert from raw collection
+                try:
+                    vector_engine.collection.delete(ids=[alert_log["id"]])
+                except Exception as e:
+                    orchestrator.log_error(f"Failed to delete alert {alert_log['id']} from raw collection: {e}")
+
+        if decision in ("NEW_CLUSTER", "STANDALONE"):
+            # Create brand new incident
+            dest_dir, inst_id = get_or_create_incident_folder()
+            cluster_alerts = res.get("cluster_alerts", [alert_log])
+            
+            action_desc = f"New Incident Cluster of {len(cluster_alerts)} alerts" if decision == "NEW_CLUSTER" else "Standalone Incident"
+            orchestrator.log_info(f"Forming {action_desc} -> {inst_id}")
+            
+            # Select playbook based on seed alert
+            playbook_path = args.playbook if args.playbook else select_playbook_automatically(seed_path)
+            
+            # Run playbook analysis
+            analysis_res = orchestrator.analyze_alert_group(cluster_alerts, playbook_path)
+            report = analysis_res["report"]
+            
+            # severity mapping
             sev_map = {
                 "low": IncidentSeverity.LOW,
                 "medium": IncidentSeverity.MEDIUM,
@@ -204,22 +272,12 @@ def main():
             }
             mapped_severity = sev_map.get(report.severity.lower(), IncidentSeverity.MEDIUM)
             
+            # Gather indicators
             indicators_set = set()
-            for alert in correlated_alerts:
-                meta = alert.get("metadata", {})
-                for ip in [x.strip() for x in meta.get("ips", "").split(",") if x.strip()]:
-                    indicators_set.add(ip)
-                for dom in [x.strip() for x in meta.get("domains", "").split(",") if x.strip()]:
-                    indicators_set.add(dom)
-                for email in [x.strip() for x in meta.get("emails", "").split(",") if x.strip()]:
-                    indicators_set.add(email)
-                for sha in [x.strip() for x in meta.get("sha256s", "").split(",") if x.strip()]:
-                    indicators_set.add(sha)
-                if meta.get("username") and meta.get("username") != "Unknown":
-                    indicators_set.add(meta["username"])
-                if meta.get("hostname") and meta.get("hostname") != "Unknown":
-                    indicators_set.add(meta["hostname"])
-            
+            for alert in cluster_alerts:
+                for ind in engine._extract_indicators(alert):
+                    indicators_set.add(ind)
+                    
             incident_data = Incident(
                 id=inst_id,
                 metadata=IncidentMetadata(
@@ -228,48 +286,44 @@ def main():
                     assigned_analyst="Automated Agent",
                     created_at=time.time(),
                     updated_at=time.time(),
-                    source_type=correlated_alerts[0]["metadata"].get("source_type", "Default") if correlated_alerts else "Default"
+                    source_type=cluster_alerts[0]["metadata"].get("source_type", "Default"),
+                    similar_to_incident=similar_to
                 ),
-                raw_alerts=correlated_alerts,
+                raw_alerts=cluster_alerts,
                 summary_text=report.incident_summary,
                 indicators=list(indicators_set)
             )
             
-            json_file_path = os.path.join(dest_dir, "incident_data.json")
-            with open(json_file_path, "w", encoding="utf-8") as f:
-                f.write(incident_data.model_dump_json(indent=2))
-            orchestrator.log_success(f"Archived structured incident data -> {json_file_path}")
-        except Exception as e:
-            orchestrator.log_error(f"Failed to save structured incident_data.json: {e}")
+            # Save & sync new incident
+            await engine.sync_create_incident(incident_data)
             
-        # Move raw files and delete from vector DB to maintain states
-        correlated_ids = []
-        for alert in correlated_alerts:
-            alert_id = alert["id"]
-            correlated_ids.append(alert_id)
-            processed_incident_ids.add(alert_id)
+            # Write report
+            write_markdown_report(dest_dir, inst_id, report)
             
-            # Find file and physically move it
-            filepath = find_file_by_incident_id(alert_id)
-            if filepath and os.path.exists(filepath):
-                filename = os.path.basename(filepath)
-                dest_path = os.path.join(dest_dir, filename)
-                try:
-                    shutil.move(filepath, dest_path)
-                    orchestrator.log_success(f"Archived {filename} -> {dest_path}")
-                except Exception as e:
-                    orchestrator.log_error(f"Failed to move file {filename}: {e}")
+            # Archive files and delete from vector store
+            cluster_ids = []
+            for alert in cluster_alerts:
+                alert_id = alert["id"]
+                cluster_ids.append(alert_id)
+                
+                filepath = find_file_by_incident_id(alert_id)
+                if filepath and os.path.exists(filepath):
+                    filename = os.path.basename(filepath)
+                    shutil.move(filepath, os.path.join(dest_dir, filename))
                     
-        # Remove handled alerts from ChromaDB collection to prevent future matches
-        try:
-            vector_engine.collection.delete(ids=correlated_ids)
-            orchestrator.log_info(f"Cleared resolved IDs {correlated_ids} from ChromaDB.")
-        except Exception as e:
-            orchestrator.log_error(f"Failed to delete items from ChromaDB: {e}")
-            
+            # Clear alerts from raw collection
+            try:
+                vector_engine.collection.delete(ids=cluster_ids)
+                orchestrator.log_info(f"Cleared resolved IDs {cluster_ids} from ChromaDB raw collection.")
+            except Exception as e:
+                orchestrator.log_error(f"Failed to delete items from ChromaDB: {e}")
+
     # Stop background realtime sync daemon
     stop_background_sync(sync_service, sync_thread, sync_loop)
     orchestrator.log_info("SOC Incident Response Pipeline shut down successfully.")
+
+def main():
+    asyncio.run(main_async())
 
 if __name__ == "__main__":
     main()

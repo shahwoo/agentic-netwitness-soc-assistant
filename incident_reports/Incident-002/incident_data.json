@@ -4,9 +4,10 @@
     "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1783413733.3919759,
-    "updated_at": 1783413733.391977,
-    "source_type": "LogIndicators"
+    "created_at": 1783446753.5095453,
+    "updated_at": 1783446753.5095456,
+    "source_type": "LogIndicators",
+    "similar_to_incident": null
   },
   "raw_alerts": [
     {
@@ -19,6 +20,8 @@
         "hostname": "RP-SOC/PHILLYVDI",
         "timestamp_str": "2026-01-30T10:02:13.433Z",
         "timestamp_epoch": 1769767333,
+        "tactic": "privilege-escalation",
+        "technique": "Unknown",
         "ips": "10.100.30.37",
         "sha256s": "",
         "md5s": "",
@@ -27,10 +30,11 @@
       }
     }
   ],
-  "summary_text": "On January 30, 2026, an alert was triggered for multiple failed privilege escalations involving the user 'philly' on the device with IP address 10.100.30.37. The incident was classified with a high severity risk score of 70, indicating potential malicious activity related to privilege escalation tactics as per MITRE ATT&CK ID T1068. However, the investigation revealed insufficient information to fully assess the situation.",
+  "summary_text": "On January 30, 2026, an alert was triggered for multiple failed privilege escalations involving the user 'philly' on the device with IP address 10.100.30.37. The incident was classified with a high severity risk score of 70, indicating potential malicious activity related to privilege escalation attempts.",
   "indicators": [
-    "RP-SOC/PHILLYVDI",
+    "rp-soc/phillyvdi",
+    "philly",
     "10.100.30.37",
-    "philly"
+    "10.100.30."
   ]
 }

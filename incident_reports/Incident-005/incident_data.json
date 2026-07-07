@@ -4,9 +4,10 @@
     "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1783413847.9812667,
-    "updated_at": 1783413847.981267,
-    "source_type": "Network"
+    "created_at": 1783446822.1930065,
+    "updated_at": 1783446822.1930068,
+    "source_type": "Network",
+    "similar_to_incident": null
   },
   "raw_alerts": [
     {
@@ -19,6 +20,8 @@
         "hostname": "Unknown",
         "timestamp_str": "2026-01-31T02:30:46.024Z",
         "timestamp_epoch": 1769826646,
+        "tactic": "command-and-control",
+        "technique": "Unknown",
         "ips": "10.100.20.121,10.100.10.3",
         "sha256s": "",
         "md5s": "",
@@ -27,10 +30,12 @@
       }
     }
   ],
-  "summary_text": "On January 31, 2026, an incident was detected involving multiple DNS responses for the hostname 'bankofmoney.com', which is categorized as a Lookalike/Phishing Domain. The incident was classified with a high severity risk score of 70, indicating potential command-and-control activity. The source IP was identified as 10.100.20.121, and the destination IP was 10.100.10.3, with the destination port being 64659.",
+  "summary_text": "On January 31, 2026, an incident was detected involving multiple DNS responses for the hostname 'bankofmoney.com', which is categorized as a Lookalike/Phishing Domain. The incident was classified with a high severity risk score of 70, indicating potential command-and-control activity as per MITRE ATT&CK ID T1071.004. The source IP was identified as 10.100.20.121, and the destination IP was 10.100.10.3, with the destination port being 64659.",
   "indicators": [
-    "10.100.20.121",
     "bankofmoney.com",
-    "10.100.10.3"
+    "10.100.20.",
+    "10.100.20.121",
+    "10.100.10.3",
+    "10.100.10."
   ]
 }
