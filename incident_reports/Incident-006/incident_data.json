@@ -1,0 +1,35 @@
+{
+  "id": "Incident-006",
+  "metadata": {
+    "severity": "HIGH",
+    "status": "TRIAGED",
+    "assigned_analyst": "Automated Agent",
+    "created_at": 1783413877.970783,
+    "updated_at": 1783413877.970784,
+    "source_type": "Network"
+  },
+  "raw_alerts": [
+    {
+      "id": "INC-6143",
+      "document": "Incident INC-6143 details are as follows: The classification alert type is DNS Tunneling over TCP Port. The classification risk score is 70. The classification severity is High. The incident details mitre att&ck id is T1572. The incident details mitre att&ck tactic is command-and-control. The incident details timestamp is 2026-01-31T02:46:02.394Z. The incident details title is High Risk Alerts: Event Stream Analysis for DNS Tunneling. The incident id is INC-6143. The network indicators destination ip is 64.64.211.3. The network indicators destination port is 53. The network indicators source ip is 155.140.254.2. The network indicators source port is 30692. The network indicators tunnel payload file context is googleclient.txt. The threat intelligence enrichment destination ip 64.64.211.3 abuseipdb reports is Flagged for non-standard DNS query tunnels. The threat intelligence enrichment destination ip 64.64.211.3 abuseipdb status is monitored. The threat intelligence enrichment destination ip 64.64.211.3 alienvault otx status is suspicious.",
+      "metadata": {
+        "incident_id": "INC-6143",
+        "source_type": "Network",
+        "username": "Unknown",
+        "hostname": "Unknown",
+        "timestamp_str": "2026-01-31T02:46:02.394Z",
+        "timestamp_epoch": 1769827562,
+        "ips": "64.64.211.3,155.140.254.2",
+        "sha256s": "",
+        "md5s": "",
+        "emails": "",
+        "domains": ""
+      }
+    }
+  ],
+  "summary_text": "On January 31, 2026, an incident was detected involving DNS tunneling over TCP port 53, with a high-risk score of 70. The source IP was identified as 155.140.254.2, and the destination IP was 64.64.211.3, which was flagged for non-standard DNS query tunnels. The incident was classified under the MITRE ATT&CK tactic of command-and-control (T1572).",
+  "indicators": [
+    "64.64.211.3",
+    "155.140.254.2"
+  ]
+}

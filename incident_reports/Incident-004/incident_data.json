@@ -1,0 +1,53 @@
+{
+  "id": "Incident-004",
+  "metadata": {
+    "severity": "HIGH",
+    "status": "TRIAGED",
+    "assigned_analyst": "Automated Agent",
+    "created_at": 1783413809.6257157,
+    "updated_at": 1783413809.625717,
+    "source_type": "Network"
+  },
+  "raw_alerts": [
+    {
+      "id": "INC-6140",
+      "document": "Incident INC-6140 details are as follows: The classification alert type is Detection of Cryptomining File. The classification risk score is 70. The classification severity is High. The incident details mitre att&ck id is T1071.001. The incident details mitre att&ck tactic is command-and-control. The incident details timestamp is 2026-01-31T02:18:00.693Z. The incident details title is High Risk Alerts: Event Stream Analysis for Detection of Cryptomining File. The incident id is INC-6140. The network indicators destination domain is grossform.ru. The network indicators destination ip is 46.28.69.220. The network indicators destination port is 80. The network indicators source ip is 10.100.20.142. The network indicators source port is 49444. The network indicators uri resource is gate.php. The threat intelligence enrichment destination ip 46.28.69.220 abuseipdb reports is High count for malicious script hosting/C2 activity. The threat intelligence enrichment destination ip 46.28.69.220 abuseipdb status is malicious. The threat intelligence enrichment destination ip 46.28.69.220 alienvault otx associated threats lists: Cryptomining C2, Malware Infiltration. The threat intelligence enrichment destination ip 46.28.69.220 alienvault otx status is malicious. The threat intelligence enrichment domain grossform.ru virustotal category is Phishing/Malware Drop Gate. The threat intelligence enrichment domain grossform.ru virustotal status is malicious.",
+      "metadata": {
+        "incident_id": "INC-6140",
+        "source_type": "Network",
+        "username": "Unknown",
+        "hostname": "Unknown",
+        "timestamp_str": "2026-01-31T02:18:00.693Z",
+        "timestamp_epoch": 1769825880,
+        "ips": "10.100.20.142,46.28.69.220",
+        "sha256s": "",
+        "md5s": "",
+        "emails": "",
+        "domains": "grossform.ru"
+      }
+    },
+    {
+      "id": "INC-6141",
+      "document": "Incident INC-6141 details are as follows: The classification alert type is HTTP GET Flood. The classification risk score is 70. The classification severity is High. The incident details mitre att&ck id is T1041. The incident details mitre att&ck tactic is exfiltration. The incident details timestamp is 2026-01-31T02:18:00.721Z. The incident details title is High Risk Alerts: Event Stream Analysis for HTTP GET Flood. The incident id is INC-6141. The network indicators destination domain is grossform.ru. The network indicators destination ip is 46.28.69.220. The network indicators destination port is 80. The network indicators payload transfer volume bytes is 5543306. The network indicators source ip is 10.100.20.142. The network indicators source port is 49441. The network indicators uri resource is gate.php. The threat intelligence enrichment destination ip 46.28.69.220 abuseipdb status is malicious. The threat intelligence enrichment domain grossform.ru virustotal status is malicious.",
+      "metadata": {
+        "username": "Unknown",
+        "sha256s": "",
+        "incident_id": "INC-6141",
+        "timestamp_str": "2026-01-31T02:18:00.721Z",
+        "timestamp_epoch": 1769825880,
+        "ips": "10.100.20.142,46.28.69.220",
+        "md5s": "",
+        "hostname": "Unknown",
+        "domains": "grossform.ru",
+        "emails": "",
+        "source_type": "Network"
+      }
+    }
+  ],
+  "summary_text": "On January 31, 2026, two high-risk incidents were detected involving cryptomining and HTTP GET flood activities originating from the internal IP 10.100.20.142 targeting the malicious domain grossform.ru and IP 46.28.69.220. The incidents were classified with a high severity risk score of 70, indicating significant potential harm.",
+  "indicators": [
+    "grossform.ru",
+    "10.100.20.142",
+    "46.28.69.220"
+  ]
+}

@@ -3,11 +3,21 @@ import sys
 import shutil
 import argparse
 import json
+import threading
+import asyncio
+import time
 from dotenv import load_dotenv
 
 import ingest_pipeline
 import vector_engine
 import orchestrator
+from sync_engine import (
+    RealtimeSyncService,
+    Incident,
+    IncidentMetadata,
+    IncidentSeverity,
+    IncidentStatus
+)
 
 load_dotenv()
 
@@ -17,6 +27,26 @@ PLAYBOOKS_FOLDER = "playbooks/"
 
 os.makedirs(UNREAD_ALERTS_FOLDER, exist_ok=True)
 os.makedirs(INCIDENT_REPORTS_FOLDER, exist_ok=True)
+
+def start_background_sync(base_folder: str, db_path: str) -> tuple[RealtimeSyncService, threading.Thread, asyncio.AbstractEventLoop]:
+    loop = asyncio.new_event_loop()
+    service = RealtimeSyncService(base_folder=base_folder, db_path=db_path)
+    
+    def thread_target():
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(service.start())
+        while service._running:
+            loop.run_until_complete(asyncio.sleep(0.5))
+        loop.run_until_complete(service.stop())
+        loop.close()
+
+    t = threading.Thread(target=thread_target, daemon=True)
+    t.start()
+    return service, t, loop
+
+def stop_background_sync(service: RealtimeSyncService, thread: threading.Thread, loop: asyncio.AbstractEventLoop):
+    service._running = False
+    thread.join(timeout=5.0)
 
 def get_or_create_incident_folder() -> tuple[str, str]:
     """Retrieves or creates the next incremented Incident directory."""
@@ -123,6 +153,9 @@ def main():
     vector_engine.ingest_logs(ingested_logs)
     orchestrator.log_success(f"Bulk Ingestion completed. Vector store populated with {len(ingested_logs)} items.")
     
+    # Start background realtime sync daemon
+    sync_service, sync_thread, sync_loop = start_background_sync(INCIDENT_REPORTS_FOLDER, "ChromaDatabase")
+    
     # 2. Drain & Sort Clear-Out Control Loop
     processed_incident_ids = set()
     
@@ -161,6 +194,54 @@ def main():
         # Write final markdown report
         write_markdown_report(dest_dir, inst_id, report)
         
+        # Write structured incident_data.json for real-time sync
+        try:
+            sev_map = {
+                "low": IncidentSeverity.LOW,
+                "medium": IncidentSeverity.MEDIUM,
+                "high": IncidentSeverity.HIGH,
+                "critical": IncidentSeverity.CRITICAL
+            }
+            mapped_severity = sev_map.get(report.severity.lower(), IncidentSeverity.MEDIUM)
+            
+            indicators_set = set()
+            for alert in correlated_alerts:
+                meta = alert.get("metadata", {})
+                for ip in [x.strip() for x in meta.get("ips", "").split(",") if x.strip()]:
+                    indicators_set.add(ip)
+                for dom in [x.strip() for x in meta.get("domains", "").split(",") if x.strip()]:
+                    indicators_set.add(dom)
+                for email in [x.strip() for x in meta.get("emails", "").split(",") if x.strip()]:
+                    indicators_set.add(email)
+                for sha in [x.strip() for x in meta.get("sha256s", "").split(",") if x.strip()]:
+                    indicators_set.add(sha)
+                if meta.get("username") and meta.get("username") != "Unknown":
+                    indicators_set.add(meta["username"])
+                if meta.get("hostname") and meta.get("hostname") != "Unknown":
+                    indicators_set.add(meta["hostname"])
+            
+            incident_data = Incident(
+                id=inst_id,
+                metadata=IncidentMetadata(
+                    severity=mapped_severity,
+                    status=IncidentStatus.TRIAGED,
+                    assigned_analyst="Automated Agent",
+                    created_at=time.time(),
+                    updated_at=time.time(),
+                    source_type=correlated_alerts[0]["metadata"].get("source_type", "Default") if correlated_alerts else "Default"
+                ),
+                raw_alerts=correlated_alerts,
+                summary_text=report.incident_summary,
+                indicators=list(indicators_set)
+            )
+            
+            json_file_path = os.path.join(dest_dir, "incident_data.json")
+            with open(json_file_path, "w", encoding="utf-8") as f:
+                f.write(incident_data.model_dump_json(indent=2))
+            orchestrator.log_success(f"Archived structured incident data -> {json_file_path}")
+        except Exception as e:
+            orchestrator.log_error(f"Failed to save structured incident_data.json: {e}")
+            
         # Move raw files and delete from vector DB to maintain states
         correlated_ids = []
         for alert in correlated_alerts:
@@ -186,6 +267,8 @@ def main():
         except Exception as e:
             orchestrator.log_error(f"Failed to delete items from ChromaDB: {e}")
             
+    # Stop background realtime sync daemon
+    stop_background_sync(sync_service, sync_thread, sync_loop)
     orchestrator.log_info("SOC Incident Response Pipeline shut down successfully.")
 
 if __name__ == "__main__":

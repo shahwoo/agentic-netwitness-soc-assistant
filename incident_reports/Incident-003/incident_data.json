@@ -1,0 +1,38 @@
+{
+  "id": "Incident-003",
+  "metadata": {
+    "severity": "HIGH",
+    "status": "TRIAGED",
+    "assigned_analyst": "Automated Agent",
+    "created_at": 1783413768.6529171,
+    "updated_at": 1783413768.652918,
+    "source_type": "Authentication"
+  },
+  "raw_alerts": [
+    {
+      "id": "INC-6133",
+      "document": "Incident INC-6133 details are as follows: The authentication details attempted target user is sally. The authentication details category is Auth.Failures.User Errors. The authentication details outcome is Failure. The classification alert type is Brute Force Login From Same Source. The classification risk score is 70. The classification severity is High. The incident details mitre att&ck id is T1110. The incident details mitre att&ck tactic is credential-access. The incident details timestamp is 2026-01-30T10:47:40.890Z. The incident details title is High Risk Alerts: Event Stream Analysis for Brute Force Login. The incident id is INC-6133. The network indicators destination country is France. The network indicators destination domain is bnpparibasgroup.com. The network indicators destination ip is 155.140.254.100. The network indicators destination port is 443. The network indicators firewall device type is checkpointfw1. The network indicators source asn is 198161. The network indicators source city is Chodov. The network indicators source country is Czechia. The network indicators source ip is 5.1.57.22. The network indicators source isp is Sokolovska uhelna, pravni nastupce, a.s.. The threat intelligence enrichment source ip 5.1.57.22 abuseipdb malicious score is Pending check on dynamic validation engine. The threat intelligence enrichment source ip 5.1.57.22 abuseipdb status is active_threat. The threat intelligence enrichment source ip 5.1.57.22 alienvault otx reason is Associated with brute force scanning telemetry. The threat intelligence enrichment source ip 5.1.57.22 alienvault otx status is flagged.",
+      "metadata": {
+        "incident_id": "INC-6133",
+        "source_type": "Authentication",
+        "username": "sally",
+        "hostname": "Unknown",
+        "timestamp_str": "2026-01-30T10:47:40.890Z",
+        "timestamp_epoch": 1769770060,
+        "ips": "155.140.254.100,5.1.57.22",
+        "sha256s": "",
+        "md5s": "",
+        "emails": "",
+        "domains": "bnpparibasgroup.com,Auth.Failures.User"
+      }
+    }
+  ],
+  "summary_text": "On January 30, 2026, an incident was reported involving multiple authentication failures targeting user 'sally'. The failures were classified as a brute force login attempt from a source IP address in Czechia, with a risk score of 70 and a severity level of High. The source IP was flagged as an active threat associated with brute force scanning telemetry.",
+  "indicators": [
+    "bnpparibasgroup.com",
+    "5.1.57.22",
+    "155.140.254.100",
+    "Auth.Failures.User",
+    "sally"
+  ]
+}
