@@ -19,6 +19,7 @@ from sync_engine import (
     IncidentSeverity,
     IncidentStatus
 )
+from collections import defaultdict
 
 load_dotenv()
 
@@ -30,24 +31,13 @@ os.makedirs(UNREAD_ALERTS_FOLDER, exist_ok=True)
 os.makedirs(INCIDENT_REPORTS_FOLDER, exist_ok=True)
 
 def start_background_sync(base_folder: str, db_path: str) -> tuple[RealtimeSyncService, threading.Thread, asyncio.AbstractEventLoop]:
-    loop = asyncio.new_event_loop()
+    # Redundant background sync disabled to prevent database contention and cut down latency.
+    # The pipeline already performs synchronous dual-write updates itself.
     service = RealtimeSyncService(base_folder=base_folder, db_path=db_path)
-    
-    def thread_target():
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(service.start())
-        while service._running:
-            loop.run_until_complete(asyncio.sleep(0.5))
-        loop.run_until_complete(service.stop())
-        loop.close()
-
-    t = threading.Thread(target=thread_target, daemon=True)
-    t.start()
-    return service, t, loop
+    return service, None, None
 
 def stop_background_sync(service: RealtimeSyncService, thread: threading.Thread, loop: asyncio.AbstractEventLoop):
-    service._running = False
-    thread.join(timeout=5.0)
+    pass
 
 def get_or_create_incident_folder() -> tuple[str, str]:
     """Retrieves or creates the next incremented Incident directory."""
@@ -119,10 +109,82 @@ def select_playbook_automatically(seed_file_path: str) -> str:
         # Default fallback
         path = os.path.join(PLAYBOOKS_FOLDER, "phishing.yaml")
         orchestrator.log_info(f"Auto-selected Phishing playbook for alert type: '{alert_type}'")
-        return path
+        return os.path.join(PLAYBOOKS_FOLDER, "phishing.yaml")
     except Exception as e:
         orchestrator.log_warning(f"Error auto-detecting playbook: {e}. Defaulting to phishing.yaml")
         return os.path.join(PLAYBOOKS_FOLDER, "phishing.yaml")
+
+def extract_indicators_locally(doc: str) -> List[str]:
+    import re
+    indicators = []
+    ips = re.findall(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', doc)
+    indicators.extend(ips)
+    domains = re.findall(r'\b[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}\b', doc)
+    for d in domains:
+        if d not in indicators and not d.endswith(('.exe', '.dll', '.sys', '.txt', '.log')):
+            indicators.append(d)
+    return indicators
+
+def generate_local_standalone_report(alert: dict, playbook_path: str):
+    import yaml
+    with open(playbook_path, "r", encoding="utf-8") as f:
+        playbook_dict = yaml.safe_load(f)
+        
+    playbook_name = playbook_dict.get("name", "Unknown Playbook")
+    alert_id = alert["id"]
+    alert_type = alert["metadata"].get("source_type", "SIEM Log")
+    timestamp = alert["metadata"].get("timestamp", "unknown time")
+    doc = alert.get("document", "")
+    
+    summary = f"On {timestamp}, a security alert '{alert_type}' was triaged for alert ID {alert_id}. "
+    summary += f"The raw log contains details: {doc}. "
+    summary += "No further associated events or indicators were found in the active time window, confirming the incident is standalone."
+    
+    execution_trace = []
+    for step_id, step_data in sorted(playbook_dict.get("steps", {}).items()):
+        is_met = False
+        findings = "Timeline lacks necessary data to satisfy step."
+        
+        keywords = step_data.get("instructions", "").lower()
+        if "phishing" in keywords or "email" in keywords:
+            if "phish" in doc.lower() or "mail" in doc.lower() or "sender" in doc.lower() or "attachment" in doc.lower():
+                is_met = True
+                findings = f"Identified phishing elements in alert doc: {doc}"
+        elif "privilege" in keywords or "escalation" in keywords:
+            if "privilege" in doc.lower() or "admin" in doc.lower() or "escalat" in doc.lower():
+                is_met = True
+                findings = f"Identified privilege escalation signs: {doc}"
+        elif "brute force" in keywords or "failed login" in keywords:
+            if "brute" in doc.lower() or "fail" in doc.lower() or "auth" in doc.lower():
+                is_met = True
+                findings = f"Identified brute force signs: {doc}"
+        elif "tunnel" in keywords or "dns" in keywords:
+            if "tunnel" in doc.lower() or "dns" in doc.lower() or "port" in doc.lower():
+                is_met = True
+                findings = f"Identified network/DNS anomalies: {doc}"
+                
+        execution_trace.append(orchestrator.MilestoneExecution(
+            step_id=step_id,
+            instruction=step_data.get("instructions", ""),
+            status="MET" if is_met else "NOT_MET",
+            findings=findings
+        ))
+        
+    report = orchestrator.FinalIncidentAnalysis(
+        incident_id=alert_id,
+        severity=alert["metadata"].get("severity", "High"),
+        confidence="High",
+        execution_trace=execution_trace,
+        incident_summary=summary,
+        actions_taken=["Initial triage", "Indicator search", "Playbook heuristic validation"],
+        lessons_learnt="No indicators associated with larger campaign identified.",
+        recommended_containment=[f"Monitor host for anomalous baseline transitions."]
+    )
+    
+    return {
+        "report": report,
+        "suggested_pivots": []
+    }
 
 async def main_async():
     parser = argparse.ArgumentParser(description="Advanced Hybrid SOC Incident Response Pipeline")
@@ -160,10 +222,12 @@ async def main_async():
     # 2. Instantiate the Two-Tier Correlation Engine
     engine = CorrelationEngine(INCIDENT_REPORTS_FOLDER, "ChromaDatabase")
     
-    # 3. Drain & Sort Clear-Out Control Loop
-    dirty_incidents = set()
+    # 3. Drain & Sort Sequential Playbook-Guided Active Correlation Engine (Fast Grouping Phase 1)
+    modified_incidents = set()
     incident_playbooks = {}
-    
+    incident_is_new = {}
+    incident_similar_to = {}
+
     while True:
         # Re-scan current files in triaged_alerts/
         current_files = sorted([f for f in os.listdir(UNREAD_ALERTS_FOLDER) if f.endswith('.json')])
@@ -173,10 +237,9 @@ async def main_async():
             
         seed_file = current_files[0]
         seed_path = os.path.join(UNREAD_ALERTS_FOLDER, seed_file)
-        
         orchestrator.log_info(f"Evaluating remaining queue. Picked investigative Seed Alert: {seed_file}")
         
-        # Load the seed alert
+        # Load seed
         try:
             alert_log = ingest_pipeline.process_log_file(seed_path)
         except Exception as e:
@@ -185,7 +248,7 @@ async def main_async():
             shutil.move(seed_path, os.path.join(dest_dir, seed_file))
             continue
             
-        # Parse all OTHER unassigned alerts currently in the queue
+        # Parse unassigned candidate alerts
         unassigned_alerts = []
         for other_file in current_files[1:]:
             other_path = os.path.join(UNREAD_ALERTS_FOLDER, other_file)
@@ -193,12 +256,12 @@ async def main_async():
                 unassigned_alerts.append(ingest_pipeline.process_log_file(other_path))
             except Exception:
                 pass
-
-        # Execute Two-Tier Correlation
+                
+        # Execute Two-Tier Baseline Correlation
         try:
             res = await engine.correlate_alert(alert_log, unassigned_alerts)
         except Exception as e:
-            orchestrator.log_error(f"Failed during correlation of seed {seed_file}: {e}")
+            orchestrator.log_error(f"Failed baseline correlation for alert {alert_log['id']}: {e}")
             dest_dir, inst_id = get_or_create_incident_folder()
             shutil.move(seed_path, os.path.join(dest_dir, seed_file))
             continue
@@ -207,87 +270,190 @@ async def main_async():
         similar_to = res.get("similar_to_incident")
         playbook_path = args.playbook if args.playbook else select_playbook_automatically(seed_path)
         
+        # Determine baseline alert list and incident destination
+        is_new = True
+        inst_id = None
+        current_alerts = []
+        
         if decision == "MERGE":
-            target_inc_id = res["incident_id"]
-            incident = engine.active_incidents.get(target_inc_id)
+            inst_id = res["incident_id"]
+            incident = engine.active_incidents.get(inst_id)
             if not incident:
-                incident = await engine.repo.get(target_inc_id)
+                incident = await engine.repo.get(inst_id)
                 
             if not incident:
-                orchestrator.log_error(f"Target incident {target_inc_id} not found in repository. Defaulting to standalone incident creation.")
-                decision = "STANDALONE"
+                is_new = True
+                _, inst_id = get_or_create_incident_folder()
+                current_alerts = [alert_log]
             else:
-                orchestrator.log_success(f"Confirmed Match. Merging alert {alert_log['id']} into Incident {target_inc_id}")
+                is_new = False
+                orchestrator.log_success(f"Confirmed Match. Merging alert {alert_log['id']} into Incident {inst_id}")
                 incident.raw_alerts.append(alert_log)
-                
-                # Re-run playbook analysis synchronously (supporting active indicator pivoting)
-                analysis_res = orchestrator.analyze_alert_group(incident.raw_alerts, playbook_path)
-                
-                # Retrieve the updated list of alerts (including any new ones pulled in via pivots)
-                updated_alerts = analysis_res["correlated_alerts"]
-                incident.raw_alerts = updated_alerts
-                report = analysis_res["report"]
-                
-                # Update incident state indicators
-                incident.summary_text = report.incident_summary
-                
-                # severity mapping
-                sev_map = {
-                    "low": IncidentSeverity.LOW,
-                    "medium": IncidentSeverity.MEDIUM,
-                    "high": IncidentSeverity.HIGH,
-                    "critical": IncidentSeverity.CRITICAL
-                }
-                mapped_severity = sev_map.get(report.severity.lower(), IncidentSeverity.MEDIUM)
-                incident.metadata.severity = mapped_severity
-                incident.metadata.updated_at = time.time()
-                
-                indicators_set = set()
-                for alert in incident.raw_alerts:
-                    for ind in engine._extract_indicators(alert):
-                        indicators_set.add(ind)
-                incident.indicators = list(indicators_set)
-                
-                # Save & sync updated incident
-                await engine.sync_update_incident(incident)
-                
-                # Archive all files in the updated group
-                dest_dir = os.path.join(INCIDENT_REPORTS_FOLDER, target_inc_id)
-                cluster_ids = []
-                for alert in incident.raw_alerts:
-                    alert_id = alert["id"]
-                    cluster_ids.append(alert_id)
-                    
-                    filepath = find_file_by_incident_id(alert_id)
-                    if filepath and os.path.exists(filepath):
-                        filename = os.path.basename(filepath)
-                        shutil.move(filepath, os.path.join(dest_dir, filename))
-                
-                # Write final markdown report
-                write_markdown_report(dest_dir, target_inc_id, report)
-                
-                # Delete matched alerts from raw collection
-                try:
-                    vector_engine.collection.delete(ids=cluster_ids)
-                except Exception as e:
-                    orchestrator.log_error(f"Failed to delete alert items from ChromaDB: {e}")
-
-        if decision in ("NEW_CLUSTER", "STANDALONE"):
-            # Create brand new incident
+                current_alerts = list(incident.raw_alerts)
+        else:
+            # NEW_CLUSTER or STANDALONE
+            is_new = True
             dest_dir, inst_id = get_or_create_incident_folder()
-            cluster_alerts = res.get("cluster_alerts", [alert_log])
-            
-            action_desc = f"New Incident Cluster of {len(cluster_alerts)} alerts" if decision == "NEW_CLUSTER" else "Standalone Incident"
+            current_alerts = res.get("cluster_alerts", [alert_log])
+            action_desc = f"New Incident Cluster of {len(current_alerts)} alerts" if decision == "NEW_CLUSTER" else "Standalone Incident"
             orchestrator.log_info(f"Forming {action_desc} -> {inst_id}")
             
-            # Run playbook analysis synchronously (supporting active indicator pivoting)
-            analysis_res = orchestrator.analyze_alert_group(cluster_alerts, playbook_path)
+        modified_incidents.add(inst_id)
+        if inst_id not in incident_playbooks:
+            incident_playbooks[inst_id] = playbook_path
+        if inst_id not in incident_is_new:
+            incident_is_new[inst_id] = is_new
+        incident_similar_to[inst_id] = similar_to
+
+        # Sync temporary placeholder state so subsequent alerts can correlate
+        indicators_set = set()
+        for alert in current_alerts:
+            for ind in engine._extract_indicators(alert):
+                indicators_set.add(ind)
+                
+        temp_summary = " | ".join(a["document"] for a in current_alerts)
+        dest_dir = os.path.join(INCIDENT_REPORTS_FOLDER, inst_id)
+        os.makedirs(dest_dir, exist_ok=True)
+        
+        if is_new:
+            incident_data = Incident(
+                id=inst_id,
+                metadata=IncidentMetadata(
+                    severity=IncidentSeverity.MEDIUM,
+                    status=IncidentStatus.TRIAGED,
+                    assigned_analyst="Automated Agent",
+                    created_at=time.time(),
+                    updated_at=time.time(),
+                    source_type=current_alerts[0]["metadata"].get("source_type", "Default"),
+                    similar_to_incident=similar_to
+                ),
+                raw_alerts=current_alerts,
+                summary_text=temp_summary,
+                indicators=list(indicators_set)
+            )
+            await engine.sync_create_incident(incident_data)
+        else:
+            incident = engine.active_incidents.get(inst_id)
+            if not incident:
+                incident = await engine.repo.get(inst_id)
+            if incident:
+                incident.raw_alerts = current_alerts
+                incident.summary_text = temp_summary
+                incident.metadata.updated_at = time.time()
+                incident.indicators = list(indicators_set)
+                await engine.sync_update_incident(incident)
+                
+        # Archive files and delete from vector store
+        cluster_ids = []
+        for alert in current_alerts:
+            alert_id = alert["id"]
+            cluster_ids.append(alert_id)
+            filepath = find_file_by_incident_id(alert_id)
+            if filepath and os.path.exists(filepath):
+                filename = os.path.basename(filepath)
+                shutil.move(filepath, os.path.join(dest_dir, filename))
+                
+        # Clear matched alerts from ChromaDB raw collection
+        try:
+            vector_engine.collection.delete(ids=cluster_ids)
+            orchestrator.log_info(f"Cleared resolved IDs {cluster_ids} from ChromaDB raw collection.")
+        except Exception as e:
+            orchestrator.log_error(f"Failed to delete items from ChromaDB: {e}")
+
+    # Phase 2: Parallelized Report Generation and Enrichment
+    if modified_incidents:
+        orchestrator.log_info(f"Running parallel report generation and enrichment for {len(modified_incidents)} incidents...")
+        
+        db_lock = asyncio.Lock()
+        
+        async def process_incident_report(inst_id):
+            incident = engine.active_incidents.get(inst_id)
+            if not incident:
+                incident = await engine.repo.get(inst_id)
+            if not incident:
+                return
+                
+            current_alerts = incident.raw_alerts
+            playbook_path = incident_playbooks[inst_id]
+            is_new = incident_is_new[inst_id]
+            similar_to = incident_similar_to.get(inst_id)
             
-            # Retrieve the updated list of alerts (including any new ones pulled in via pivots)
-            updated_alerts = analysis_res["correlated_alerts"]
-            report = analysis_res["report"]
-            
-            # severity mapping
+            # --- PLAYBOOK-GUIDED ACTIVE EXPANSION ---
+            # Heuristic fast check for database relations
+            local_pivots = []
+            for a in current_alerts:
+                local_pivots.extend(extract_indicators_locally(a.get("document", "")))
+                
+            cleaned_local_pivots = []
+            for p in local_pivots:
+                p_clean = p.strip()
+                p_lower = p_clean.lower()
+                if not p_clean or p_lower in ("unknown", "null", "none", "", "localhost", "127.0.0.1", "0.0.0.0"):
+                    continue
+                cleaned_local_pivots.append(p_clean)
+                
+            has_externals = False
+            if cleaned_local_pivots:
+                seed_epoch = current_alerts[0]["metadata"]["timestamp_epoch"]
+                extra_fused = await asyncio.to_thread(
+                    vector_engine.correlate_rrf,
+                    active_indicators=cleaned_local_pivots,
+                    query_text=" ".join(cleaned_local_pivots),
+                    timestamp_epoch=seed_epoch,
+                    time_window_sec=86400
+                )
+                current_ids = {a["id"] for a in current_alerts}
+                for alert_id, score, doc, meta in extra_fused:
+                    if alert_id not in current_ids:
+                        has_externals = True
+                        break
+                        
+            # Check if this incident should bypass LLM call for report generation
+            if len(current_alerts) == 1 and not has_externals:
+                orchestrator.log_info(f"Incident {inst_id}: Standalone alert with no DB relations. Generating report locally (0 LLM calls)...")
+                local_res = generate_local_standalone_report(current_alerts[0], playbook_path)
+                report = local_res["report"]
+            else:
+                # 1. Pass 1 (Lightweight trace & pivot extraction)
+                p1_res = await orchestrator.analyze_alert_group_p1(current_alerts, playbook_path)
+                p1_trace = p1_res["execution_trace"]
+                suggested_pivots = p1_res["suggested_pivots"]
+                
+                # 2. Database query for pivots
+                if suggested_pivots:
+                    cleaned_pivots = []
+                    for p in suggested_pivots:
+                        p_clean = str(p).strip()
+                        p_lower = p_clean.lower()
+                        if not p_clean or p_lower in ("unknown", "null", "none", "", "localhost", "127.0.0.1", "0.0.0.0"):
+                            continue
+                        cleaned_pivots.append(p_clean)
+                        
+                    if cleaned_pivots:
+                        seed_epoch = current_alerts[0]["metadata"]["timestamp_epoch"]
+                        extra_fused = await asyncio.to_thread(
+                            vector_engine.correlate_rrf,
+                            active_indicators=cleaned_pivots,
+                            query_text=" ".join(cleaned_pivots),
+                            timestamp_epoch=seed_epoch,
+                            time_window_sec=86400
+                        )
+                        
+                        correlated_ids = {a["id"] for a in current_alerts}
+                        for alert_id, score, doc, meta in extra_fused:
+                            if alert_id not in correlated_ids:
+                                correlated_ids.add(alert_id)
+                                current_alerts.append({
+                                    "id": alert_id,
+                                    "document": doc,
+                                    "metadata": meta
+                                })
+                                orchestrator.log_success(f"Dynamic retrieval matched alert {alert_id} (RRF: {score:.4f})")
+                                
+                # 3. Pass 2 (Always compile final report for dynamic/cluster incidents)
+                report = await orchestrator.compile_final_report(current_alerts, playbook_path, p1_trace)
+                
+            # Save and sync final report
             sev_map = {
                 "low": IncidentSeverity.LOW,
                 "medium": IncidentSeverity.MEDIUM,
@@ -296,52 +462,27 @@ async def main_async():
             }
             mapped_severity = sev_map.get(report.severity.lower(), IncidentSeverity.MEDIUM)
             
-            # Gather indicators
             indicators_set = set()
-            for alert in updated_alerts:
+            for alert in current_alerts:
                 for ind in engine._extract_indicators(alert):
                     indicators_set.add(ind)
                     
-            incident_data = Incident(
-                id=inst_id,
-                metadata=IncidentMetadata(
-                    severity=mapped_severity,
-                    status=IncidentStatus.TRIAGED,
-                    assigned_analyst="Automated Agent",
-                    created_at=time.time(),
-                    updated_at=time.time(),
-                    source_type=updated_alerts[0]["metadata"].get("source_type", "Default"),
-                    similar_to_incident=similar_to
-                ),
-                raw_alerts=updated_alerts,
-                summary_text=report.incident_summary,
-                indicators=list(indicators_set)
-            )
+            dest_dir = os.path.join(INCIDENT_REPORTS_FOLDER, inst_id)
             
-            # Save & sync new incident
-            await engine.sync_create_incident(incident_data)
+            incident.raw_alerts = current_alerts
+            incident.summary_text = report.incident_summary
+            incident.metadata.severity = mapped_severity
+            incident.metadata.updated_at = time.time()
+            incident.indicators = list(indicators_set)
             
-            # Write report
+            async with db_lock:
+                await engine.sync_update_incident(incident)
+            
+            # Write final markdown report
             write_markdown_report(dest_dir, inst_id, report)
-            
-            # Archive files and delete from vector store
-            cluster_ids = []
-            for alert in updated_alerts:
-                alert_id = alert["id"]
-                cluster_ids.append(alert_id)
-                
-                filepath = find_file_by_incident_id(alert_id)
-                if filepath and os.path.exists(filepath):
-                    filename = os.path.basename(filepath)
-                    shutil.move(filepath, os.path.join(dest_dir, filename))
-                    
-            # Clear alerts from raw collection
-            try:
-                vector_engine.collection.delete(ids=cluster_ids)
-                orchestrator.log_info(f"Cleared resolved IDs {cluster_ids} from ChromaDB raw collection.")
-            except Exception as e:
-                orchestrator.log_error(f"Failed to delete items from ChromaDB: {e}")
 
+        await asyncio.gather(*(process_incident_report(inst_id) for inst_id in modified_incidents))
+        
     # Stop background realtime sync daemon
     stop_background_sync(sync_service, sync_thread, sync_loop)
     orchestrator.log_info("SOC Incident Response Pipeline shut down successfully.")

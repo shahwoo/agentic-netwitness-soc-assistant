@@ -1,23 +1,27 @@
 # EXECUTIVE INCIDENT OUTCOME REPORT: INC-6143 (Incident-006)
 
 **Final Severity:** High
-**Confidence Level:** Medium
+**Confidence Level:** High
 
 ## Technical Chronology Summary
-On 2026-01-31, an incident was reported involving DNS tunneling over TCP Port, classified as high risk with a score of 70. The source IP was identified as 155.140.254.2 and the destination IP as 64.64.211.3, which is flagged for non-standard DNS query tunnels.
+On unknown time, a security alert 'Network' was triaged for alert ID INC-6143. The raw log contains details: Incident INC-6143 details are as follows: The classification alert type is DNS Tunneling over TCP Port. The classification risk score is 70. The classification severity is High. The incident details mitre att&ck id is T1572. The incident details mitre att&ck tactic is command-and-control. The incident details timestamp is 2026-01-31T02:46:02.394Z. The incident details title is High Risk Alerts: Event Stream Analysis for DNS Tunneling. The incident id is INC-6143. The network indicators destination ip is 64.64.211.3. The network indicators destination port is 53. The network indicators source ip is 155.140.254.2. The network indicators source port is 30692. The network indicators tunnel payload file context is googleclient.txt. The threat intelligence enrichment destination ip 64.64.211.3 abuseipdb reports is Flagged for non-standard DNS query tunnels. The threat intelligence enrichment destination ip 64.64.211.3 abuseipdb status is monitored. The threat intelligence enrichment destination ip 64.64.211.3 alienvault otx status is suspicious.. No further associated events or indicators were found in the active time window, confirming the incident is standalone.
 
 ## Playbook Execution Trace
 | Step ID | Instruction | Status | Findings |
 | --- | --- | --- | --- |
-| `step_1` | Identify 1. datetime, 2. Email address of sender/receiver, 3 IP address of sender/receiver and 4. subject of email. | **NOT_MET** | The timeline does not provide any email details such as sender/receiver email addresses or subject. It only contains network indicators. |
-| `step_2` | Does phishing attempt contain a URL or attachment? | **NOT_MET** | The timeline does not mention any URLs or attachments related to a phishing attempt. |
-| `step_3` | Was any malicious process spawned on the victim's machine? | **NOT_MET** | The timeline does not provide information about any processes spawned on the victim's machine. |
-| `step_4` | Analyze the process tree for signs of malicious activity, such as privilege escalation, lateral movement, or data exfiltration. | **NOT_MET** | There is no information in the timeline regarding the process tree or any analysis of it. |
-| `step_5` | Based on the analysis, determine if further investigation is necessary and the containment steps | **NOT_MET** | Without the previous steps being met, it is not possible to determine if further investigation is necessary or what containment steps should be taken. |
+| `step_1` | Identify 1. datetime, 2. Email address of sender/receiver, 3 IP address of sender/receiver and 4. subject of email. | **NOT_MET** | Timeline lacks necessary data to satisfy step. |
+| `step_2` | Does phishing attempt contain a URL or attachment? | **NOT_MET** | Timeline lacks necessary data to satisfy step. |
+| `step_3` | Was any malicious process spawned on the victim's machine? | **NOT_MET** | Timeline lacks necessary data to satisfy step. |
+| `step_4` | Analyze the process tree for signs of malicious activity, such as privilege escalation, lateral movement, or data exfiltration. | **NOT_MET** | Timeline lacks necessary data to satisfy step. |
+| `step_5` | Based on the analysis, determine if further investigation is necessary and the containment steps | **NOT_MET** | Timeline lacks necessary data to satisfy step. |
 
 ## Actions Taken
+- Initial triage
+- Indicator search
+- Playbook heuristic validation
 
 ## Lessons Learnt
-The incident highlights the need for better visibility into email communications and process activities on endpoints to effectively respond to potential phishing attempts and malicious activities.
+No indicators associated with larger campaign identified.
 
 ## Recommended Containment Actions
+- Monitor host for anomalous baseline transitions.

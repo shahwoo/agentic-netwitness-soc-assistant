@@ -55,19 +55,66 @@ class FinalIncidentAnalysis(BaseModel):
     lessons_learnt: str
     recommended_containment: List[str] = Field(description="Recommended containment actions based on policies.")
 
-class Pass1IncidentResult(BaseModel):
-    report: FinalIncidentAnalysis = Field(description="The final incident report based on the current timeline.")
+class Pass1StepResult(BaseModel):
+    step_id: str
+    status: Literal["MET", "NOT_MET"]
+    findings: str
+
+class Pass1Result(BaseModel):
+    execution_trace: List[Pass1StepResult] = Field(description="The step-by-step trace of how the playbook was executed.")
     suggested_pivots: List[str] = Field(default_factory=list, description="Concrete indicator values (IPs, domains, hashes, usernames) to query to resolve any unmet steps.")
 
 # --- LLM INITIALIZATION ---
 
+_llm = None
+_chain_p1 = None
+_chain_p2 = None
+
 def get_llm():
-    api_key = os.getenv("OPENAI_API_KEY")
-    return ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0,
-        openai_api_key=api_key
-    )
+    global _llm
+    if _llm is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        _llm = ChatOpenAI(
+            model="gpt-4o-mini",
+            temperature=0,
+            openai_api_key=api_key
+        )
+    return _llm
+
+def get_chain_p1():
+    global _chain_p1
+    if _chain_p1 is None:
+        system_prompt_p1 = (
+            "You are a Lead SOC Incident Responder. You are given a security Playbook (list of steps) and a chronological Incident Timeline.\n"
+            "Your task is to evaluate the timeline against the playbook and output the execution trace.\n"
+            "First, for each step in the playbook, populate a Pass1StepResult:\n"
+            "  - step_id: the ID of the step (e.g., 'step_1')\n"
+            "  - status: 'MET' if the timeline contains enough evidence to answer/satisfy it, otherwise 'NOT_MET'\n"
+            "  - findings: a clear answer to the instruction if MET, or reasoning explaining what is missing and why if NOT_MET.\n"
+            "Then, compile a list of suggested_pivots: concrete indicator values (IPs, domains, hashes, usernames) to query the logs for to resolve any NOT_MET steps. Return concrete values, not descriptions."
+        )
+        prompt_p1 = ChatPromptTemplate.from_messages([
+            ("system", system_prompt_p1),
+            ("human", "=== PLAYBOOK STEPS ===\n{playbook}\n\n=== INCIDENT TIMELINE ===\n{timeline}\n\n=== INCIDENT ID ===\n{incident_id}")
+        ])
+        _chain_p1 = prompt_p1 | get_llm().with_structured_output(Pass1Result, method="json_schema")
+    return _chain_p1
+
+def get_chain_p2():
+    global _chain_p2
+    if _chain_p2 is None:
+        system_prompt_p2 = (
+            "You are a Lead SOC Incident Responder. Review the provided Incident Timeline and the previous Playbook Execution Trace,\n"
+            "and generate a final, structured incident report using the specified Pydantic schema.\n"
+            "First, re-evaluate each step in the playbook using the updated timeline and populate the execution_trace.\n"
+            "Then, generate the final incident analysis: assign severity/confidence, summarize the chronology, list actions taken, highlight lessons learnt, and recommend containment steps based on the outcomes."
+        )
+        prompt_p2 = ChatPromptTemplate.from_messages([
+            ("system", system_prompt_p2),
+            ("human", "=== INCIDENT ID ===\n{incident_id}\n\n=== PLAYBOOK ===\n{playbook}\n\n=== INCIDENT TIMELINE ===\n{timeline}\n\n=== PLAYBOOK TRACE ===\n{trace}")
+        ])
+        _chain_p2 = prompt_p2 | get_llm().with_structured_output(FinalIncidentAnalysis, method="json_schema")
+    return _chain_p2
 
 # --- MICRO-TASK IMPLEMENTATIONS ---
 
@@ -438,65 +485,51 @@ def orchestrate_incident(seed_alert_path: str, playbook_path: str) -> dict:
         "report": final_report
     }
 
-def analyze_alert_group(correlated_alerts: List[dict], playbook_path: str) -> dict:
+async def analyze_alert_group_p1(correlated_alerts: List[dict], playbook_path: str) -> dict:
     """
-    Runs the optimized two-pass consolidated playbook evaluation with active pivoting.
-    
-    Pass 1: Consolidated playbook check + final report draft + pivot extraction (1 LLM call).
-    Database Query: Queries ChromaDB for pivots to pull in new alerts (no LLM seed filtering).
-    Pass 2 (Only if new alerts found): Re-runs consolidated step check + final report with enriched timeline (1 LLM call).
+    Pass 1: Consolidated playbook check + lightweight trace extraction + pivot extraction (1 LLM call).
+    Returns a dict with {"execution_trace": List[MilestoneExecution], "suggested_pivots": List[str]}.
     """
     with open(playbook_path, "r", encoding="utf-8") as f:
         playbook_dict = yaml.safe_load(f)
         
     playbook_name = playbook_dict.get("name", "Unknown Playbook")
-    
     seed_alert = correlated_alerts[0]
     seed_id = seed_alert["id"]
     
-    correlated_ids = {a["id"] for a in correlated_alerts}
-    processed_seeds = set()
-    
-    # 1. Format playbook steps description for LLM context
     steps_desc = []
     for step_id, step_data in sorted(playbook_dict.get("steps", {}).items()):
         steps_desc.append(f"Step '{step_id}': {step_data.get('instructions')}")
     playbook_steps_str = "\n".join(steps_desc)
     
-    # --- PASS 1: Consolidated Check and Report Draft ---
     timeline_str = build_timeline_text(correlated_alerts)
-    log_info(f"[LLM CALL] Pass 1: Consolidated Playbook Evaluation & Pivot Extraction for {seed_id}...")
-    
-    system_prompt_p1 = (
-        "You are a Lead SOC Incident Responder. You are given a security Playbook (list of steps) and a chronological Incident Timeline.\n"
-        "Your task is to evaluate the timeline against the playbook and generate the report.\n"
-        "First, for each step in the playbook, populate a MilestoneExecution:\n"
-        "  - step_id: the ID of the step (e.g., 'step_1')\n"
-        "  - instruction: the exact instruction of the step\n"
-        "  - status: 'MET' if the timeline contains enough evidence to answer/satisfy it, otherwise 'NOT_MET'\n"
-        "  - findings: a clear answer to the instruction if MET, or reasoning explaining what is missing and why if NOT_MET.\n"
-        "Then, compile a list of suggested_pivots: concrete indicator values (IPs, domains, hashes, usernames) to query the logs for to resolve any NOT_MET steps. Return concrete values, not descriptions.\n"
-        "Finally, generate a draft FinalIncidentAnalysis report based on the current timeline."
-    )
-    
-    prompt_p1 = ChatPromptTemplate.from_messages([
-        ("system", system_prompt_p1),
-        ("human", "=== PLAYBOOK STEPS ===\n{playbook}\n\n=== INCIDENT TIMELINE ===\n{timeline}\n\n=== INCIDENT ID ===\n{incident_id}")
-    ])
-    
-    p1_report = None
-    all_suggested_pivots = []
+    log_info(f"[LLM CALL] Pass 1: Lightweight Playbook Evaluation & Pivot Extraction for {seed_id}...")
     
     try:
-        chain_p1 = prompt_p1 | get_llm().with_structured_output(Pass1IncidentResult, method="json_schema")
-        p1_res = chain_p1.invoke({
+        chain_p1 = get_chain_p1()
+        p1_res = await chain_p1.ainvoke({
             "playbook": playbook_steps_str,
             "timeline": timeline_str,
             "incident_id": seed_id
         })
-        p1_report = p1_res.report
-        all_suggested_pivots = p1_res.suggested_pivots
-        log_success(f"[LLM RESPONSE] Pass 1 completed for {seed_id}. Suggested pivots: {all_suggested_pivots}")
+        
+        # Map lightweight Pass1StepResult to MilestoneExecution by adding the instruction
+        execution_trace = []
+        steps_map = playbook_dict.get("steps", {})
+        for step in p1_res.execution_trace:
+            instr = steps_map.get(step.step_id, {}).get("instructions", "")
+            execution_trace.append(MilestoneExecution(
+                step_id=step.step_id,
+                instruction=instr,
+                status=step.status,
+                findings=step.findings
+            ))
+            
+        log_success(f"[LLM RESPONSE] Pass 1 completed for {seed_id}. Suggested pivots: {p1_res.suggested_pivots}")
+        return {
+            "execution_trace": execution_trace,
+            "suggested_pivots": p1_res.suggested_pivots
+        }
     except Exception as e:
         log_error(f"Pass 1 LLM call failed: {e}")
         # Default fallback
@@ -508,97 +541,52 @@ def analyze_alert_group(correlated_alerts: List[dict], playbook_path: str) -> di
                 status="NOT_MET",
                 findings=f"Pass 1 Error: {e}"
             ))
-        p1_report = FinalIncidentAnalysis(
+        return {
+            "execution_trace": execution_trace,
+            "suggested_pivots": []
+        }
+
+async def compile_final_report(correlated_alerts: List[dict], playbook_path: str, p1_trace: List[MilestoneExecution]) -> FinalIncidentAnalysis:
+    """
+    Pass 2: Re-runs playbook step checks and generates updated report using enriched timeline.
+    """
+    with open(playbook_path, "r", encoding="utf-8") as f:
+        playbook_dict = yaml.safe_load(f)
+        
+    playbook_name = playbook_dict.get("name", "Unknown Playbook")
+    seed_alert = correlated_alerts[0]
+    seed_id = seed_alert["id"]
+    
+    timeline_str = build_timeline_text(correlated_alerts)
+    log_info(f"[LLM CALL] Pass 2: Re-evaluating playbook and compiling final report for {seed_id}...")
+    
+    trace_json = json.dumps([t.model_dump() for t in p1_trace], indent=2)
+    
+    try:
+        chain_p2 = get_chain_p2()
+        final_report = await chain_p2.ainvoke({
+            "incident_id": seed_id,
+            "playbook": playbook_name,
+            "timeline": timeline_str,
+            "trace": trace_json
+        })
+        log_success(f"[LLM RESPONSE] Pass 2 completed for {seed_id} (Severity: {final_report.severity})")
+        return final_report
+    except Exception as e:
+        log_error(f"Pass 2 LLM call failed: {e}")
+        # Return fallback FinalIncidentAnalysis
+        return FinalIncidentAnalysis(
             incident_id=seed_id,
             severity="High",
             confidence="Low",
-            execution_trace=execution_trace,
+            execution_trace=p1_trace,
             incident_summary=f"Analysis failed due to error: {e}. Timeline: {timeline_str}",
             actions_taken=["Triage"],
             lessons_learnt="Check LLM API status.",
             recommended_containment=["Isolate system and review manually."]
         )
 
-    # --- ACTIVE DATABASE PIVOTING ---
-    added_any_new = False
-    if all_suggested_pivots:
-        # Local fast Python indicator cleaning to avoid any LLM filter calls
-        cleaned_pivots = []
-        for p in all_suggested_pivots:
-            p_clean = str(p).strip()
-            p_lower = p_clean.lower()
-            if not p_clean or p_lower in ("unknown", "null", "none", "", "localhost", "127.0.0.1", "0.0.0.0"):
-                continue
-            cleaned_pivots.append(p_clean)
-            
-        new_pivots = [p for p in cleaned_pivots if p not in processed_seeds]
-        
-        if new_pivots:
-            log_info(f"Playbook step requested extra queries for: {new_pivots}")
-            seed_epoch = seed_alert["metadata"]["timestamp_epoch"]
-            extra_fused = vector_engine.correlate_rrf(
-                active_indicators=new_pivots,
-                query_text=" ".join(new_pivots),
-                timestamp_epoch=seed_epoch,
-                time_window_sec=86400
-            )
-            
-            for alert_id, score, doc, meta in extra_fused:
-                if alert_id not in correlated_ids:
-                    correlated_ids.add(alert_id)
-                    correlated_alerts.append({
-                        "id": alert_id,
-                        "document": doc,
-                        "metadata": meta
-                    })
-                    added_any_new = True
-                    log_success(f"Dynamic retrieval matched alert {alert_id} (RRF: {score:.4f})")
-                    
-            for p in new_pivots:
-                processed_seeds.add(p)
+def analyze_alert_group(correlated_alerts: List[dict], playbook_path: str) -> dict:
+    """Legacy synchronous wrapper for two-pass evaluation."""
+    raise NotImplementedError("Legacy analyze_alert_group is deprecated.")
 
-    # --- PASS 2: Final Report (Only if new alerts found) ---
-    if added_any_new:
-        timeline_str = build_timeline_text(correlated_alerts)
-        log_info(f"[LLM CALL] Pass 2: Re-evaluating playbook and compiling final report for {seed_id}...")
-        
-        system_prompt_p2 = (
-            "You are a Lead SOC Incident Responder. Review the provided Incident Timeline and the previous Playbook Execution Trace,\n"
-            "and generate a final, structured incident report using the specified Pydantic schema.\n"
-            "First, re-evaluate each step in the playbook using the updated timeline and populate the execution_trace.\n"
-            "Then, generate the final incident analysis: assign severity/confidence, summarize the chronology, list actions taken, highlight lessons learnt, and recommend containment steps based on the outcomes."
-        )
-        
-        trace_json = json.dumps([t.model_dump() for t in p1_report.execution_trace], indent=2)
-        prompt_p2 = ChatPromptTemplate.from_messages([
-            ("system", system_prompt_p2),
-            ("human", "=== INCIDENT ID ===\n{incident_id}\n\n=== PLAYBOOK ===\n{playbook}\n\n=== INCIDENT TIMELINE ===\n{timeline}\n\n=== PLAYBOOK TRACE ===\n{trace}")
-        ])
-        
-        try:
-            chain_p2 = prompt_p2 | get_llm().with_structured_output(FinalIncidentAnalysis, method="json_schema")
-            final_report = chain_p2.invoke({
-                "incident_id": seed_id,
-                "playbook": playbook_name,
-                "timeline": timeline_str,
-                "trace": trace_json
-            })
-            log_success(f"[LLM RESPONSE] Generated final report for {seed_id} (Severity: {final_report.severity})")
-            return {
-                "correlated_alerts": correlated_alerts,
-                "report": final_report
-            }
-        except Exception as e:
-            log_error(f"Pass 2 LLM call failed: {e}")
-            # Fall back to Pass 1 report with alert list update
-            return {
-                "correlated_alerts": correlated_alerts,
-                "report": p1_report
-            }
-    else:
-        # No new alerts found, return the Pass 1 report directly! (Saves an LLM call)
-        log_info(f"Skipping Pass 2 LLM call: timeline unchanged.")
-        return {
-            "correlated_alerts": correlated_alerts,
-            "report": p1_report
-        }

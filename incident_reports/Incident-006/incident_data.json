@@ -4,8 +4,8 @@
     "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1783448713.5023756,
-    "updated_at": 1783448713.5023756,
+    "created_at": 1783522007.3366015,
+    "updated_at": 1783522010.872641,
     "source_type": "Network",
     "similar_to_incident": null
   },
@@ -22,7 +22,7 @@
         "timestamp_epoch": 1769827562,
         "tactic": "command-and-control",
         "technique": "Unknown",
-        "ips": "64.64.211.3,155.140.254.2",
+        "ips": "155.140.254.2,64.64.211.3",
         "sha256s": "",
         "md5s": "",
         "emails": "",
@@ -30,11 +30,11 @@
       }
     }
   ],
-  "summary_text": "On 2026-01-31, an incident was reported involving DNS tunneling over TCP Port, classified as high risk with a score of 70. The source IP was identified as 155.140.254.2 and the destination IP as 64.64.211.3, which is flagged for non-standard DNS query tunnels.",
+  "summary_text": "On unknown time, a security alert 'Network' was triaged for alert ID INC-6143. The raw log contains details: Incident INC-6143 details are as follows: The classification alert type is DNS Tunneling over TCP Port. The classification risk score is 70. The classification severity is High. The incident details mitre att&ck id is T1572. The incident details mitre att&ck tactic is command-and-control. The incident details timestamp is 2026-01-31T02:46:02.394Z. The incident details title is High Risk Alerts: Event Stream Analysis for DNS Tunneling. The incident id is INC-6143. The network indicators destination ip is 64.64.211.3. The network indicators destination port is 53. The network indicators source ip is 155.140.254.2. The network indicators source port is 30692. The network indicators tunnel payload file context is googleclient.txt. The threat intelligence enrichment destination ip 64.64.211.3 abuseipdb reports is Flagged for non-standard DNS query tunnels. The threat intelligence enrichment destination ip 64.64.211.3 abuseipdb status is monitored. The threat intelligence enrichment destination ip 64.64.211.3 alienvault otx status is suspicious.. No further associated events or indicators were found in the active time window, confirming the incident is standalone.",
   "indicators": [
-    "64.64.211.",
+    "155.140.254.2",
     "64.64.211.3",
     "155.140.254.",
-    "155.140.254.2"
+    "64.64.211."
   ]
 }
