@@ -4,8 +4,8 @@
     "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1783522006.4553957,
-    "updated_at": 1783522030.194899,
+    "created_at": 1784020857.4274907,
+    "updated_at": 1784020878.8660486,
     "source_type": "Network",
     "similar_to_incident": null
   },
@@ -49,12 +49,12 @@
       }
     }
   ],
-  "summary_text": "On January 31, 2026, an incident was detected involving a cryptomining file associated with the domain grossform.ru. The incident was classified as high risk with a severity score of 70. The source IP address was identified as 10.100.20.142, and the destination IP was 46.28.69.220, which is known for malicious activities. The incident also triggered an HTTP GET flood alert, indicating potential exfiltration attempts.",
+  "summary_text": "On January 31, 2026, an incident was detected involving a cryptomining file. The source IP address was identified as 10.100.20.142, and the destination IP was 46.28.69.220, which is associated with malicious activity. The incident was classified as high risk due to the nature of the threat and the indicators of compromise (IOCs) present.",
   "indicators": [
-    "10.100.20.142",
-    "grossform.ru",
-    "46.28.69.",
     "46.28.69.220",
-    "10.100.20."
+    "46.28.69.",
+    "grossform.ru",
+    "10.100.20.",
+    "10.100.20.142"
   ]
 }

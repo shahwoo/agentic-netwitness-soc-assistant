@@ -3,9 +3,10 @@ import sys
 import json
 import yaml
 import re
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Dict
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from policy_engine import PolicyAuditRecord, PolicyManager, run_policy_compliance_rules
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -44,6 +45,11 @@ class MilestoneExecution(BaseModel):
     instruction: str
     status: Literal["MET", "NOT_MET", "SKIPPED"]
     findings: str
+class BusinessImpactChecklist(BaseModel):
+    critical_system: str = Field(description="Is a critical or significant system impacted? (yes/no/unknown)")
+    essential_service: str = Field(description="Is an important or essential service affected? (yes/no/unknown)")
+    data_sensitivity: str = Field(description="Is personal, confidential, or sensitive data involved? (yes/no/unknown)")
+    operational_impact: str = Field(description="Is there outage, degradation, or loss of business function? (yes/no/unknown)")
 
 class FinalIncidentAnalysis(BaseModel):
     incident_id: str
@@ -54,6 +60,10 @@ class FinalIncidentAnalysis(BaseModel):
     actions_taken: List[str] = Field(description="Actions taken during investigation.")
     lessons_learnt: str
     recommended_containment: List[str] = Field(description="Recommended containment actions based on policies.")
+    business_impact_checklist: BusinessImpactChecklist = Field(description="Checklist mapping factor names to analysis answers for Appendix C.")
+    severity_justification: str = Field(description="Brief justification of the severity rating based on Appendix A/B factors.")
+    confidence_justification: str = Field(description="Brief justification of the confidence rating based on Appendix F.")
+    policy_audit_logs: List[PolicyAuditRecord] = Field(default_factory=list, description="The list of PolicyAuditRecord generated during policy-based verification checks.")
 
 class Pass1StepResult(BaseModel):
     step_id: str
@@ -99,15 +109,20 @@ def get_chain_p1():
         ])
         _chain_p1 = prompt_p1 | get_llm().with_structured_output(Pass1Result, method="json_schema")
     return _chain_p1
-
 def get_chain_p2():
     global _chain_p2
     if _chain_p2 is None:
         system_prompt_p2 = (
             "You are a Lead SOC Incident Responder. Review the provided Incident Timeline and the previous Playbook Execution Trace,\n"
             "and generate a final, structured incident report using the specified Pydantic schema.\n"
-            "First, re-evaluate each step in the playbook using the updated timeline and populate the execution_trace.\n"
-            "Then, generate the final incident analysis: assign severity/confidence, summarize the chronology, list actions taken, highlight lessons learnt, and recommend containment steps based on the outcomes."
+            "You MUST strictly align your analysis with the company's cybersecurity policies provided below.\n\n"
+            "=== CYBERSECURITY POLICIES ===\n{policies}\n\n"
+            "Instructions:\n"
+            "1. Re-evaluate each step in the playbook using the updated timeline and populate the execution_trace.\n"
+            "2. Complete the business_impact_checklist by answering the policy-based questions in Appendix C (e.g., critical_system, essential_service, data_sensitivity, operational_impact).\n"
+            "3. Assign final severity and confidence based on the guidelines in Appendix A, B, and F, and provide their justifications.\n"
+            "4. Recommend containment actions adhering to Appendix G, H (for ransomware), and I (for guest OS compromise).\n"
+            "Note: Your output must be structured to match the Pydantic schema."
         )
         prompt_p2 = ChatPromptTemplate.from_messages([
             ("system", system_prompt_p2),
@@ -182,11 +197,20 @@ def generate_final_analysis(incident_id: str, playbook_name: str, timeline_str: 
     """Final Structural Reporting: Invoked exactly once at the end of the analysis phase."""
     log_info(f"[LLM CALL] Invoking Final Structural Reporting for incident {incident_id}...")
     
+    policy_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "policies", "soc_policies.md")
+    policy_mgr = PolicyManager(policy_file_path)
+    policies_context = policy_mgr.raw_text
+    
     system_prompt = (
         "You are a Lead SOC Incident Responder. Review the provided Incident Timeline and the Playbook Execution Trace,\n"
         "and generate a final, structured incident report using the specified Pydantic schema.\n"
-        "Your report must follow cybersecurity policies: assign final severity/confidence, summarize the timeline,\n"
-        "document execution steps, list actions taken, highlight lessons learnt, and detail containment recommendations."
+        "You MUST strictly align your analysis with the company's cybersecurity policies provided below.\n\n"
+        "=== CYBERSECURITY POLICIES ===\n{policies}\n\n"
+        "Instructions:\n"
+        "1. Complete the business_impact_checklist by answering the policy-based questions in Appendix C (e.g., critical_system, essential_service, data_sensitivity, operational_impact).\n"
+        "2. Assign final severity and confidence based on the guidelines in Appendix A, B, and F, and provide their justifications.\n"
+        "3. Recommend containment actions adhering to Appendix G, H (for ransomware), and I (for guest OS compromise).\n"
+        "Note: Your output must be structured to match the Pydantic schema."
     )
     
     trace_json = json.dumps([t.model_dump() for t in execution_trace], indent=2)
@@ -202,8 +226,25 @@ def generate_final_analysis(incident_id: str, playbook_name: str, timeline_str: 
             "incident_id": incident_id,
             "playbook": playbook_name,
             "timeline": timeline_str,
-            "trace": trace_json
+            "trace": trace_json,
+            "policies": policies_context
         })
+        
+        compliance = run_policy_compliance_rules(
+            incident_id=incident_id,
+            severity=result.severity,
+            confidence=result.confidence,
+            incident_summary=result.incident_summary,
+            recommended_containment=result.recommended_containment,
+            business_impact_checklist=result.business_impact_checklist,
+            timeline_text=timeline_str
+        )
+        
+        if compliance["escalation_required"]:
+            result.recommended_containment = compliance["modified_containment"]
+            
+        result.policy_audit_logs = compliance["audit_records"]
+        
         log_success(f"[LLM RESPONSE] Generated final report with severity: {result.severity} | confidence: {result.confidence}")
         return result
     except Exception as e:
@@ -216,7 +257,11 @@ def generate_final_analysis(incident_id: str, playbook_name: str, timeline_str: 
             incident_summary=f"Analysis failed due to error: {e}. Timeline: {timeline_str}",
             actions_taken=["Triage", "Vector Correlation"],
             lessons_learnt="Verify LLM API limits and schema compatibility.",
-            recommended_containment=["Isolate system and review logs manually."]
+            recommended_containment=["Isolate system and review logs manually."],
+            business_impact_checklist=BusinessImpactChecklist(critical_system="unknown", essential_service="unknown", data_sensitivity="unknown", operational_impact="unknown"),
+            severity_justification=f"Fallback due to error: {e}",
+            confidence_justification="Fallback due to error",
+            policy_audit_logs=[]
         )
 
 # --- CONSTRUCT TIMELINE TEXT ---
@@ -560,6 +605,10 @@ async def compile_final_report(correlated_alerts: List[dict], playbook_path: str
     timeline_str = build_timeline_text(correlated_alerts)
     log_info(f"[LLM CALL] Pass 2: Re-evaluating playbook and compiling final report for {seed_id}...")
     
+    policy_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "policies", "soc_policies.md")
+    policy_mgr = PolicyManager(policy_file_path)
+    policies_context = policy_mgr.raw_text
+    
     trace_json = json.dumps([t.model_dump() for t in p1_trace], indent=2)
     
     try:
@@ -568,8 +617,25 @@ async def compile_final_report(correlated_alerts: List[dict], playbook_path: str
             "incident_id": seed_id,
             "playbook": playbook_name,
             "timeline": timeline_str,
-            "trace": trace_json
+            "trace": trace_json,
+            "policies": policies_context
         })
+        
+        compliance = run_policy_compliance_rules(
+            incident_id=seed_id,
+            severity=final_report.severity,
+            confidence=final_report.confidence,
+            incident_summary=final_report.incident_summary,
+            recommended_containment=final_report.recommended_containment,
+            business_impact_checklist=final_report.business_impact_checklist,
+            timeline_text=timeline_str
+        )
+        
+        if compliance["escalation_required"]:
+            final_report.recommended_containment = compliance["modified_containment"]
+            
+        final_report.policy_audit_logs = compliance["audit_records"]
+        
         log_success(f"[LLM RESPONSE] Pass 2 completed for {seed_id} (Severity: {final_report.severity})")
         return final_report
     except Exception as e:
@@ -583,7 +649,11 @@ async def compile_final_report(correlated_alerts: List[dict], playbook_path: str
             incident_summary=f"Analysis failed due to error: {e}. Timeline: {timeline_str}",
             actions_taken=["Triage"],
             lessons_learnt="Check LLM API status.",
-            recommended_containment=["Isolate system and review manually."]
+            recommended_containment=["Isolate system and review manually."],
+            business_impact_checklist=BusinessImpactChecklist(critical_system="unknown", essential_service="unknown", data_sensitivity="unknown", operational_impact="unknown"),
+            severity_justification=f"Fallback due to error: {e}",
+            confidence_justification="Fallback due to error",
+            policy_audit_logs=[]
         )
 
 def analyze_alert_group(correlated_alerts: List[dict], playbook_path: str) -> dict:

@@ -1,11 +1,11 @@
 {
   "id": "Incident-001",
   "metadata": {
-    "severity": "CRITICAL",
+    "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1783522004.34456,
-    "updated_at": 1783522031.2636845,
+    "created_at": 1784020855.268715,
+    "updated_at": 1784020883.853133,
     "source_type": "Network",
     "similar_to_incident": null
   },
@@ -87,22 +87,22 @@
       }
     }
   ],
-  "summary_text": "On January 17, 2026, a spearphishing email was detected containing a malicious executable attachment (winupdate.exe). This led to the spawning of a malicious process (wzOCcAIIZg.exe) on the victim's machine, followed by suspicious command executions indicating lateral movement. The incident escalated through multiple alerts, highlighting a critical security breach.",
+  "summary_text": "On January 17, 2026, an email was received by jolin_j@rp-soc.com from itadmin@rp-soc.com with the subject 'URGENT: Windows Update Patching Required!'. The email contained an attachment named 'winupdate.exe', which is a Windows executable. This incident was classified as a Spearphishing Attachment with a high severity rating. The attachment was flagged as potentially malicious, and further investigation was initiated due to the high risk associated with the executable.",
   "indicators": [
-    "ff79d3c4a0b7eb191783c323ab8363ebd1fd10be58d8bcc96b07067743ca81d5",
-    "ed5223b41ff3d70a5f4f01e8c3cdcc675005e6c38f2211755e2785a9dd8143b2",
-    "rp-soc.com",
-    "10.100.10.7",
-    "rp-soc-ws-win14",
-    "10.100.10.",
-    "80ecee3ff083deeb191728f4630d6a78",
     "10.100.20.16",
-    "9090e0e44e14709fb09b23b98572e0e61c810189e2de8f7156021bc81c3b1bb6",
-    "admin2",
-    "rpsocwswin2",
-    "10.100.20.74",
-    "155.140.254.",
+    "10.100.10.7",
+    "ff79d3c4a0b7eb191783c323ab8363ebd1fd10be58d8bcc96b07067743ca81d5",
     "155.140.254.18",
-    "10.100.20."
+    "80ecee3ff083deeb191728f4630d6a78",
+    "admin2",
+    "155.140.254.",
+    "rp-soc.com",
+    "9090e0e44e14709fb09b23b98572e0e61c810189e2de8f7156021bc81c3b1bb6",
+    "10.100.20.74",
+    "rpsocwswin2",
+    "10.100.20.",
+    "rp-soc-ws-win14",
+    "ed5223b41ff3d70a5f4f01e8c3cdcc675005e6c38f2211755e2785a9dd8143b2",
+    "10.100.10."
   ]
 }

@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 import ingest_pipeline
 import vector_engine
 import orchestrator
+import policy_engine
 from correlation_engine import CorrelationEngine
 from sync_engine import (
     RealtimeSyncService,
@@ -66,7 +67,27 @@ def write_markdown_report(dest_folder: str, incident_num_id: str, report: orches
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(f"# EXECUTIVE INCIDENT OUTCOME REPORT: {report.incident_id} ({incident_num_id})\n\n")
         f.write(f"**Final Severity:** {report.severity}\n")
-        f.write(f"**Confidence Level:** {report.confidence}\n\n")
+        if getattr(report, "severity_justification", None):
+            f.write(f"*{report.severity_justification}*\n")
+        f.write(f"\n**Confidence Level:** {report.confidence}\n")
+        if getattr(report, "confidence_justification", None):
+            f.write(f"*{report.confidence_justification}*\n\n")
+        else:
+            f.write("\n")
+            
+        f.write("## Business Impact Assessment (Appendix C)\n")
+        checklist_data = getattr(report, "business_impact_checklist", None)
+        if checklist_data:
+            if hasattr(checklist_data, "model_dump"):
+                checklist_dict = checklist_data.model_dump()
+            else:
+                checklist_dict = dict(checklist_data)
+            for factor, answer in checklist_dict.items():
+                factor_name = factor.replace("_", " ").title()
+                f.write(f"- **{factor_name}**: {answer}\n")
+        else:
+            f.write("No business impact checklist compiled.\n")
+        f.write("\n")
         
         f.write("## Technical Chronology Summary\n")
         f.write(f"{report.incident_summary}\n\n")
@@ -89,6 +110,21 @@ def write_markdown_report(dest_folder: str, incident_num_id: str, report: orches
         f.write("## Recommended Containment Actions\n")
         for recommendation in report.recommended_containment:
             f.write(f"- {recommendation}\n")
+        f.write("\n")
+        
+        # Format and append Appendix M Audit Log Table
+        f.write("## Appendix M: Policy-Based Compliance Audit Log\n\n")
+        f.write("| Audit ID | Decision Point | Policy Reference | Input Summary | Result | Decision Made | Human Review? | Timestamp |\n")
+        f.write("| --- | --- | --- | --- | --- | --- | --- | --- |\n")
+        
+        audit_logs = getattr(report, "policy_audit_logs", [])
+        if audit_logs:
+            for log in audit_logs:
+                readable_ts = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(log.timestamp))
+                hr_req = "Yes" if log.human_review_required else "No"
+                f.write(f"| `{log.audit_id}` | **{log.decision_point}** | {log.policy_reference} | {log.input_summary} | *{log.result}* | `{log.decision_made}` | {hr_req} | {readable_ts} |\n")
+        else:
+            f.write("| N/A | N/A | N/A | No policy audit logs recorded | N/A | N/A | N/A | N/A |\n")
             
     orchestrator.log_success(f"Case report stored securely inside: {report_path}")
 
@@ -170,15 +206,38 @@ def generate_local_standalone_report(alert: dict, playbook_path: str):
             findings=findings
         ))
         
+    checklist = {
+        "critical_system": "yes" if any(k in doc.lower() for k in ("database", "dc", "domain controller", "production", "prod")) else "no",
+        "essential_service": "no",
+        "data_sensitivity": "yes" if any(k in doc.lower() for k in ("personal", "sensitive", "confidential", "email", "recipient", "sender")) else "no",
+        "operational_impact": "no"
+    }
+    
+    severity_val = alert["metadata"].get("severity", "High")
+    
+    compliance = policy_engine.run_policy_compliance_rules(
+        incident_id=alert_id,
+        severity=severity_val,
+        confidence="High",
+        incident_summary=summary,
+        recommended_containment=[f"Monitor host for anomalous baseline transitions."],
+        business_impact_checklist=checklist,
+        timeline_text=doc
+    )
+    
     report = orchestrator.FinalIncidentAnalysis(
         incident_id=alert_id,
-        severity=alert["metadata"].get("severity", "High"),
+        severity=severity_val,
         confidence="High",
         execution_trace=execution_trace,
         incident_summary=summary,
         actions_taken=["Initial triage", "Indicator search", "Playbook heuristic validation"],
         lessons_learnt="No indicators associated with larger campaign identified.",
-        recommended_containment=[f"Monitor host for anomalous baseline transitions."]
+        recommended_containment=compliance["modified_containment"],
+        business_impact_checklist=checklist,
+        severity_justification="Programmatic baseline triage for standalone alert.",
+        confidence_justification="Heuristic lookup with no temporal correlation window overlaps.",
+        policy_audit_logs=compliance["audit_records"]
     )
     
     return {
