@@ -4,8 +4,8 @@
     "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1784020855.268715,
-    "updated_at": 1784020883.853133,
+    "created_at": 1784024020.1700094,
+    "updated_at": 1784024050.8627355,
     "source_type": "Network",
     "similar_to_incident": null
   },
@@ -25,7 +25,7 @@
         "ips": "10.100.20.16,10.100.10.7",
         "sha256s": "",
         "md5s": "",
-        "emails": "jolin_j@rp-soc.com,itadmin@rp-soc.com",
+        "emails": "itadmin@rp-soc.com,jolin_j@rp-soc.com",
         "domains": "rp-soc.com"
       }
     },
@@ -87,22 +87,22 @@
       }
     }
   ],
-  "summary_text": "On January 17, 2026, an email was received by jolin_j@rp-soc.com from itadmin@rp-soc.com with the subject 'URGENT: Windows Update Patching Required!'. The email contained an attachment named 'winupdate.exe', which is a Windows executable. This incident was classified as a Spearphishing Attachment with a high severity rating. The attachment was flagged as potentially malicious, and further investigation was initiated due to the high risk associated with the executable.",
+  "summary_text": "User received a spearphishing email with an attachment named winupdate.exe. The user executed the attachment, which spawned a malicious process (cmd.exe) on the victim's machine. The process tree analysis indicated that cmd.exe was spawned by services.exe, suggesting potential lateral movement. The incident escalated with further alerts indicating lateral movement using credentials and command shell execution.",
   "indicators": [
-    "10.100.20.16",
-    "10.100.10.7",
-    "ff79d3c4a0b7eb191783c323ab8363ebd1fd10be58d8bcc96b07067743ca81d5",
+    "rp-soc-ws-win14",
+    "10.100.20.74",
     "155.140.254.18",
     "80ecee3ff083deeb191728f4630d6a78",
-    "admin2",
-    "155.140.254.",
+    "10.100.20.16",
     "rp-soc.com",
-    "9090e0e44e14709fb09b23b98572e0e61c810189e2de8f7156021bc81c3b1bb6",
-    "10.100.20.74",
     "rpsocwswin2",
-    "10.100.20.",
-    "rp-soc-ws-win14",
     "ed5223b41ff3d70a5f4f01e8c3cdcc675005e6c38f2211755e2785a9dd8143b2",
-    "10.100.10."
+    "10.100.10.",
+    "155.140.254.",
+    "ff79d3c4a0b7eb191783c323ab8363ebd1fd10be58d8bcc96b07067743ca81d5",
+    "10.100.20.",
+    "admin2",
+    "10.100.10.7",
+    "9090e0e44e14709fb09b23b98572e0e61c810189e2de8f7156021bc81c3b1bb6"
   ]
 }

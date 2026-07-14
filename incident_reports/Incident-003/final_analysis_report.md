@@ -13,7 +13,7 @@
 - **Operational Impact**: no
 
 ## Technical Chronology Summary
-On unknown time, a security alert 'Authentication' was triaged for alert ID INC-6133. The raw log contains details: Incident INC-6133 details are as follows: The authentication details attempted target user is sally. The authentication details category is Auth.Failures.User Errors. The authentication details outcome is Failure. The classification alert type is Brute Force Login From Same Source. The classification risk score is 70. The classification severity is High. The incident details mitre att&ck id is T1110. The incident details mitre att&ck tactic is credential-access. The incident details timestamp is 2026-01-30T10:47:40.890Z. The incident details title is High Risk Alerts: Event Stream Analysis for Brute Force Login. The incident id is INC-6133. The network indicators destination country is France. The network indicators destination domain is bnpparibasgroup.com. The network indicators destination ip is 155.140.254.100. The network indicators destination port is 443. The network indicators firewall device type is checkpointfw1. The network indicators source asn is 198161. The network indicators source city is Chodov. The network indicators source country is Czechia. The network indicators source ip is 5.1.57.22. The network indicators source isp is Sokolovska uhelna, pravni nastupce, a.s.. The threat intelligence enrichment source ip 5.1.57.22 abuseipdb malicious score is Pending check on dynamic validation engine. The threat intelligence enrichment source ip 5.1.57.22 abuseipdb status is active_threat. The threat intelligence enrichment source ip 5.1.57.22 alienvault otx reason is Associated with brute force scanning telemetry. The threat intelligence enrichment source ip 5.1.57.22 alienvault otx status is flagged.. No further associated events or indicators were found in the active time window, confirming the incident is standalone.
+1. Multiple authentication attempts were initiated from source IP 5.1.57.22 targeting the user account 'sally' on bnpparibasgroup.com. 2. The login attempts resulted in failures, indicating a brute-force attack. 3. The suspicious authentication traffic was detected and flagged at the perimeter firewall.
 
 ## Playbook Execution Trace
 | Step ID | Instruction | Status | Findings |
@@ -29,17 +29,16 @@ On unknown time, a security alert 'Authentication' was triaged for alert ID INC-
 - Indicator search
 - Playbook heuristic validation
 
-## Lessons Learnt
-No indicators associated with larger campaign identified.
-
 ## Recommended Containment Actions
-- Monitor host for anomalous baseline transitions.
+- Block all traffic from the external attacker IP 5.1.57.22 at the perimeter firewall immediately.
+- Reset the password for user account 'sally' and enforce multi-factor authentication (MFA).
+- Review login logs to ensure no attempts from 5.1.57.22 succeeded.
 
 ## Appendix M: Policy-Based Compliance Audit Log
 
 | Audit ID | Decision Point | Policy Reference | Input Summary | Result | Decision Made | Human Review? | Timestamp |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `AUD-DP07-1784020860-1` | **DP-07** | Appendix C | Critical System: False, Sensitive Data: False | *Pass* | `Investigate` | Yes | 2026-07-14T09:21:00Z |
-| `AUD-DP08-1784020860-2` | **DP-08** | Appendix A | Severity classification: High | *Warning* | `Escalate` | Yes | 2026-07-14T09:21:00Z |
-| `AUD-DP09-1784020860-3` | **DP-09** | Appendix F | Confidence level: High | *Pass* | `Investigate` | Yes | 2026-07-14T09:21:00Z |
-| `AUD-DP10-1784020860-4` | **DP-10/DP-11** | Appendix G | Severity: High, Confidence: High, Ransomware: False, Guest OS: False | *Fail* | `Escalate` | Yes | 2026-07-14T09:21:00Z |
+| `AUD-DP07-1784024031-1` | **DP-07** | Appendix C | Critical System: False, Sensitive Data: False | *Pass* | `Investigate` | Yes | 2026-07-14T10:13:51Z |
+| `AUD-DP08-1784024031-2` | **DP-08** | Appendix A | Severity classification: High | *Warning* | `Escalate` | Yes | 2026-07-14T10:13:51Z |
+| `AUD-DP09-1784024031-3` | **DP-09** | Appendix F | Confidence level: High | *Pass* | `Investigate` | Yes | 2026-07-14T10:13:51Z |
+| `AUD-DP10-1784024031-4` | **DP-10/DP-11** | Appendix G | Severity: High, Confidence: High, Ransomware: False, Guest OS: False | *Fail* | `Escalate` | Yes | 2026-07-14T10:13:51Z |

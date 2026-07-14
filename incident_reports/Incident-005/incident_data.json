@@ -4,8 +4,8 @@
     "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1784020857.85169,
-    "updated_at": 1784020860.862559,
+    "created_at": 1784024024.7271729,
+    "updated_at": 1784024031.0452027,
     "source_type": "Network",
     "similar_to_incident": null
   },
@@ -30,12 +30,12 @@
       }
     }
   ],
-  "summary_text": "On unknown time, a security alert 'Network' was triaged for alert ID INC-6142. The raw log contains details: Incident INC-6142 details are as follows: The classification alert type is Multiple DNS Response on the Same Hostname. The classification risk score is 70. The classification severity is High. The incident details mitre att&ck id is T1071.004. The incident details mitre att&ck tactic is command-and-control. The incident details timestamp is 2026-01-31T02:30:46.024Z. The incident details title is High Risk Alerts: Event Stream Analysis for Anomalous DNS Activity. The incident id is INC-6142. The network indicators destination ip is 10.100.10.3. The network indicators destination port is 64659. The network indicators queried domain is bankofmoney.com. The network indicators source ip is 10.100.20.121. The network indicators source port is 53. The threat intelligence enrichment domain bankofmoney.com virustotal category is Lookalike/Phishing Domain Asset. The threat intelligence enrichment domain bankofmoney.com virustotal status is suspicious.. No further associated events or indicators were found in the active time window, confirming the incident is standalone.",
+  "summary_text": "1. Host at IP 10.100.20.121 performed multiple anomalous DNS queries for lookalike/phishing domain 'bankofmoney.com'. 2. The query lookup triggered a reputation alert for potential command-and-control communication.",
   "indicators": [
-    "10.100.10.3",
-    "10.100.20.",
     "10.100.20.121",
     "bankofmoney.com",
-    "10.100.10."
+    "10.100.10.3",
+    "10.100.10.",
+    "10.100.20."
   ]
 }

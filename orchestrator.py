@@ -58,7 +58,6 @@ class FinalIncidentAnalysis(BaseModel):
     execution_trace: List[MilestoneExecution] = Field(description="The step-by-step trace of how the playbook was executed.")
     incident_summary: str = Field(description="Chronological summary of what happened.")
     actions_taken: List[str] = Field(description="Actions taken during investigation.")
-    lessons_learnt: str
     recommended_containment: List[str] = Field(description="Recommended containment actions based on policies.")
     business_impact_checklist: BusinessImpactChecklist = Field(description="Checklist mapping factor names to analysis answers for Appendix C.")
     severity_justification: str = Field(description="Brief justification of the severity rating based on Appendix A/B factors.")
@@ -121,7 +120,8 @@ def get_chain_p2():
             "1. Re-evaluate each step in the playbook using the updated timeline and populate the execution_trace.\n"
             "2. Complete the business_impact_checklist by answering the policy-based questions in Appendix C (e.g., critical_system, essential_service, data_sensitivity, operational_impact).\n"
             "3. Assign final severity and confidence based on the guidelines in Appendix A, B, and F, and provide their justifications.\n"
-            "4. Recommend containment actions adhering to Appendix G, H (for ransomware), and I (for guest OS compromise).\n"
+            "4. For the 'incident_summary' (Technical Chronology Summary) field: Provide a clear, chronological step-by-step summary listing exactly what actions were taken in this incident (e.g., phishing email sent -> user clicked and executed attachment -> executable spawned process -> reverse shell created). It MUST NOT include severity ratings, confidence levels, or other meta-information. If there is only 1 alert, keep the steps concise and do not include excessive granular details (MD5s, ports, agent IDs, etc.). Map out the timeline using playbook execution traces if helpful.\n"
+            "5. For the 'recommended_containment' field: Recommend containment actions adhering to Appendix G, H, and I. Ensure all recommended containment actions are highly specific and action-oriented. Do not write generic recommendations (e.g., do not say 'isolate affected machine' or 'isolate host'). Instead, specify the exact steps to isolate the specific affected asset, detailing the specific IP address or hostname involved (e.g., 'Isolate the host rp-soc-ws-win14 at IP 10.100.20.16 immediately from the network by disabling its network adapter or blocking its IP at the local switch').\n"
             "Note: Your output must be structured to match the Pydantic schema."
         )
         prompt_p2 = ChatPromptTemplate.from_messages([
@@ -209,7 +209,8 @@ def generate_final_analysis(incident_id: str, playbook_name: str, timeline_str: 
         "Instructions:\n"
         "1. Complete the business_impact_checklist by answering the policy-based questions in Appendix C (e.g., critical_system, essential_service, data_sensitivity, operational_impact).\n"
         "2. Assign final severity and confidence based on the guidelines in Appendix A, B, and F, and provide their justifications.\n"
-        "3. Recommend containment actions adhering to Appendix G, H (for ransomware), and I (for guest OS compromise).\n"
+        "3. For the 'incident_summary' (Technical Chronology Summary) field: Provide a clear, chronological step-by-step summary listing exactly what actions were taken in this incident (e.g., phishing email sent -> user clicked and executed attachment -> executable spawned process -> reverse shell created). It MUST NOT include severity ratings, confidence levels, or other meta-information. If there is only 1 alert, keep the steps concise and do not include excessive granular details (MD5s, ports, agent IDs, etc.). Map out the timeline using playbook execution traces if helpful.\n"
+        "4. For the 'recommended_containment' field: Recommend containment actions adhering to Appendix G, H, and I. Ensure all recommended containment actions are highly specific and action-oriented. Do not write generic recommendations (e.g., do not say 'isolate affected machine' or 'isolate host'). Instead, specify the exact steps to isolate the specific affected asset, detailing the specific IP address or hostname involved (e.g., 'Isolate the host rp-soc-ws-win14 at IP 10.100.20.16 immediately from the network by disabling its network adapter or blocking its IP at the local switch').\n"
         "Note: Your output must be structured to match the Pydantic schema."
     )
     
@@ -256,7 +257,6 @@ def generate_final_analysis(incident_id: str, playbook_name: str, timeline_str: 
             execution_trace=execution_trace,
             incident_summary=f"Analysis failed due to error: {e}. Timeline: {timeline_str}",
             actions_taken=["Triage", "Vector Correlation"],
-            lessons_learnt="Verify LLM API limits and schema compatibility.",
             recommended_containment=["Isolate system and review logs manually."],
             business_impact_checklist=BusinessImpactChecklist(critical_system="unknown", essential_service="unknown", data_sensitivity="unknown", operational_impact="unknown"),
             severity_justification=f"Fallback due to error: {e}",
@@ -648,7 +648,6 @@ async def compile_final_report(correlated_alerts: List[dict], playbook_path: str
             execution_trace=p1_trace,
             incident_summary=f"Analysis failed due to error: {e}. Timeline: {timeline_str}",
             actions_taken=["Triage"],
-            lessons_learnt="Check LLM API status.",
             recommended_containment=["Isolate system and review manually."],
             business_impact_checklist=BusinessImpactChecklist(critical_system="unknown", essential_service="unknown", data_sensitivity="unknown", operational_impact="unknown"),
             severity_justification=f"Fallback due to error: {e}",

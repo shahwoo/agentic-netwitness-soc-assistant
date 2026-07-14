@@ -120,26 +120,60 @@ def run_policy_compliance_rules(
     # Check for operational disruption in containment
     containment_disruptive = checklist_dict.get("operational_impact", "no").lower() in ("yes", "true", "outage", "degradation")
 
+    # Extract specific host/IP details to make containment overrides specific
+    import re
+    full_text = f"{incident_summary} {timeline_text}"
+    ips = re.findall(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', full_text)
+    hostnames = re.findall(r'\b[rR][pP]-[sS][oO][cC]-[wW][sS]-[a-zA-Z0-9-]+\b', full_text)
+    
+    local_ips = []
+    for ip_addr in ips:
+        if ip_addr.startswith("10.") or ip_addr.startswith("192.168.") or any(ip_addr.startswith(f"172.{i}.") for i in range(16, 32)):
+            if ip_addr not in local_ips:
+                local_ips.append(ip_addr)
+                
+    unique_hosts = []
+    for h in hostnames:
+        h_clean = h.strip()
+        if h_clean.lower() not in [uh.lower() for uh in unique_hosts]:
+            unique_hosts.append(h_clean)
+            
+    asset_str = ""
+    target_host = unique_hosts[0] if unique_hosts else ""
+    target_ip = local_ips[0] if local_ips else ""
+    
+    if target_host and target_ip:
+        asset_str = f" host {target_host} ({target_ip})"
+    elif target_ip:
+        asset_str = f" computer at IP {target_ip}"
+    elif target_host:
+        asset_str = f" host {target_host}"
+    else:
+        asset_str = " affected computer"
+
     # 3. Apply Appendix H Ransomware containment overrides
     if suspect_ransomware:
         r_rules = [
-            "Disconnect the infected computer from the network and storage devices to limit spread.",
-            "Do not immediately shut down the affected computer.",
+            f"Disconnect the infected{asset_str} from the network and storage devices to limit spread.",
+            f"Do not immediately shut down the affected{asset_str}.",
             "Escalate the case to the SOC Analyst or Incident Response Team."
         ]
         for r_rule in r_rules:
-            if not any(r_rule.lower()[:30] in existing.lower() for existing in modified_containment):
+            match_prefix = r_rule.lower()[:20]
+            if not any(existing.lower().startswith(match_prefix) for existing in modified_containment):
                 modified_containment.insert(0, r_rule)
                 
     # Apply Appendix I VM compromise containment overrides
     if suspect_guest_os:
+        host_suffix = f" (host: {target_host})" if target_host else ""
         vm_rules = [
-            "Treat guest operating systems on the same hardware host as potentially compromised.",
+            f"Treat guest operating systems on the same hardware host as potentially compromised{host_suffix}.",
             "Conduct checks on each guest operating system and look for signs of compromise.",
             "Recommend recovery from the last-known good image where required."
         ]
         for vm_rule in vm_rules:
-            if not any(vm_rule.lower()[:30] in existing.lower() for existing in modified_containment):
+            match_prefix = vm_rule.lower()[:20]
+            if not any(existing.lower().startswith(match_prefix) for existing in modified_containment):
                 modified_containment.insert(0, vm_rule)
 
     # 4. Evaluate Escalation Rules (Section 5 / Appendix G.2)

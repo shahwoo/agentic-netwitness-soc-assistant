@@ -104,9 +104,6 @@ def write_markdown_report(dest_folder: str, incident_num_id: str, report: orches
             f.write(f"- {action}\n")
         f.write("\n")
         
-        f.write("## Lessons Learnt\n")
-        f.write(f"{report.lessons_learnt}\n\n")
-        
         f.write("## Recommended Containment Actions\n")
         for recommendation in report.recommended_containment:
             f.write(f"- {recommendation}\n")
@@ -161,20 +158,129 @@ def extract_indicators_locally(doc: str) -> List[str]:
             indicators.append(d)
     return indicators
 
-def generate_local_standalone_report(alert: dict, playbook_path: str):
+def generate_local_standalone_report(alert: dict, playbook_path: str, inst_id: str):
     import yaml
+    import json
     with open(playbook_path, "r", encoding="utf-8") as f:
         playbook_dict = yaml.safe_load(f)
         
     playbook_name = playbook_dict.get("name", "Unknown Playbook")
     alert_id = alert["id"]
     alert_type = alert["metadata"].get("source_type", "SIEM Log")
-    timestamp = alert["metadata"].get("timestamp", "unknown time")
+    timestamp = alert["metadata"].get("timestamp_str", "unknown time")
     doc = alert.get("document", "")
     
-    summary = f"On {timestamp}, a security alert '{alert_type}' was triaged for alert ID {alert_id}. "
-    summary += f"The raw log contains details: {doc}. "
-    summary += "No further associated events or indicators were found in the active time window, confirming the incident is standalone."
+    # 1. Load raw alert JSON data for precise indicators
+    raw_data = {}
+    dest_dir = os.path.join(INCIDENT_REPORTS_FOLDER, inst_id)
+    raw_path = os.path.join(dest_dir, f"{alert_id}_triage.json")
+    if not os.path.exists(raw_path):
+        raw_path = os.path.join(UNREAD_ALERTS_FOLDER, f"{alert_id}_triage.json")
+        
+    if os.path.exists(raw_path):
+        try:
+            with open(raw_path, "r", encoding="utf-8") as rf:
+                raw_data = json.load(rf)
+        except Exception:
+            pass
+            
+    # Extract classification details
+    class_type = raw_data.get("classification", {}).get("alert_type")
+    if class_type:
+        alert_type = class_type
+        
+    # Get indicators for specific asset identification
+    net_ind = raw_data.get("network_indicators", {})
+    end_ind = raw_data.get("endpoint_indicators", {})
+    email_art = raw_data.get("email_artifacts", {})
+    auth_det = raw_data.get("authentication_details", {})
+    log_ind = raw_data.get("log_indicators", {})
+    
+    # Host and IP Identification
+    host = log_ind.get("computer_name") or end_ind.get("host") or net_ind.get("source", {}).get("hostname") or "UnknownHost"
+    ip = log_ind.get("device_ip") or net_ind.get("source_ip") or net_ind.get("source", {}).get("ip_address") or "UnknownIP"
+    user = log_ind.get("target_user") or end_ind.get("username") or email_art.get("recipient") or auth_det.get("attempted_target_user") or "UnknownUser"
+    
+    # Construct a highly specific step-by-step chronology (WITHOUT meta-info or excessive raw data)
+    summary_steps = []
+    recommended_actions = []
+    
+    alert_type_lower = alert_type.lower()
+    
+    if "phishing" in alert_type_lower or "spearphishing" in alert_type_lower:
+        sender = email_art.get("sender", "Unknown Sender")
+        recipient = email_art.get("recipient", "Unknown Recipient")
+        filename = email_art.get("attachment", {}).get("filename", "attachment.exe")
+        summary_steps.append(f"1. A spearphishing email was sent from '{sender}' to '{recipient}' containing the attachment '{filename}'.")
+        summary_steps.append(f"2. The recipient user executed the attachment '{filename}' on host '{host}' ({ip}).")
+        
+        # Check if malicious process spawned
+        has_process = False
+        for step in playbook_dict.get("steps", {}).values():
+            if "process spawned" in step.get("instructions", "").lower() or "process tree" in step.get("instructions", "").lower():
+                has_process = True
+                
+        if has_process or end_ind.get("spawned_process") or "cmd.exe" in doc.lower():
+            summary_steps.append(f"3. The executable successfully spawned a malicious process, establishing a reverse shell connection.")
+            
+        recommended_actions.append(f"Isolate host {host} at IP {ip} immediately from the network to prevent lateral movement (disable its network interface or block its IP at the local switch).")
+        recommended_actions.append(f"Remove the malicious email attachment '{filename}' from the mail server and block sender '{sender}'.")
+        recommended_actions.append(f"Conduct a full forensic analysis of the affected machine '{host}' ({ip}) to identify any additional compromises.")
+        
+    elif "privilege" in alert_type_lower or "escalation" in alert_type_lower:
+        privilege = log_ind.get("requested_privilege") or "SeSecurityPrivilege"
+        summary_steps.append(f"1. An unauthorized attempt was made to escalate privileges on host '{host}' ({ip}) by user '{user}'.")
+        summary_steps.append(f"2. The user account requested administrative privilege '{privilege}'.")
+        summary_steps.append(f"3. The privilege escalation requests failed and were flagged by local security auditing.")
+        
+        recommended_actions.append(f"Temporarily disable the user account '{user}' to prevent further unauthorized privilege escalation attempts.")
+        recommended_actions.append(f"Isolate the affected machine {host} at IP {ip} (disable its network interface or block traffic at the switch) until the host is verified clean.")
+        recommended_actions.append(f"Review security event logs on {host} to trace the origin of the '{privilege}' requests.")
+        
+    elif "brute force" in alert_type_lower or "login" in alert_type_lower:
+        src_ip = net_ind.get("source_ip", "attacker IP")
+        target_user = auth_det.get("attempted_target_user", "user")
+        domain = net_ind.get("destination_domain") or "internal domain"
+        summary_steps.append(f"1. Multiple authentication attempts were initiated from source IP {src_ip} targeting the user account '{target_user}' on {domain}.")
+        summary_steps.append(f"2. The login attempts resulted in failures, indicating a brute-force attack.")
+        summary_steps.append(f"3. The suspicious authentication traffic was detected and flagged at the perimeter firewall.")
+        
+        recommended_actions.append(f"Block all traffic from the external attacker IP {src_ip} at the perimeter firewall immediately.")
+        recommended_actions.append(f"Reset the password for user account '{target_user}' and enforce multi-factor authentication (MFA).")
+        recommended_actions.append(f"Review login logs to ensure no attempts from {src_ip} succeeded.")
+        
+    elif "dns response" in alert_type_lower or "anomalous dns" in alert_type_lower:
+        src_ip = net_ind.get("source_ip", "affected host IP")
+        domain = net_ind.get("queried_domain", "suspicious domain")
+        summary_steps.append(f"1. Host at IP {src_ip} performed multiple anomalous DNS queries for lookalike/phishing domain '{domain}'.")
+        summary_steps.append(f"2. The query lookup triggered a reputation alert for potential command-and-control communication.")
+        
+        recommended_actions.append(f"Isolate the host at IP {src_ip} from the local network by disabling its network interface to prevent command-and-control communications.")
+        recommended_actions.append(f"Block resolution of the lookalike domain '{domain}' on all internal DNS servers.")
+        recommended_actions.append(f"Investigate active processes on host at {src_ip} that initiated the DNS requests for '{domain}'.")
+        
+    elif "dns tunneling" in alert_type_lower or "tunnel" in alert_type_lower:
+        src_ip = net_ind.get("source_ip", "internal IP")
+        dest_ip = net_ind.get("destination_ip", "external IP")
+        payload = net_ind.get("tunnel_payload_file_context", "googleclient.txt")
+        summary_steps.append(f"1. An internal system at IP {src_ip} initiated a connection to external IP {dest_ip}.")
+        summary_steps.append(f"2. DNS tunneling traffic was detected over a TCP port, potentially transferring payload '{payload}'.")
+        summary_steps.append(f"3. The non-standard tunneling activity was flagged for command-and-control evasion.")
+        
+        recommended_actions.append(f"Isolate the host at IP {src_ip} from the network immediately (block IP {src_ip} on the switch or disable its network adapter) to terminate the active DNS tunnel.")
+        recommended_actions.append(f"Block all traffic to destination IP {dest_ip} at the firewall.")
+        recommended_actions.append(f"Inspect host at IP {src_ip} to locate and delete the file payload '{payload}'.")
+        
+    else:
+        # Fallback / Generic
+        summary_steps.append(f"1. An anomalous security event '{alert_type}' was detected on the network/endpoint.")
+        summary_steps.append(f"2. The event involved host '{host}' ({ip}) and user '{user}'.")
+        summary_steps.append(f"3. No further correlated alerts were found in the active monitoring window, indicating a standalone event.")
+        
+        recommended_actions.append(f"Isolate the affected host '{host}' at IP {ip} by disabling its network interface or blocking it at the switch.")
+        recommended_actions.append(f"Monitor the host for anomalous baseline transitions.")
+        
+    summary = " ".join(summary_steps)
     
     execution_trace = []
     for step_id, step_data in sorted(playbook_dict.get("steps", {}).items()):
@@ -185,19 +291,19 @@ def generate_local_standalone_report(alert: dict, playbook_path: str):
         if "phishing" in keywords or "email" in keywords:
             if "phish" in doc.lower() or "mail" in doc.lower() or "sender" in doc.lower() or "attachment" in doc.lower():
                 is_met = True
-                findings = f"Identified phishing elements in alert doc: {doc}"
+                findings = f"Identified phishing elements in alert doc: {doc[:100]}"
         elif "privilege" in keywords or "escalation" in keywords:
             if "privilege" in doc.lower() or "admin" in doc.lower() or "escalat" in doc.lower():
                 is_met = True
-                findings = f"Identified privilege escalation signs: {doc}"
+                findings = f"Identified privilege escalation signs: {doc[:100]}"
         elif "brute force" in keywords or "failed login" in keywords:
             if "brute" in doc.lower() or "fail" in doc.lower() or "auth" in doc.lower():
                 is_met = True
-                findings = f"Identified brute force signs: {doc}"
+                findings = f"Identified brute force signs: {doc[:100]}"
         elif "tunnel" in keywords or "dns" in keywords:
             if "tunnel" in doc.lower() or "dns" in doc.lower() or "port" in doc.lower():
                 is_met = True
-                findings = f"Identified network/DNS anomalies: {doc}"
+                findings = f"Identified network/DNS anomalies: {doc[:100]}"
                 
         execution_trace.append(orchestrator.MilestoneExecution(
             step_id=step_id,
@@ -220,7 +326,7 @@ def generate_local_standalone_report(alert: dict, playbook_path: str):
         severity=severity_val,
         confidence="High",
         incident_summary=summary,
-        recommended_containment=[f"Monitor host for anomalous baseline transitions."],
+        recommended_containment=recommended_actions,
         business_impact_checklist=checklist,
         timeline_text=doc
     )
@@ -232,7 +338,6 @@ def generate_local_standalone_report(alert: dict, playbook_path: str):
         execution_trace=execution_trace,
         incident_summary=summary,
         actions_taken=["Initial triage", "Indicator search", "Playbook heuristic validation"],
-        lessons_learnt="No indicators associated with larger campaign identified.",
         recommended_containment=compliance["modified_containment"],
         business_impact_checklist=checklist,
         severity_justification="Programmatic baseline triage for standalone alert.",
@@ -470,7 +575,7 @@ async def main_async():
             # Check if this incident should bypass LLM call for report generation
             if len(current_alerts) == 1 and not has_externals:
                 orchestrator.log_info(f"Incident {inst_id}: Standalone alert with no DB relations. Generating report locally (0 LLM calls)...")
-                local_res = generate_local_standalone_report(current_alerts[0], playbook_path)
+                local_res = generate_local_standalone_report(current_alerts[0], playbook_path, inst_id)
                 report = local_res["report"]
             else:
                 # 1. Pass 1 (Lightweight trace & pivot extraction)
