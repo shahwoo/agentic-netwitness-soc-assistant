@@ -1,0 +1,28 @@
+# ── Credentials — NEVER commit these ──────────────────────────
+.env
+
+# ── SQLite permanent log ───────────────────────────────────────
+# Remove the next line if you WANT to commit the DB to version control
+soc_incidents.db
+
+# ── ChromaDB local vector store ───────────────────────────────
+chroma_db/
+
+# ── Python virtual environment ────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── Python cache ──────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# ── Streamlit cache ───────────────────────────────────────────
+.streamlit/cache/
+
+# ── OS files ──────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

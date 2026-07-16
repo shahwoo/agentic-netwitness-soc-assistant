@@ -1,0 +1,914 @@
+"""
+SOC Platform v4
+───────────────
+• Auto-fetches incidents every 30 seconds once token is verified
+• Dashboard tab: severity bars, status bars, latest incidents, assignee chart
+• Cleaner sidebar with connection status + refresh countdown
+• Incidents tab with severity filter + auto-refresh indicator
+• Chat stub (wire LangChain inside chat_respond)
+• ChromaDB semantic search & sync
+"""
+
+import streamlit as st
+import requests
+import time
+from datetime import datetime
+from typing import Optional
+from collections import Counter
+
+try:
+    import chromadb
+    CHROMA_OK = True
+except ImportError:
+    CHROMA_OK = False
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE CONFIG
+# ══════════════════════════════════════════════════════════════════════════════
+st.set_page_config(
+    page_title="SOC Platform",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CSS
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap');
+
+:root {
+  --bg:      #04080F;
+  --bg1:     #080F1A;
+  --bg2:     #0C1624;
+  --border:  #162840;
+  --accent:  #00D4FF;
+  --green:   #0AF0A0;
+  --warn:    #FFB700;
+  --danger:  #FF3B3B;
+  --orange:  #FF7700;
+  --muted:   #3A607A;
+  --text:    #B8D4E8;
+  --mono:    'Share Tech Mono', monospace;
+  --sans:    'Barlow', sans-serif;
+}
+
+html, body, [class*="css"] { font-family: var(--sans); background: var(--bg); color: var(--text); }
+.main { background: var(--bg); padding-top: 0.5rem; }
+
+section[data-testid="stSidebar"] > div:first-child {
+  background: linear-gradient(180deg, #040810 0%, #06101A 100%);
+  border-right: 1px solid #0E1E30;
+  padding-top: 1rem;
+}
+
+h1,h2,h3 { font-family: var(--mono); color: var(--accent); letter-spacing: 2px; margin-bottom: 0.3rem; }
+h1 { font-size: 1.3rem !important; }
+
+[data-testid="metric-container"] {
+  background: linear-gradient(135deg, #070D18 0%, #0A1628 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px 18px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  transition: border-color 0.2s;
+}
+[data-testid="metric-container"]:hover { border-color: #1E4060; }
+[data-testid="metric-container"] label {
+  color: var(--muted); font-size: 0.65rem;
+  letter-spacing: 2px; font-family: var(--mono); text-transform: uppercase;
+}
+[data-testid="metric-container"] [data-testid="stMetricValue"] {
+  color: var(--accent); font-family: var(--mono); font-size: 1.6rem;
+}
+
+.stButton > button {
+  background: linear-gradient(90deg, #052030, #083050);
+  color: var(--accent); border: 1px solid #0E4A6A;
+  border-radius: 5px; font-family: var(--mono);
+  font-size: 0.72rem; letter-spacing: 1px;
+  padding: 6px 14px; transition: all 0.15s;
+}
+.stButton > button:hover {
+  background: linear-gradient(90deg, #083050, #0E4A6A);
+  box-shadow: 0 0 14px rgba(0,212,255,0.2);
+  color: #fff; border-color: var(--accent);
+}
+
+.stTextInput > div > div > input,
+.stTextArea textarea {
+  background: #060E1A !important;
+  border: 1px solid #0E2030 !important;
+  color: var(--text) !important;
+  border-radius: 5px; font-family: var(--sans); font-size: 0.85rem;
+}
+.stTextInput > div > div > input:focus,
+.stTextArea textarea:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(0,212,255,0.12) !important;
+}
+.stSelectbox > div > div {
+  background: #060E1A !important;
+  border: 1px solid #0E2030 !important;
+  color: var(--text) !important; border-radius: 5px;
+}
+
+.stTabs [data-baseweb="tab-list"] {
+  background: transparent; border-bottom: 1px solid var(--border); gap: 2px;
+}
+.stTabs [data-baseweb="tab"] {
+  font-family: var(--mono); font-size: 0.7rem;
+  letter-spacing: 1.5px; color: var(--muted);
+  border: none; padding: 8px 18px; background: transparent;
+}
+.stTabs [aria-selected="true"] {
+  color: var(--accent) !important;
+  border-bottom: 2px solid var(--accent) !important;
+  background: rgba(0,212,255,0.04) !important;
+}
+
+.card {
+  background: linear-gradient(135deg, #070D18 0%, #08111E 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px 18px; margin: 5px 0;
+  transition: all 0.15s;
+}
+.card:hover { border-color: #1E4060; transform: translateX(2px); }
+.card-critical { border-left: 4px solid var(--danger) !important; }
+.card-high     { border-left: 4px solid var(--orange) !important; }
+.card-medium   { border-left: 4px solid var(--warn) !important; }
+.card-low      { border-left: 4px solid var(--green) !important; }
+
+.badge {
+  padding: 2px 9px; border-radius: 3px;
+  font-family: var(--mono); font-size: 0.62rem;
+  display: inline-block; letter-spacing: 0.5px;
+}
+.badge-critical { background:#200808; color:var(--danger);  border:1px solid #4A1010; }
+.badge-high     { background:#201200; color:var(--orange);  border:1px solid #4A2A00; }
+.badge-medium   { background:#181400; color:var(--warn);    border:1px solid #3A3000; }
+.badge-low      { background:#001810; color:var(--green);   border:1px solid #004025; }
+.badge-info     { background:#001828; color:var(--accent);  border:1px solid #003850; }
+
+.bubble-user {
+  background: #080F1A; border-left: 3px solid #005C8A;
+  padding: 10px 15px; border-radius: 0 8px 8px 0; margin: 6px 0; font-size: 0.88rem;
+}
+.bubble-agent {
+  background: #040A12; border-left: 3px solid var(--accent);
+  padding: 10px 15px; border-radius: 0 8px 8px 0; margin: 6px 0; font-size: 0.88rem;
+}
+.bubble-label {
+  font-family: var(--mono); font-size: 0.58rem;
+  letter-spacing: 2px; margin-bottom: 5px; color: var(--accent);
+}
+
+.dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+.dot-green  { background:var(--green);  box-shadow:0 0 6px var(--green);  animation:pulse 2s infinite; }
+.dot-red    { background:var(--danger); box-shadow:0 0 4px var(--danger); }
+.dot-yellow { background:var(--warn);   box-shadow:0 0 4px var(--warn);   animation:pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+.sec-label {
+  font-family: var(--mono); font-size: 0.58rem; color: #2A4A62;
+  letter-spacing: 3px; text-transform: uppercase;
+  margin: 18px 0 8px; padding-bottom: 5px;
+  border-bottom: 1px solid #0E1E2E;
+}
+
+.stat-mini {
+  background: #070D18; border: 1px solid var(--border);
+  border-radius: 6px; padding: 10px 14px; text-align: center; font-family: var(--mono);
+}
+.stat-mini .val { font-size: 1.4rem; color: var(--accent); }
+.stat-mini .lbl { font-size: 0.6rem; color: var(--muted); letter-spacing: 2px; margin-top: 2px; }
+
+hr { border-color: #0E1E2E; margin: 1rem 0; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: #0E2030; border-radius: 2px; }
+</style>
+""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SESSION STATE
+# ══════════════════════════════════════════════════════════════════════════════
+DEFAULTS = {
+    "nw_host":        "192.168.20.11",
+    "nw_token":       "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3Nzk5MDQ5MzEwMDQsImlzcyI6InNlY3VyaXR5LXNlcnZlci02N2E0ZmZhMy1iYTYxLTRlMmEtYjY1Yi1mZjBiNzhjN2RhZWYiLCJpYXQiOjE3Nzk4Njg2MzEwMDQsImF1dGhvcml0aWVzIjpbIkFkbWluaXN0cmF0b3JzIl0sInVzZXJfbmFtZSI6ImFkbWluIn0.pbzjwHQ4Ex3ZYRy1hvEs5OPO8KGhhcULaYksUdcNGDEMFgsXCHCGkut9Ui-_Dov_OOijN4DooEtNPQoXsc1cW6YqFp9oOuWsNJsvFUKrZV4tZihTnvO9evuVLwPW3aj_KUuqn3sAR6SQ6gAnjnCuXhTG4O1SpDNRp91iQQ9mjvZIVk9rBh_OZ8AzSV7bFC4t23gld4IMjIG9K2UNEaZ0Rsd0AyaRQG6NPdeP4OvgBYLTXeXY_0wq7_UWbar7w2_jceRellzCMU-KU5O4BbvmdW-JeyBptEQFqoNExvdyFTGqJ8z57i0rzdt13fzXEJ2avVj0nNeQDE0G051U4tZYA
+",
+    "nw_verified":    False,
+    "nw_msg":         "",
+    "incidents":      [],
+    "last_fetch":     None,
+    "chat_history":   [],
+    "chat_incident":  None,
+    "chroma_client":  None,
+    "chroma_col":     None,
+    "search_results": [],
+}
+for k, v in DEFAULTS.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
+
+REFRESH_INTERVAL = 30   # seconds
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
+def normalise_sev(inc: dict) -> str:
+    raw = str(inc.get("riskScore") or inc.get("severity") or "").upper()
+    try:
+        s = int(raw)
+        return "CRITICAL" if s >= 90 else "HIGH" if s >= 70 else "MEDIUM" if s >= 40 else "LOW"
+    except ValueError:
+        return raw if raw in ("CRITICAL","HIGH","MEDIUM","LOW") else "LOW"
+
+def nw_headers() -> dict:
+    return {
+        "NetWitness-Token": st.session_state.nw_token.strip(),
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+
+def nw_verify_token() -> tuple[bool, str]:
+    host  = st.session_state.nw_host.rstrip("/")
+    token = st.session_state.nw_token.strip()
+    if not host or not token:
+        return False, "Enter both Host URL and token."
+    try:
+        r = requests.get(f"{host}/rest/api/version",
+                         headers=nw_headers(), timeout=10, verify=False)
+        if r.status_code == 200:
+            ver = r.json().get("version", "unknown")
+            return True, f"NetWitness v{ver}"
+        return False, f"Token rejected — HTTP {r.status_code}"
+    except Exception as e:
+        return False, f"Cannot reach server: {e}"
+
+def nw_fetch_incidents(limit: int = 200) -> tuple[bool, list]:
+    if not st.session_state.nw_verified:
+        return False, []
+    host = st.session_state.nw_host.rstrip("/")
+    try:
+        r = requests.get(
+            f"{host}/rest/api/incidents",
+            headers=nw_headers(),
+            params={"limit": limit, "pageSize": limit},
+            timeout=20, verify=False,
+        )
+        if r.status_code == 200:
+            data  = r.json()
+            items = data.get("items") or data.get("data") or (data if isinstance(data, list) else [])
+            return True, items
+        if r.status_code == 401:
+            st.session_state.nw_verified = False
+        return False, []
+    except Exception:
+        return False, []
+
+def maybe_auto_fetch():
+    if not st.session_state.nw_verified:
+        return
+    now  = datetime.now()
+    last = st.session_state.last_fetch
+    if last is None or (now - last).total_seconds() >= REFRESH_INTERVAL:
+        ok, items = nw_fetch_incidents()
+        if ok:
+            st.session_state.incidents  = items
+            st.session_state.last_fetch = now
+
+def chroma_connect(path: str = "./chroma_db") -> tuple[bool, str]:
+    if not CHROMA_OK:
+        return False, "chromadb not installed — run: pip install chromadb"
+    try:
+        client = chromadb.PersistentClient(path=path)
+        col    = client.get_or_create_collection(
+            name="soc_incidents", metadata={"hnsw:space": "cosine"}
+        )
+        st.session_state.chroma_client = client
+        st.session_state.chroma_col    = col
+        return True, f"Ready — {col.count()} vectors"
+    except Exception as e:
+        return False, str(e)
+
+def chroma_sync(incidents: list) -> tuple[int, str]:
+    col = st.session_state.chroma_col
+    if col is None:
+        return 0, "Connect ChromaDB first."
+    docs, ids, metas = [], [], []
+    for inc in incidents:
+        inc_id = str(inc.get("id") or inc.get("incidentId") or "").strip()
+        if not inc_id:
+            continue
+        title   = inc.get("title") or inc.get("name") or ""
+        summary = inc.get("summary") or inc.get("description") or ""
+        docs.append(f"{title}\n{summary}".strip() or "no content")
+        ids.append(inc_id)
+        metas.append({
+            "severity": str(inc.get("riskScore") or inc.get("severity") or ""),
+            "status":   str(inc.get("status") or ""),
+            "created":  str(inc.get("created") or inc.get("createdDate") or "")[:19],
+        })
+    if not docs:
+        return 0, "No valid incidents to store."
+    col.upsert(documents=docs, ids=ids, metadatas=metas)
+    return len(docs), f"Synced {len(docs)} incidents."
+
+def chroma_search(query: str, n: int = 5) -> list:
+    col = st.session_state.chroma_col
+    if col is None or not query.strip() or col.count() == 0:
+        return []
+    try:
+        res = col.query(query_texts=[query], n_results=min(n, col.count()))
+        return [{"id": res["ids"][0][i], "text": doc,
+                 "score": round((1 - res["distances"][0][i]) * 100, 1),
+                 "meta": res["metadatas"][0][i]}
+                for i, doc in enumerate(res["documents"][0])]
+    except Exception as e:
+        return [{"id":"err","text":str(e),"score":0,"meta":{}}]
+
+def chat_respond(user_msg: str, incident: Optional[dict] = None) -> str:
+    """
+    ── LANGCHAIN INTEGRATION POINT ──────────────────────────
+    Replace this body with your LangChain chain.
+    Available context:
+      user_msg                    — analyst message
+      incident                    — selected incident dict (or None)
+      st.session_state.chroma_col — ChromaDB collection
+      st.session_state.nw_host    — NW server URL
+      st.session_state.nw_token   — live token
+    ─────────────────────────────────────────────────────────
+    """
+    ctx = (f" [Incident {incident.get('id','?')}: {incident.get('title','?')}]"
+           if incident else "")
+    return (f"**[LangChain stub]**{ctx}\n\n"
+            f"You said: _{user_msg}_\n\n"
+            f"→ Replace `chat_respond()` with your LangChain chain.")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# AUTO-FETCH on every render
+# ══════════════════════════════════════════════════════════════════════════════
+maybe_auto_fetch()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SIDEBAR
+# ══════════════════════════════════════════════════════════════════════════════
+with st.sidebar:
+
+    st.markdown(
+        '<div style="font-family:var(--mono);font-size:1.05rem;color:var(--accent);'
+        'letter-spacing:3px;padding:2px 0">🛡️ SOC PLATFORM</div>'
+        '<div style="font-family:var(--mono);font-size:0.55rem;color:var(--muted);'
+        'letter-spacing:2px;margin-bottom:4px">SECURITY OPERATIONS CENTER</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("---")
+
+    # ── Connection status card ─────────────────────────────────
+    if st.session_state.nw_verified:
+        last      = st.session_state.last_fetch
+        last_str  = last.strftime("%H:%M:%S") if last else "—"
+        elapsed   = int((datetime.now() - last).total_seconds()) if last else 0
+        remaining = max(REFRESH_INTERVAL - elapsed, 0)
+        pct       = min(elapsed / REFRESH_INTERVAL, 1.0)
+        bar_color = "var(--accent)" if pct < 0.8 else "var(--warn)"
+
+        st.markdown(
+            f'<div style="background:#040C14;border:1px solid #0E2030;'
+            f'border-radius:7px;padding:11px 13px">'
+            f'<div style="font-family:var(--mono);font-size:0.68rem">'
+            f'<span class="dot dot-green"></span>CONNECTED</div>'
+            f'<div style="font-family:var(--mono);font-size:0.58rem;'
+            f'color:var(--muted);margin-top:3px">{st.session_state.nw_msg}</div>'
+            f'<div style="font-family:var(--mono);font-size:0.56rem;'
+            f'color:#1A4A62;margin-top:6px">'
+            f'Synced {last_str} &nbsp;·&nbsp; refresh in {remaining}s</div>'
+            f'<div style="background:#060E1A;border-radius:2px;height:3px;'
+            f'width:100%;margin-top:7px;overflow:hidden">'
+            f'<div style="width:{pct*100:.0f}%;height:100%;border-radius:2px;'
+            f'background:{bar_color};transition:width 1s linear"></div>'
+            f'</div></div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div style="background:#0A0608;border:1px solid #2A1010;'
+            'border-radius:7px;padding:11px 13px;font-family:var(--mono);font-size:0.68rem">'
+            '<span class="dot dot-red"></span>NOT CONNECTED<br>'
+            '<span style="font-size:0.57rem;color:var(--muted)">'
+            'Enter credentials below</span></div>',
+            unsafe_allow_html=True,
+        )
+
+    # ── NetWitness credentials ─────────────────────────────────
+    st.markdown('<div class="sec-label">■ NETWITNESS</div>', unsafe_allow_html=True)
+
+    host_in = st.text_input("Host URL", value=st.session_state.nw_host,
+                             placeholder="http://192.168.x.x:50103")
+    if host_in != st.session_state.nw_host:
+        st.session_state.nw_host     = host_in
+        st.session_state.nw_verified = False
+
+    token_in = st.text_area("Access Token", value=st.session_state.nw_token,
+                             height=100, placeholder="Paste token here…")
+    if token_in != st.session_state.nw_token:
+        st.session_state.nw_token    = token_in
+        st.session_state.nw_verified = False
+
+    cv, cd = st.columns(2)
+    if cv.button("🔌 Verify", use_container_width=True):
+        with st.spinner("Connecting…"):
+            ok, msg = nw_verify_token()
+        st.session_state.nw_verified = ok
+        st.session_state.nw_msg      = msg
+        if ok:
+            ok2, items = nw_fetch_incidents()
+            if ok2:
+                st.session_state.incidents  = items
+                st.session_state.last_fetch = datetime.now()
+        st.rerun()
+
+    if st.session_state.nw_verified:
+        if cd.button("✕ Clear", use_container_width=True):
+            st.session_state.update(
+                nw_token="", nw_verified=False, nw_msg="",
+                incidents=[], last_fetch=None,
+            )
+            st.rerun()
+
+    # ── ChromaDB ───────────────────────────────────────────────
+    st.markdown('<div class="sec-label">■ CHROMADB</div>', unsafe_allow_html=True)
+
+    chroma_path = st.text_input("Persist path", value="./chroma_db")
+    cc1, cc2 = st.columns(2)
+
+    if cc1.button("🗄️ Connect", use_container_width=True):
+        ok, msg = chroma_connect(chroma_path)
+        if ok: st.success(msg, icon="✅")
+        else:  st.error(msg)
+        st.rerun()
+
+    if st.session_state.chroma_col is not None:
+        count = st.session_state.chroma_col.count()
+        st.markdown(
+            f'<div style="font-family:var(--mono);font-size:0.64rem;'
+            f'color:var(--green);margin-top:4px">'
+            f'<span class="dot dot-green"></span>{count} vectors stored</div>',
+            unsafe_allow_html=True,
+        )
+        if cc2.button("⬆️ Sync", use_container_width=True):
+            if st.session_state.incidents:
+                n, msg = chroma_sync(st.session_state.incidents)
+                st.success(msg) if n else st.error(msg)
+            else:
+                st.warning("No incidents loaded yet.")
+
+    st.markdown("---")
+    st.markdown(
+        f'<div style="font-family:var(--mono);font-size:0.54rem;'
+        f'color:#1A3A52;text-align:center;line-height:1.9">'
+        f'v4 · AUTO-REFRESH {REFRESH_INTERVAL}s<br>'
+        f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# AUTO-RERUN scheduler
+# ══════════════════════════════════════════════════════════════════════════════
+if st.session_state.nw_verified and st.session_state.last_fetch:
+    elapsed   = (datetime.now() - st.session_state.last_fetch).total_seconds()
+    remaining = max(REFRESH_INTERVAL - elapsed, 0)
+    if remaining <= 1:
+        time.sleep(1)
+        st.rerun()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# HEADER METRICS
+# ══════════════════════════════════════════════════════════════════════════════
+incidents = st.session_state.incidents
+total     = len(incidents)
+active    = len([i for i in incidents
+                 if str(i.get("status","")).upper()
+                 not in ("CLOSED","RESOLVED","REMEDIATED")])
+by_sev    = Counter(normalise_sev(i) for i in incidents)
+vectors   = st.session_state.chroma_col.count() if st.session_state.chroma_col else 0
+last_sync = st.session_state.last_fetch.strftime("%H:%M:%S") if st.session_state.last_fetch else "—"
+
+st.markdown(
+    '<div style="font-family:var(--mono);font-size:1.2rem;color:var(--accent);'
+    'letter-spacing:3px;margin-bottom:6px">🛡️ SOC COMMAND CENTER</div>',
+    unsafe_allow_html=True,
+)
+
+m1,m2,m3,m4,m5,m6 = st.columns(6)
+m1.metric("📋 Total",         total)
+m2.metric("🔴 Active",        active)
+m3.metric("🚨 Critical",      by_sev.get("CRITICAL", 0))
+m4.metric("🟠 High",          by_sev.get("HIGH", 0))
+m5.metric("🗄️ Vectors",      vectors)
+m6.metric("🔄 Last Sync",     last_sync)
+
+st.markdown("---")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TABS
+# ══════════════════════════════════════════════════════════════════════════════
+tab_dash, tab_inc, tab_chat, tab_chroma = st.tabs([
+    "📊  DASHBOARD",
+    "📋  INCIDENTS",
+    "💬  CHAT",
+    "🗄️  CHROMADB",
+])
+
+SEV_COLORS = {
+    "CRITICAL": "#FF3B3B",
+    "HIGH":     "#FF7700",
+    "MEDIUM":   "#FFB700",
+    "LOW":      "#0AF0A0",
+}
+STATUS_COLORS = {
+    "NEW":         "#00D4FF",
+    "ASSIGNED":    "#FFB700",
+    "IN_PROGRESS": "#FF7700",
+    "CLOSED":      "#3A607A",
+    "RESOLVED":    "#0AF0A0",
+    "REMEDIATED":  "#0AF0A0",
+}
+
+
+# ─────────────────────────────────────────────────────────────
+# TAB 1 — DASHBOARD
+# ─────────────────────────────────────────────────────────────
+with tab_dash:
+    if not incidents:
+        st.markdown(
+            '<div style="text-align:center;padding:80px;font-family:var(--mono);'
+            'font-size:0.8rem;color:var(--muted)">'
+            '● AWAITING DATA<br>'
+            '<span style="font-size:0.65rem">'
+            'Verify token — incidents load automatically</span></div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        col_sev, col_status, col_recent = st.columns([1.1, 1.1, 2.2])
+
+        # ── Severity bars ──────────────────────────────────────
+        with col_sev:
+            st.markdown(
+                '<div style="font-family:var(--mono);font-size:0.65rem;'
+                'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
+                '■ SEVERITY</div>', unsafe_allow_html=True,
+            )
+            sev_total = sum(by_sev.values()) or 1
+            for s in ["CRITICAL","HIGH","MEDIUM","LOW"]:
+                cnt   = by_sev.get(s, 0)
+                pct   = cnt / sev_total
+                color = SEV_COLORS[s]
+                st.markdown(
+                    f'<div style="margin:8px 0">'
+                    f'<div style="display:flex;justify-content:space-between;'
+                    f'font-family:var(--mono);font-size:0.63rem;margin-bottom:4px">'
+                    f'<span style="color:{color}">{s}</span>'
+                    f'<span style="color:var(--muted)">{cnt}</span></div>'
+                    f'<div style="background:#0A1420;border-radius:3px;height:7px">'
+                    f'<div style="width:{pct*100:.1f}%;height:100%;border-radius:3px;'
+                    f'background:{color};box-shadow:0 0 8px {color}50"></div>'
+                    f'</div></div>',
+                    unsafe_allow_html=True,
+                )
+
+        # ── Status bars ────────────────────────────────────────
+        with col_status:
+            st.markdown(
+                '<div style="font-family:var(--mono);font-size:0.65rem;'
+                'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
+                '■ STATUS</div>', unsafe_allow_html=True,
+            )
+            status_counts = Counter(
+                str(i.get("status") or "UNKNOWN").upper() for i in incidents
+            )
+            status_total = sum(status_counts.values()) or 1
+            for status, cnt in sorted(status_counts.items(), key=lambda x: -x[1])[:6]:
+                pct   = cnt / status_total
+                color = STATUS_COLORS.get(status, "#3A607A")
+                st.markdown(
+                    f'<div style="margin:8px 0">'
+                    f'<div style="display:flex;justify-content:space-between;'
+                    f'font-family:var(--mono);font-size:0.63rem;margin-bottom:4px">'
+                    f'<span style="color:{color}">{status}</span>'
+                    f'<span style="color:var(--muted)">{cnt}</span></div>'
+                    f'<div style="background:#0A1420;border-radius:3px;height:7px">'
+                    f'<div style="width:{pct*100:.1f}%;height:100%;border-radius:3px;'
+                    f'background:{color}"></div>'
+                    f'</div></div>',
+                    unsafe_allow_html=True,
+                )
+
+        # ── Latest incidents feed ──────────────────────────────
+        with col_recent:
+            st.markdown(
+                '<div style="font-family:var(--mono);font-size:0.65rem;'
+                'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
+                '■ LATEST INCIDENTS</div>', unsafe_allow_html=True,
+            )
+            for inc in incidents[:10]:
+                sev     = normalise_sev(inc)
+                color   = SEV_COLORS.get(sev, "#3A607A")
+                title   = (inc.get("title") or inc.get("name") or "Untitled")[:58]
+                created = str(inc.get("created") or inc.get("createdDate") or "")[:16]
+                st.markdown(
+                    f'<div style="display:flex;align-items:center;gap:10px;'
+                    f'padding:7px 12px;margin:3px 0;background:#060C16;'
+                    f'border-radius:5px;border-left:3px solid {color}">'
+                    f'<span style="font-family:var(--mono);font-size:0.58rem;'
+                    f'color:{color};min-width:52px">{sev[:4]}</span>'
+                    f'<span style="flex:1;font-size:0.8rem">{title}</span>'
+                    f'<span style="font-family:var(--mono);font-size:0.58rem;'
+                    f'color:var(--muted);white-space:nowrap">{created}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+        st.markdown("---")
+
+        # ── Assignee breakdown ─────────────────────────────────
+        st.markdown(
+            '<div style="font-family:var(--mono);font-size:0.65rem;'
+            'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
+            '■ WORKLOAD BY ASSIGNEE</div>', unsafe_allow_html=True,
+        )
+        assignee_counts = Counter(
+            str(i.get("assignee") or "Unassigned") for i in incidents
+        )
+        top_assignees = assignee_counts.most_common(6)
+        if top_assignees:
+            max_a  = top_assignees[0][1]
+            cols_a = st.columns(len(top_assignees))
+            for idx, (name, cnt) in enumerate(top_assignees):
+                pct = cnt / max_a
+                with cols_a[idx]:
+                    st.markdown(
+                        f'<div class="stat-mini">'
+                        f'<div class="val">{cnt}</div>'
+                        f'<div class="lbl">{name[:12]}</div>'
+                        f'<div style="background:#0A1420;border-radius:2px;'
+                        f'height:4px;margin-top:7px">'
+                        f'<div style="width:{pct*100:.0f}%;height:100%;'
+                        f'border-radius:2px;background:var(--accent)"></div>'
+                        f'</div></div>',
+                        unsafe_allow_html=True,
+                    )
+
+
+# ─────────────────────────────────────────────────────────────
+# TAB 2 — INCIDENTS
+# ─────────────────────────────────────────────────────────────
+with tab_inc:
+    col_filter, col_sync, col_info = st.columns([1.4, 1.2, 5])
+
+    sev_filter = col_filter.selectbox(
+        "Filter", ["ALL","CRITICAL","HIGH","MEDIUM","LOW"],
+        label_visibility="collapsed",
+    )
+    if col_sync.button("⬆️ Sync ChromaDB", use_container_width=True):
+        if not incidents:
+            st.warning("No incidents loaded yet.")
+        elif st.session_state.chroma_col is None:
+            st.error("Connect ChromaDB first (sidebar).")
+        else:
+            n, msg = chroma_sync(incidents)
+            st.success(msg) if n else st.error(msg)
+
+    last = st.session_state.last_fetch
+    if last:
+        elapsed   = int((datetime.now() - last).total_seconds())
+        remaining = max(REFRESH_INTERVAL - elapsed, 0)
+        col_info.markdown(
+            f'<div style="font-family:var(--mono);font-size:0.6rem;'
+            f'color:var(--muted);padding-top:10px">'
+            f'<span class="dot dot-green"></span>'
+            f'Auto-refresh every {REFRESH_INTERVAL}s &nbsp;·&nbsp; '
+            f'next in {remaining}s &nbsp;·&nbsp; {total} incidents</div>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("---")
+
+    if not incidents:
+        st.markdown(
+            '<div style="text-align:center;padding:70px;font-family:var(--mono);'
+            'font-size:0.8rem;color:var(--muted)">'
+            '● NO INCIDENTS LOADED<br>'
+            '<span style="font-size:0.65rem">'
+            'Verify your token — incidents load automatically</span></div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        shown = 0
+        for inc in incidents:
+            sev = normalise_sev(inc)
+            if sev_filter != "ALL" and sev != sev_filter:
+                continue
+            shown += 1
+
+            inc_id   = str(inc.get("id") or inc.get("incidentId") or "—")
+            title    = inc.get("title")    or inc.get("name")    or "Untitled"
+            status   = str(inc.get("status") or "—")
+            created  = str(inc.get("created") or inc.get("createdDate") or "—")[:16]
+            assignee = inc.get("assignee") or "Unassigned"
+            alerts   = inc.get("alertCount") or inc.get("numAlerts") or "—"
+
+            st.markdown(
+                f'<div class="card card-{sev.lower()}">'
+                f'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+                f'<span class="badge badge-{sev.lower()}">{sev}</span>'
+                f'<strong style="flex:1;font-size:0.9rem">{title}</strong>'
+                f'<code style="color:var(--muted);font-size:0.68rem">{inc_id}</code>'
+                f'</div>'
+                f'<div style="margin-top:8px;font-size:0.75rem;color:var(--muted);'
+                f'display:flex;gap:20px;flex-wrap:wrap">'
+                f'<span>🕐 {created}</span><span>📌 {status}</span>'
+                f'<span>👤 {assignee}</span><span>🚨 {alerts} alerts</span>'
+                f'</div></div>',
+                unsafe_allow_html=True,
+            )
+            b1, b2, _ = st.columns([0.9, 0.7, 6])
+            if b1.button("💬 Chat", key=f"chat_{inc_id}"):
+                st.session_state.chat_incident = inc
+                st.rerun()
+            if b2.button("{ }", key=f"json_{inc_id}"):
+                with st.expander(f"JSON — {inc_id}", expanded=True):
+                    st.json(inc)
+
+        if shown == 0:
+            st.info(f"No incidents match filter: {sev_filter}")
+
+
+# ─────────────────────────────────────────────────────────────
+# TAB 3 — CHAT
+# ─────────────────────────────────────────────────────────────
+with tab_chat:
+    inc = st.session_state.chat_incident
+
+    if inc:
+        sev = normalise_sev(inc)
+        st.markdown(
+            f'<div style="background:#050F1A;border:1px solid var(--accent);'
+            f'border-radius:6px;padding:10px 16px;font-family:var(--mono);'
+            f'font-size:0.72rem;margin-bottom:10px">'
+            f'<span class="badge badge-{sev.lower()}">{sev}</span>'
+            f'&nbsp; <strong>{inc.get("id","?")}</strong> — {inc.get("title","?")}'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("✕ Clear context"):
+            st.session_state.chat_incident = None
+            st.rerun()
+    else:
+        st.caption("No incident attached — click 💬 Chat on any incident card to add context.")
+
+    st.markdown("---")
+
+    if not st.session_state.chat_history:
+        st.markdown(
+            '<div style="text-align:center;padding:50px;font-family:var(--mono);'
+            'font-size:0.78rem;color:var(--muted)">'
+            '💬 CHAT READY<br>'
+            '<span style="font-size:0.62rem">'
+            'Wire LangChain inside chat_respond()</span></div>',
+            unsafe_allow_html=True,
+        )
+
+    for msg in st.session_state.chat_history:
+        ts = msg.get("ts","")
+        if msg["role"] == "user":
+            st.markdown(
+                f'<div class="bubble-user">'
+                f'<div class="bubble-label" style="color:var(--muted)">YOU · {ts}</div>'
+                f'{msg["content"]}</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                f'<div class="bubble-agent">'
+                f'<div class="bubble-label">SOC AGENT · {ts}</div>'
+                f'{msg["content"]}</div>',
+                unsafe_allow_html=True,
+            )
+
+    user_input = st.chat_input("Ask the SOC agent…")
+    if user_input:
+        now = datetime.now().strftime("%H:%M:%S")
+        st.session_state.chat_history.append({"role":"user","content":user_input,"ts":now})
+        with st.spinner("Thinking…"):
+            reply = chat_respond(user_input, incident=st.session_state.chat_incident)
+        st.session_state.chat_history.append(
+            {"role":"assistant","content":reply,"ts":datetime.now().strftime("%H:%M:%S")}
+        )
+        st.rerun()
+
+    if st.session_state.chat_history:
+        if st.button("🗑️ Clear Chat"):
+            st.session_state.chat_history = []
+            st.rerun()
+
+
+# ─────────────────────────────────────────────────────────────
+# TAB 4 — CHROMADB
+# ─────────────────────────────────────────────────────────────
+with tab_chroma:
+    if st.session_state.chroma_col is None:
+        st.warning("Connect ChromaDB from the sidebar first.")
+        st.stop()
+
+    col = st.session_state.chroma_col
+    st.markdown(f"### CHROMADB — soc_incidents &nbsp; `{col.count()} vectors`")
+    st.markdown("---")
+
+    st.markdown(
+        '<div style="font-family:var(--mono);font-size:0.62rem;color:var(--muted);'
+        'letter-spacing:2px;margin-bottom:8px">■ SEMANTIC SEARCH</div>',
+        unsafe_allow_html=True,
+    )
+    sq, sn = st.columns([5,1])
+    query = sq.text_input("Query", placeholder="e.g. ransomware lateral movement C2",
+                           label_visibility="collapsed")
+    top_n = sn.number_input("N", 1, 20, 5, label_visibility="collapsed")
+
+    if st.button("🔍 Search"):
+        st.session_state.search_results = chroma_search(query, n=top_n)
+
+    for r in st.session_state.search_results:
+        m = r["meta"]
+        st.markdown(
+            f'<div style="background:#060C16;border:1px solid var(--border);'
+            f'border-radius:5px;padding:10px 14px;margin:4px 0;'
+            f'font-family:var(--mono);font-size:0.7rem">'
+            f'<span class="badge badge-info">{r["score"]}% match</span>'
+            f'&nbsp;<strong>{r["id"]}</strong>'
+            f'&nbsp;<span style="color:var(--muted)">'
+            f'sev:{m.get("severity","?")} · {m.get("status","?")}</span><br>'
+            f'<span style="font-size:0.67rem;color:var(--text)">'
+            f'{r["text"][:220]}…</span></div>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("---")
+    st.markdown(
+        '<div style="font-family:var(--mono);font-size:0.62rem;color:var(--muted);'
+        'letter-spacing:2px;margin-bottom:8px">■ ACTIONS</div>',
+        unsafe_allow_html=True,
+    )
+    a1, a2 = st.columns(2)
+
+    if a1.button("⬆️ Sync Incidents", use_container_width=True):
+        if not incidents:
+            st.warning("No incidents loaded yet.")
+        else:
+            n, msg = chroma_sync(incidents)
+            st.success(msg) if n else st.error(msg)
+            st.rerun()
+
+    if a2.button("🗑️ Wipe & Reset", use_container_width=True):
+        try:
+            st.session_state.chroma_client.delete_collection("soc_incidents")
+            chroma_connect("./chroma_db")
+            st.success("Collection wiped and recreated.")
+            st.rerun()
+        except Exception as e:
+            st.error(str(e))
+
+    st.markdown("---")
+    st.markdown(
+        '<div style="font-family:var(--mono);font-size:0.62rem;color:var(--muted);'
+        'letter-spacing:2px;margin-bottom:8px">■ LANGCHAIN WIRING</div>',
+        unsafe_allow_html=True,
+    )
+    st.code("""
+# Replace chat_respond() body with your chain:
+
+from langchain_community.vectorstores import Chroma
+from langchain_anthropic import ChatAnthropic
+from langchain.chains import RetrievalQA
+
+vectorstore = Chroma(
+    client=st.session_state.chroma_client,
+    collection_name="soc_incidents",
+    embedding_function=your_embedder,   # must match sync-time embedder
+)
+llm   = ChatAnthropic(model="claude-sonnet-4-20250514")
+chain = RetrievalQA.from_chain_type(
+    llm=llm,
+    retriever=vectorstore.as_retriever(search_kwargs={"k": 5}),
+)
+return chain.invoke(user_msg)["result"]
+    """, language="python")

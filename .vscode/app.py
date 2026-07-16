@@ -11,14 +11,18 @@ SOC Platform v4
 
 import re
 import streamlit as st
+import streamlit.components.v1 as components
 import requests
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import time
 import os
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from collections import Counter
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 try:
     from dotenv import load_dotenv, set_key, find_dotenv
@@ -33,7 +37,317 @@ except ImportError:
     CHROMA_OK = False
 
 # ── SOC Triage Agent (LangChain) ──────────────────────────────────────────────
+# Streamlit re-executes this script on every rerun but NEVER re-imports
+# modules already in sys.modules — edits to the agent files were invisible
+# until a full process restart. This shim reloads them when their file
+# mtime changes, so agent upgrades apply on the next page refresh.
+def _maybe_reload_agent_modules():
+    import importlib
+    import sys as _sys
+    watched = {
+        "soc_triage_agent.soc_triage_agent":
+            Path(__file__).parent / "soc_triage_agent" / "soc_triage_agent.py",
+        "soc_workflow": Path(__file__).parent / "soc_workflow.py",
+    }
+    try:
+        for mod_name, path in watched.items():
+            m = _sys.modules.get(mod_name)
+            if m is None:
+                continue
+            mtime = path.stat().st_mtime
+            # Stamp the module object itself (survives across sessions) —
+            # session-scoped bookkeeping missed changes made BEFORE a new
+            # browser session started on an old process.
+            loaded = getattr(m, "__loaded_mtime__", None)
+            if loaded is None or mtime > loaded:
+                for name in (mod_name, "soc_triage_agent"):
+                    mm = _sys.modules.get(name)
+                    if mm is not None:
+                        importlib.reload(mm)
+                _sys.modules[mod_name].__loaded_mtime__ = mtime
+    except Exception:
+        pass
+
+_maybe_reload_agent_modules()
+
 from soc_triage_agent import CiscoLLMConfig, soc_triage_chat_respond, _TRIAGE_TRIGGER
+
+# ── Multi-agent workflow (triage → investigation → reporting) ────────────────
+try:
+    from soc_workflow import (
+        needs_investigation      as wf_needs_investigation,
+        handoff_to_investigation as wf_handoff_to_investigation,
+        run_investigation        as wf_run_investigation,
+        handoff_to_reporting     as wf_handoff_to_reporting,
+        run_reporting            as wf_run_reporting,
+    )
+    WORKFLOW_OK = True
+except Exception:
+    WORKFLOW_OK = False
+
+
+# ── Background workflow engine ───────────────────────────────────────────────
+# Streamlit interrupts the running script at its next UI call whenever the
+# user interacts (clicking "View" on the agent board, sending a message…).
+# Running investigation+reporting inline therefore died mid-run on any click.
+# They now run in a daemon worker thread that survives all interactions; the
+# UI polls the shared run record and renders its state live.
+
+_ANSI_STRIP = re.compile(r"\x1b\[[0-9;]*m")
+
+
+@st.cache_resource
+def _workflow_store() -> dict:
+    """Process-global store for the active background workflow run."""
+    return {"run": None}
+
+
+def _workflow_worker(run: dict, tri: dict, incident: dict) -> None:
+    """Investigation + reporting stages, off the Streamlit script thread.
+    NO st.* calls in here — the UI polls `run` and renders its state."""
+    import soc_workflow as _wfm
+
+    panels = run["panels"]
+    wf_md  = run["wf_md"]
+
+    def bset(agent, status=None, think=None, output=None):
+        p = panels[agent]
+        if status is not None:
+            p["status"] = status
+        if think is not None:
+            clean = _ANSI_STRIP.sub("", str(think))
+            p["thinking"].append(
+                f"[{datetime.now().strftime('%H:%M:%S')}] {clean}")
+            p["thinking"] = p["thinking"][-60:]
+        if output is not None:
+            p["output"] = output
+        p["updated"] = datetime.now().strftime("%H:%M:%S")
+
+    inc_id = run["incident_id"]
+    title  = run["title"]
+    cls    = run["cls"]
+    unc    = run["unc"]
+    ticket = tri.get("ticket") or {}
+    inv = None
+    rep: dict = {}
+    try:
+        # ── Stage 2: Investigation ─────────────────────────────────────────
+        if run["investigate"]:
+            bset("investigation", status="running", think="Investigation started")
+
+            def _fb_event(event: str, detail: str) -> None:
+                # Board choreography for the feedback loop: the work visibly
+                # returns to the triage card for the deep-dive, then hands
+                # back to investigation for the second pass.
+                if event == "gaps_detected":
+                    bset("investigation", think=f"🔁 {detail}")
+                elif event == "triage_deep_dive_start":
+                    bset("triage", status="running", think=f"🔁 {detail}")
+                elif event == "triage_deep_dive_done":
+                    bset("triage", status="done", think=f"✅ {detail}")
+                    bset("investigation", think=f"📥 {detail}")
+                elif event == "second_pass_start":
+                    bset("investigation", status="running", think=f"🔁 {detail}")
+                elif event == "supplement_error":
+                    bset("triage", status="done",
+                         think=f"⚠️ deep-dive failed: {detail}")
+                else:
+                    bset("investigation", think=detail)
+
+            inv = _wfm.investigate_with_feedback(
+                tri, incident, inc_id,
+                line_cb=lambda ln: bset("investigation", think=ln)
+                if ln.strip() else None,
+                feedback_cb=_fb_event)
+            _fbmeta = inv.get("feedback_loop") or {}
+            if _fbmeta.get("triggered"):
+                # Honest reporting — a crashed deep-dive or failed second
+                # pass must never be presented as a successful loop.
+                gap_ids = ", ".join(g.split(":")[0]
+                                    for g in (_fbmeta.get("gaps") or []))
+                if _fbmeta.get("supplement_error"):
+                    wf_md.append(
+                        f"- 🔁 Feedback loop: gaps detected (`{gap_ids}`) but "
+                        f"the triage deep-dive failed — "
+                        f"`{str(_fbmeta['supplement_error'])[:120]}` — "
+                        f"pass-1 findings kept")
+                elif _fbmeta.get("second_pass_failed"):
+                    wf_md.append(
+                        f"- 🔁 Feedback loop: triage deep-dive answered "
+                        f"{_fbmeta.get('gaps_answered', 0)} gap(s) but the "
+                        f"re-investigation failed — pass-1 findings kept")
+                else:
+                    _extra = ""
+                    if _fbmeta.get("playbook_redirect"):
+                        _extra += (" · playbook redirected: "
+                                   + ", ".join(_fbmeta["playbook_redirect"]
+                                               .values()))
+                    if _fbmeta.get("suggested_classification"):
+                        _extra += (f" · deep-dive suggests classification "
+                                   f"**{_fbmeta['suggested_classification']}**"
+                                   f" (analyst to review)")
+                    wf_md.append(
+                        f"- 🔁 Feedback loop (pass {_fbmeta.get('passes', 1)}): "
+                        f"gaps `{gap_ids}` → triage deep-dive answered "
+                        f"**{_fbmeta.get('gaps_answered', 0)}** → "
+                        f"investigation re-ran with the supplement{_extra}")
+            if inv.get("status") == "failed":
+                try:
+                    (SOC_DB_DIR / "last_investigation_error.json").write_text(
+                        _json.dumps(inv, indent=2, default=str), encoding="utf-8")
+                except Exception:
+                    pass
+                _ie = str(inv.get("error") or "")
+                _cold = ("503" in _ie or "unavailable" in _ie.lower())
+                wf_md.append(f"- 🔎 Investigation: ❌ failed — "
+                             f"`{_ie[:150]}` "
+                             + ("**(the LLM endpoint was asleep — wait a few "
+                                "minutes for it to boot, then re-run)** "
+                                if _cold else "")
+                             + f"(full details: `soc_db/last_investigation_error.json`)")
+                bset("investigation", status="failed",
+                     think=f"❌ {str(inv.get('error') or '')[:150]}",
+                     output=f"❌ Investigation failed:\n\n```\n"
+                            f"{str(inv.get('error') or '')[:800]}\n```")
+                inv = None
+            else:
+                bset("investigation", status="done",
+                     think=f"✅ Complete — {inv.get('incident_folder')}",
+                     output=inv.get("narrative_report") or inv.get("summary")
+                            or "Investigation completed.")
+                wf_md.append(f"- 🔎 Investigation: ✅ {inv.get('status')} — "
+                             f"folder `{inv.get('incident_folder')}`")
+                try:
+                    rec = _wfm.build_post_investigation_record(
+                        inv, ticket, title, run_stamp=run["run_id"])
+                    for _attempt in (1, 2, 3):
+                        try:
+                            _wfm.pipeline_insert("post_investigation", rec)
+                            break
+                        except Exception:
+                            if _attempt == 3:
+                                raise
+                            time.sleep(0.8)   # ride out a brief sqlite lock
+                    run["chroma_queue"].append(("post_investigation", rec))
+                    wf_md.append("- 🕵️ Findings recorded — **Pipeline DB** "
+                                 "tab → *Post-Investigation*")
+                except Exception as exc:
+                    # Never swallow silently — a missing findings record looks
+                    # like "no output" to the analyst.
+                    bset("investigation",
+                         think=f"⚠️ findings record insert failed: {str(exc)[:120]}")
+                    wf_md.append(f"- ⚠️ Findings record insert failed: "
+                                 f"`{str(exc)[:150]}`")
+        else:
+            bset("investigation", status="skipped",
+                 think=f"⏭️ Skipped — classification {cls} below routing threshold",
+                 output=f"Investigation skipped: classification **{cls}** is "
+                        "below the routing threshold (critical/high/medium).")
+            wf_md.append(f"- 🔎 Investigation: ⏭️ skipped "
+                         f"(classification {cls} below routing threshold)")
+
+        # ── Stage 3: Reporting ─────────────────────────────────────────────
+        bset("reporting", status="running", think="Reporting started")
+        try:
+            tid = _wfm.handoff_to_reporting(tri, incident, inv)
+            bset("reporting", think="Triage + investigation context handed over")
+            rep = _wfm.run_reporting(
+                tid, run_stamp=run["run_id"],
+                line_cb=lambda ln: bset("reporting", think=ln)
+                if ln.strip() else None)
+        except Exception as exc:
+            rep = {"status": "failed", "error": str(exc)}
+        if rep.get("status") == "failed":
+            try:
+                (SOC_DB_DIR / "last_reporting_error.json").write_text(
+                    _json.dumps(rep, indent=2, default=str), encoding="utf-8")
+            except Exception:
+                pass
+            bset("reporting", status="failed",
+                 think=f"❌ {str(rep.get('error') or '')[:150]}",
+                 output=f"❌ Reporting failed:\n\n```\n"
+                        f"{str(rep.get('error') or '')[:800]}\n```")
+            wf_md.append(f"- 📄 Reporting: ❌ failed — "
+                         f"`{str(rep.get('error') or '')[:150]}` "
+                         f"(full details: `soc_db/last_reporting_error.json`)")
+        else:
+            rec = {
+                "id": f"final_{unc}@{run['run_id']}",
+                "incident_id": inc_id, "ticket_unc": unc,
+                "title": f"[FINAL] {title}", "severity": cls,
+                "summary": str(rep.get("summary")
+                               or "Incident report generated.")[:500],
+                "report": {k: v for k, v in rep.items()
+                           if k not in ("subprocess", "orchestrator_subprocess")}}
+            _wfm.pipeline_insert("finalized_report", rec)
+            run["chroma_queue"].append(("finalized_report", rec))
+            exports = rep.get("document_exports") or {}
+            rep_out = [
+                f"**Status:** {rep.get('status')} "
+                f"(mode: {rep.get('reporting_mode', 'standard')})",
+                f"**LLM:** {rep.get('llm_status') or '—'}",
+                "",
+                f"**Summary:** {rep.get('summary') or '—'}",
+                "",
+            ]
+            for f in ("docx", "pdf"):
+                if exports.get(f):
+                    rep_out.append(f"- {'📝' if f == 'docx' else '📕'} "
+                                   f"{f.upper()}: `{exports[f]}`")
+            rep_out += ["", "Full report suite: **Pipeline DB** tab "
+                            "→ *Finalized Report*."]
+            bset("reporting", status="done", think="✅ Report finalised",
+                 output="\n".join(rep_out))
+            wf_md.append(f"- 📄 Reporting: ✅ {rep.get('status')} "
+                         f"(mode: {rep.get('reporting_mode', 'standard')})")
+            for fmt, icon in (("docx", "📝"), ("pdf", "📕")):
+                if exports.get(fmt):
+                    wf_md.append(f"- {icon} {fmt.upper()} report: "
+                                 f"`{exports[fmt]}`")
+                else:
+                    err = str(exports.get(f"{fmt}_error") or exports.get("error")
+                              or "no file produced")[:150]
+                    wf_md.append(f"- {icon} {fmt.upper()} report: "
+                                 f"❌ export failed — `{err}`")
+            wf_md.append("")
+            wf_md.append("📂 Download the Word/PDF report from the "
+                         "**Pipeline DB** tab → *Finalized Report*.")
+    except Exception as exc:
+        wf_md.append(f"- ❌ Workflow worker crashed: `{str(exc)[:200]}`")
+        for ag in ("investigation", "reporting"):
+            if panels[ag]["status"] in ("running", "queued"):
+                bset(ag, status="failed",
+                     think=f"❌ worker crash: {str(exc)[:150]}")
+    finally:
+        # Audit trail row — one NEW record per workflow execution.
+        try:
+            dur = int(time.time() - run["started_ts"])
+            stages = {
+                "triage": "cached" if run.get("cached_triage") else "fresh",
+                "investigation": panels["investigation"]["status"],
+                "reporting": panels["reporting"]["status"],
+            }
+            _wfm.pipeline_insert("workflow_runs", {
+                "id": f"run_{run['run_id']}_{inc_id[:20]}",
+                "incident_id": inc_id,
+                "title": f"Run {run['started_hms']} — {title}",
+                "severity": cls,
+                "summary": " · ".join(f"{k}: {v}" for k, v in stages.items())
+                           + f" · ticket {unc} · {dur}s",
+                "stages": stages, "ticket_unc": unc,
+                "duration_seconds": dur})
+        except Exception:
+            pass
+        run["finished_at"] = time.time()
+        run["done"] = True
+        # Persist the finished run so ANY session can surface the results on
+        # its next interaction — even if the browser poll loop died mid-run
+        # (exception in a rerun, page refresh, process restart).
+        try:
+            (SOC_DB_DIR / "last_workflow_result.json").write_text(
+                _json.dumps(run, default=str, indent=1), encoding="utf-8")
+        except Exception:
+            pass
 
 def _normalise_llm_url(url: str) -> str:
     """
@@ -64,8 +378,11 @@ def get_cisco_cfg() -> CiscoLLMConfig:
         api_key     = st.session_state.get("cisco_key",   "").strip() or "changeme",
         model       = st.session_state.get("cisco_model", "").strip()
                       or "fdtn-ai/Foundation-Sec-8B-Reasoning",
-        temperature = 0.1,
-        max_tokens  = 1024,
+        temperature = 0.0,
+        # 1024 was starving the reasoning model: it spent the whole budget on
+        # chain-of-thought and got truncated before emitting the final JSON,
+        # which surfaced as "0 IOCs matched" on every triage run.
+        max_tokens  = 3072,
         timeout     = 300,
     )
 
@@ -74,75 +391,142 @@ def get_cisco_cfg() -> CiscoLLMConfig:
 # ══════════════════════════════════════════════════════════════════════════════
 ENV_FILE = Path(__file__).parent / ".env"
 
+def _clean(val: str) -> str:
+    """Strip whitespace and stray quotes that dotenv sometimes leaves."""
+    return val.strip().strip("'\"").strip()
+
 def env_load() -> dict:
     """Read credentials from .env."""
     if DOTENV_OK and ENV_FILE.exists():
         load_dotenv(ENV_FILE, override=True)
     return {
-        "host":          os.environ.get("NW_HOST",       "").strip(),
-        "username":      os.environ.get("NW_USERNAME",   "").strip(),
-        "password":      os.environ.get("NW_PASSWORD",   "").strip(),
+        "host":          _clean(os.environ.get("NW_HOST",       "")),
+        "username":      _clean(os.environ.get("NW_USERNAME",   "")),
+        "password":      _clean(os.environ.get("NW_PASSWORD",   "")),
+        "nw_cert_path":  _clean(os.environ.get("NW_CERT_PATH",  "")),
         # Cisco LLM
-        "cisco_url":     os.environ.get("CISCO_LLM_URL",   "").strip(),
-        "cisco_key":     os.environ.get("CISCO_LLM_KEY",   "").strip(),
-        "cisco_model":   os.environ.get("CISCO_LLM_MODEL", "").strip(),
+        "cisco_url":     _clean(os.environ.get("CISCO_LLM_URL",   "")),
+        "cisco_key":     _clean(os.environ.get("CISCO_LLM_KEY",   "")),
+        "cisco_model":   _clean(os.environ.get("CISCO_LLM_MODEL", "")),
     }
 
 def env_save(host: str, username: str, password: str) -> None:
     """Persist NetWitness credentials to .env."""
     if not DOTENV_OK:
         return
-    ENV_FILE.touch(exist_ok=True)
-    set_key(str(ENV_FILE), "NW_HOST",     host.strip())
-    set_key(str(ENV_FILE), "NW_USERNAME", username.strip())
-    # base64-encode password to avoid special char issues
-    set_key(str(ENV_FILE), "NW_PASSWORD",
-            base64.b64encode(password.strip().encode()).decode("ascii"))
+    try:
+        ENV_FILE.touch(exist_ok=True)
+        set_key(str(ENV_FILE), "NW_HOST",     host.strip())
+        set_key(str(ENV_FILE), "NW_USERNAME", username.strip())
+        # base64-encode password to avoid special char issues
+        set_key(str(ENV_FILE), "NW_PASSWORD",
+                base64.b64encode(password.strip().encode()).decode("ascii"))
+    except Exception:
+        pass  # .env locked on Windows — credentials still active this session
+
+def nw_cert_env_save(cert_path: str) -> None:
+    """Persist the TLS cert path to .env.
+    Silently skips if .env is locked (common on Windows) — cert path
+    is still stored in session state and works for the current session.
+    """
+    if not DOTENV_OK:
+        return
+    try:
+        ENV_FILE.touch(exist_ok=True)
+        set_key(str(ENV_FILE), "NW_CERT_PATH", cert_path.strip())
+    except Exception:
+        pass  # .env locked on Windows — session state still holds the path
+
+def nw_cert_env_clear() -> None:
+    if not DOTENV_OK:
+        return
+    try:
+        if ENV_FILE.exists():
+            set_key(str(ENV_FILE), "NW_CERT_PATH", "")
+    except Exception:
+        pass
 
 def cisco_env_save(url: str, key: str, model: str) -> None:
     """Persist Cisco LLM credentials to .env."""
     if not DOTENV_OK:
         return
-    ENV_FILE.touch(exist_ok=True)
-    set_key(str(ENV_FILE), "CISCO_LLM_URL",   url.strip())
-    set_key(str(ENV_FILE), "CISCO_LLM_MODEL", model.strip())
-    # base64-encode key to avoid special char issues
-    set_key(str(ENV_FILE), "CISCO_LLM_KEY",
-            base64.b64encode(key.strip().encode()).decode("ascii"))
+    try:
+        ENV_FILE.touch(exist_ok=True)
+        set_key(str(ENV_FILE), "CISCO_LLM_URL",   url.strip())
+        set_key(str(ENV_FILE), "CISCO_LLM_MODEL", model.strip())
+        # base64-encode key to avoid special char issues
+        set_key(str(ENV_FILE), "CISCO_LLM_KEY",
+                base64.b64encode(key.strip().encode()).decode("ascii"))
+    except Exception:
+        pass
 
 def env_clear() -> None:
-    if DOTENV_OK and ENV_FILE.exists():
-        set_key(str(ENV_FILE), "NW_HOST",       "")
-        set_key(str(ENV_FILE), "NW_USERNAME",   "")
-        set_key(str(ENV_FILE), "NW_PASSWORD",   "")
+    if not DOTENV_OK:
+        return
+    try:
+        if ENV_FILE.exists():
+            set_key(str(ENV_FILE), "NW_HOST",     "")
+            set_key(str(ENV_FILE), "NW_USERNAME", "")
+            set_key(str(ENV_FILE), "NW_PASSWORD", "")
+    except Exception:
+        pass
 
 def cisco_env_clear() -> None:
-    if DOTENV_OK and ENV_FILE.exists():
-        set_key(str(ENV_FILE), "CISCO_LLM_URL",   "")
-        set_key(str(ENV_FILE), "CISCO_LLM_KEY",   "")
-        set_key(str(ENV_FILE), "CISCO_LLM_MODEL", "")
+    if not DOTENV_OK:
+        return
+    try:
+        if ENV_FILE.exists():
+            set_key(str(ENV_FILE), "CISCO_LLM_URL",   "")
+            set_key(str(ENV_FILE), "CISCO_LLM_KEY",   "")
+            set_key(str(ENV_FILE), "CISCO_LLM_MODEL", "")
+    except Exception:
+        pass
 
 def nw_login(host: str, username: str, password: str) -> tuple[bool, str, str]:
     """
     Login with username/password → returns (ok, message, access_token).
     POST /rest/api/auth/userpass with form-encoded credentials.
+    Auto-retries with verify=False if cert verification fails.
     """
-    try:
-        r = requests.post(
+    if not host.strip():
+        return False, "Host URL is empty — enter https://192.168.x.x", ""
+    host = host.strip().strip("'\"").strip()  # remove any stray quotes
+    if not username.strip():
+        return False, "Username is empty.", ""
+    if not password.strip():
+        return False, "Password is empty.", ""
+
+    def _attempt(verify):
+        return requests.post(
             f"{host.rstrip('/')}/rest/api/auth/userpass",
             data={"username": username, "password": password},
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded; charset=ISO-8859-1",
+                "Accept":       "application/json;charset=UTF-8",
+            },
             timeout=15,
-            verify=False,
+            verify=verify,
         )
+
+    try:
+        verify = nw_tls_verify()
+        try:
+            r = _attempt(verify)
+        except requests.exceptions.SSLError:
+            # Cert didn't work — clear it and retry without verification
+            st.session_state.nw_cert_path = ""
+            r = _attempt(False)
+
         if r.status_code == 200:
             data  = r.json()
             token = data.get("accessToken") or data.get("access_token") or ""
             if token:
-                return True, "NetWitness connected · via GlobalProtect", token
+                return True, "NetWitness connected", token
             return False, f"Login OK but no token in response: {str(data)[:100]}", ""
         else:
-            return False, f"Login failed — HTTP {r.status_code}: {r.text[:150]}", ""
+            return False, f"HTTP {r.status_code}: {r.text[:200]}", ""
+    except requests.exceptions.ConnectionError as e:
+        return False, f"Cannot reach {host} — check VPN/network: {str(e)[:120]}", ""
     except requests.exceptions.Timeout:
         return False, "Login timed out — check GP VPN is connected.", ""
     except Exception as e:
@@ -152,7 +536,7 @@ def nw_login(host: str, username: str, password: str) -> tuple[bool, str, str]:
 # PAGE CONFIG
 # ══════════════════════════════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="SOC Platform",
+    page_title="Security Dashboard",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -163,7 +547,7 @@ st.set_page_config(
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
 
 :root {
   --bg:      #04080F;
@@ -175,101 +559,173 @@ st.markdown("""
   --warn:    #FFB700;
   --danger:  #FF3B3B;
   --orange:  #FF7700;
-  --muted:   #3A607A;
-  --text:    #B8D4E8;
+  --muted:   #5A80A0;
+  --text:    #C8DCF0;
   --mono:    'Share Tech Mono', monospace;
-  --sans:    'Barlow', sans-serif;
+  --sans:    'Inter', sans-serif;
 }
 
-html, body, [class*="css"] { font-family: var(--sans); background: var(--bg); color: var(--text); }
+html, body, [class*="css"] {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+}
 .main { background: var(--bg); padding-top: 0.5rem; }
 
+/* ── Sidebar ── */
 section[data-testid="stSidebar"] > div:first-child {
   background: linear-gradient(180deg, #040810 0%, #06101A 100%);
   border-right: 1px solid #0E1E30;
   padding-top: 1rem;
 }
 
-h1,h2,h3 { font-family: var(--mono); color: var(--accent); letter-spacing: 2px; margin-bottom: 0.3rem; }
-h1 { font-size: 1.3rem !important; }
+/* ── Headings ── */
+h1,h2,h3 {
+  font-family: var(--sans);
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.4rem;
+}
+h1 { font-size: 1.4rem !important; letter-spacing: 0.5px; }
+h2 { font-size: 1.1rem !important; }
+h3 { font-size: 0.95rem !important; }
 
+/* ── Metric cards ── */
 [data-testid="metric-container"] {
   background: linear-gradient(135deg, #070D18 0%, #0A1628 100%);
   border: 1px solid var(--border);
-  border-radius: 8px; padding: 14px 18px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
-  transition: border-color 0.2s;
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.4);
+  transition: all 0.2s;
 }
-[data-testid="metric-container"]:hover { border-color: #1E4060; }
+[data-testid="metric-container"]:hover {
+  border-color: #1E4060;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 24px rgba(0,212,255,0.08);
+}
 [data-testid="metric-container"] label {
-  color: var(--muted); font-size: 0.65rem;
-  letter-spacing: 2px; font-family: var(--mono); text-transform: uppercase;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-family: var(--sans);
 }
 [data-testid="metric-container"] [data-testid="stMetricValue"] {
-  color: var(--accent); font-family: var(--mono); font-size: 1.6rem;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 1.8rem;
+  font-weight: 400;
 }
 
+/* ── Buttons ── */
 .stButton > button {
   background: linear-gradient(90deg, #052030, #083050);
-  color: var(--accent); border: 1px solid #0E4A6A;
-  border-radius: 5px; font-family: var(--mono);
-  font-size: 0.72rem; letter-spacing: 1px;
-  padding: 6px 14px; transition: all 0.15s;
+  color: var(--accent);
+  border: 1px solid #0E4A6A;
+  border-radius: 8px;
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  transition: all 0.15s;
 }
 .stButton > button:hover {
   background: linear-gradient(90deg, #083050, #0E4A6A);
-  box-shadow: 0 0 14px rgba(0,212,255,0.2);
-  color: #fff; border-color: var(--accent);
+  box-shadow: 0 0 18px rgba(0,212,255,0.2);
+  color: #fff;
+  border-color: var(--accent);
+  transform: translateY(-1px);
 }
+.stButton > button:active { transform: translateY(0); }
 
+/* ── Inputs ── */
 .stTextInput > div > div > input,
 .stTextArea textarea {
   background: #060E1A !important;
-  border: 1px solid #0E2030 !important;
+  border: 1px solid #1A3050 !important;
   color: var(--text) !important;
-  border-radius: 5px; font-family: var(--sans); font-size: 0.85rem;
+  border-radius: 8px;
+  font-family: var(--sans);
+  font-size: 0.88rem;
+  padding: 10px 14px !important;
 }
 .stTextInput > div > div > input:focus,
 .stTextArea textarea:focus {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 2px rgba(0,212,255,0.12) !important;
+  box-shadow: 0 0 0 3px rgba(0,212,255,0.1) !important;
+}
+.stTextInput label, .stTextArea label, .stSelectbox label {
+  color: var(--text) !important;
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
+  margin-bottom: 4px !important;
 }
 .stSelectbox > div > div {
   background: #060E1A !important;
-  border: 1px solid #0E2030 !important;
-  color: var(--text) !important; border-radius: 5px;
+  border: 1px solid #1A3050 !important;
+  color: var(--text) !important;
+  border-radius: 8px;
 }
 
+/* ── Tabs ── */
 .stTabs [data-baseweb="tab-list"] {
-  background: transparent; border-bottom: 1px solid var(--border); gap: 2px;
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+  gap: 4px;
 }
 .stTabs [data-baseweb="tab"] {
-  font-family: var(--mono); font-size: 0.7rem;
-  letter-spacing: 1.5px; color: var(--muted);
-  border: none; padding: 8px 18px; background: transparent;
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--muted);
+  border: none;
+  padding: 10px 20px;
+  background: transparent;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.15s;
+}
+.stTabs [data-baseweb="tab"]:hover {
+  color: var(--text);
+  background: rgba(0,212,255,0.04);
 }
 .stTabs [aria-selected="true"] {
   color: var(--accent) !important;
   border-bottom: 2px solid var(--accent) !important;
-  background: rgba(0,212,255,0.04) !important;
+  background: rgba(0,212,255,0.06) !important;
+  font-weight: 600 !important;
 }
 
+/* ── Cards ── */
 .card {
   background: linear-gradient(135deg, #070D18 0%, #08111E 100%);
   border: 1px solid var(--border);
-  border-radius: 8px; padding: 14px 18px; margin: 5px 0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin: 6px 0;
   transition: all 0.15s;
 }
-.card:hover { border-color: #1E4060; transform: translateX(2px); }
+.card:hover {
+  border-color: #1E4060;
+  transform: translateX(3px);
+  box-shadow: 0 2px 16px rgba(0,0,0,0.3);
+}
 .card-critical { border-left: 4px solid var(--danger) !important; }
 .card-high     { border-left: 4px solid var(--orange) !important; }
-.card-medium   { border-left: 4px solid var(--warn) !important; }
-.card-low      { border-left: 4px solid var(--green) !important; }
+.card-medium   { border-left: 4px solid var(--warn)   !important; }
+.card-low      { border-left: 4px solid var(--green)  !important; }
 
+/* ── Badges ── */
 .badge {
-  padding: 2px 9px; border-radius: 3px;
-  font-family: var(--mono); font-size: 0.62rem;
-  display: inline-block; letter-spacing: 0.5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  display: inline-block;
+  font-family: var(--sans);
 }
 .badge-critical { background:#200808; color:var(--danger);  border:1px solid #4A1010; }
 .badge-high     { background:#201200; color:var(--orange);  border:1px solid #4A2A00; }
@@ -277,43 +733,118 @@ h1 { font-size: 1.3rem !important; }
 .badge-low      { background:#001810; color:var(--green);   border:1px solid #004025; }
 .badge-info     { background:#001828; color:var(--accent);  border:1px solid #003850; }
 
+/* ── Chat bubbles ── */
 .bubble-user {
-  background: #080F1A; border-left: 3px solid #005C8A;
-  padding: 10px 15px; border-radius: 0 8px 8px 0; margin: 6px 0; font-size: 0.88rem;
+  background: #080F1A;
+  border-left: 3px solid #005C8A;
+  padding: 12px 16px;
+  border-radius: 0 10px 10px 0;
+  margin: 8px 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
 }
 .bubble-agent {
-  background: #040A12; border-left: 3px solid var(--accent);
-  padding: 10px 15px; border-radius: 0 8px 8px 0; margin: 6px 0; font-size: 0.88rem;
+  background: #040A12;
+  border-left: 3px solid var(--accent);
+  padding: 12px 16px;
+  border-radius: 0 10px 10px 0;
+  margin: 8px 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
 }
 .bubble-label {
-  font-family: var(--mono); font-size: 0.58rem;
-  letter-spacing: 2px; margin-bottom: 5px; color: var(--accent);
+  font-family: var(--sans);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 5px;
+  color: var(--accent);
+  text-transform: uppercase;
 }
 
-.dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; vertical-align:middle; }
-.dot-green  { background:var(--green);  box-shadow:0 0 6px var(--green);  animation:pulse 2s infinite; }
-.dot-red    { background:var(--danger); box-shadow:0 0 4px var(--danger); }
-.dot-yellow { background:var(--warn);   box-shadow:0 0 4px var(--warn);   animation:pulse 1s infinite; }
+/* ── Status dots ── */
+.dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px; vertical-align:middle; }
+.dot-green  { background:var(--green);  box-shadow:0 0 8px var(--green);  animation:pulse 2s infinite; }
+.dot-red    { background:var(--danger); box-shadow:0 0 6px var(--danger); }
+.dot-yellow { background:var(--warn);   box-shadow:0 0 6px var(--warn);   animation:pulse 1s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 
+/* ── Section labels ── */
 .sec-label {
-  font-family: var(--mono); font-size: 0.58rem; color: #2A4A62;
-  letter-spacing: 3px; text-transform: uppercase;
-  margin: 18px 0 8px; padding-bottom: 5px;
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #4A7090;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 20px 0 10px;
+  padding-bottom: 6px;
   border-bottom: 1px solid #0E1E2E;
 }
 
+/* ── Stat mini cards ── */
 .stat-mini {
-  background: #070D18; border: 1px solid var(--border);
-  border-radius: 6px; padding: 10px 14px; text-align: center; font-family: var(--mono);
+  background: #070D18;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  text-align: center;
+  font-family: var(--sans);
 }
-.stat-mini .val { font-size: 1.4rem; color: var(--accent); }
-.stat-mini .lbl { font-size: 0.6rem; color: var(--muted); letter-spacing: 2px; margin-top: 2px; }
+.stat-mini .val { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+.stat-mini .lbl { font-size: 0.68rem; font-weight: 500; color: var(--muted); margin-top: 3px; text-transform: uppercase; }
 
-hr { border-color: #0E1E2E; margin: 1rem 0; }
-::-webkit-scrollbar { width: 4px; }
+/* ── Tooltips / info boxes ── */
+.info-box {
+  background: #060E1A;
+  border: 1px solid #1A3050;
+  border-radius: 10px;
+  padding: 14px 18px;
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.6;
+  margin: 8px 0;
+}
+.info-box .title {
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+}
+
+/* ── Expanders ── */
+.streamlit-expanderHeader {
+  font-family: var(--sans) !important;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  color: var(--text) !important;
+}
+
+/* ── Scrollbar ── */
+hr { border-color: #0E1E2E; margin: 1.2rem 0; }
+::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: #0E2030; border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: #1E3050; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #2A4060; }
+
+/* ── Sidebar logo / app name ── */
+.app-logo {
+  text-align: center;
+  padding: 10px 0 16px;
+  border-bottom: 1px solid #0E1E2E;
+  margin-bottom: 4px;
+}
+.app-logo .name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.app-logo .sub {
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -344,10 +875,18 @@ DEFAULTS = {
     "nw_msg":           "",
     "nw_working_ep":    "",       # endpoint that worked
     "nw_working_auth":  {},       # auth headers that worked
+    "nw_incidents_path":"/rest/api/incidents",   # ← configurable endpoint path
+    "nw_auth_style":    "NetWitness-Token",       # ← configurable auth header style
+    "endpoint_scan_results": [],   # ← persisted scanner results
+    "nw_cert_path":     _env.get("nw_cert_path", ""),  # ← path to CA/server cert for TLS verification
     "incidents":        [],
     "last_fetch":       None,
+    "last_full_fetch":  None,   # ← last time a full (non-incremental) fetch ran
+    "last_fetch_mode":  None,   # ← "full" | "incremental", shown in diagnostics
     "chat_history":     [],
     "chat_incident":    None,
+    "pending_auto_triage": False,   # set by "🩺 Triage" button — auto-runs the pipeline
+    "jump_to_ask_tab":     False,   # set by "🩺 Triage" button — switches to Ask a Question tab
     "chroma_client":    None,
     "chroma_col":       None,
     "search_results":   [],
@@ -355,6 +894,13 @@ DEFAULTS = {
     # ── File upload ──────────────────────────────────────────
     "uploaded_incident": None,
     "uploaded_filename": "",
+    # ── Agent board (thinking + outputs per agent) ───────────
+    "agent_board": {
+        "triage":        {"status": "idle", "thinking": [], "output": "", "updated": ""},
+        "investigation": {"status": "idle", "thinking": [], "output": "", "updated": ""},
+        "reporting":     {"status": "idle", "thinking": [], "output": "", "updated": ""},
+    },
+    "agent_board_sel": None,
     # ── Cisco Foundation LLM ─────────────────────────────────
     "cisco_url":         _env.get("cisco_url",   ""),
     "cisco_key":         _env.get("cisco_key",   ""),
@@ -365,7 +911,9 @@ for k, v in DEFAULTS.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-REFRESH_INTERVAL = 30   # seconds
+REFRESH_INTERVAL     = 30                      # seconds
+INCREMENTAL_OVERLAP  = timedelta(minutes=5)    # clock-skew / indexing-lag buffer
+FULL_RESYNC_INTERVAL = timedelta(minutes=10)   # periodic ground-truth resync
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -378,13 +926,6 @@ def normalise_sev(inc: dict) -> str:
         return "CRITICAL" if s >= 90 else "HIGH" if s >= 70 else "MEDIUM" if s >= 40 else "LOW"
     except ValueError:
         return raw if raw in ("CRITICAL","HIGH","MEDIUM","LOW") else "LOW"
-
-def nw_headers() -> dict:
-    return {
-        "NetWitness-Token": st.session_state.nw_token.strip(),
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
 
 def gp_is_reachable() -> tuple[bool, str]:
     """
@@ -410,28 +951,80 @@ def gp_is_reachable() -> tuple[bool, str]:
             "Connect GP VPN and try again."
         )
 
-def nw_headers() -> dict:
-    return {
-        "NetWitness-Token": st.session_state.nw_token,
-        "Accept":           "application/json;charset=UTF-8",
-        "Content-Type":     "application/json;charset=UTF-8",
+def nw_headers(include_content_type: bool = False) -> dict:
+    """
+    Build request headers based on the currently selected auth style.
+    include_content_type should only be True for POST/PATCH requests that
+    send a JSON body. GET requests must NOT include Content-Type or NW
+    returns 400 'Unsupported format was supplied'.
+    """
+    token = st.session_state.nw_token.strip()
+    style = st.session_state.get("nw_auth_style", "NetWitness-Token")
+
+    base = {
+        "Accept": "application/json;charset=UTF-8",
     }
+    if include_content_type:
+        base["Content-Type"] = "application/json;charset=UTF-8"
+
+    if style == "NetWitness-Token":
+        base["NetWitness-Token"] = token
+    elif style == "Bearer":
+        base["Authorization"] = f"Bearer {token}"
+    elif style == "Cookie":
+        base["Cookie"] = f"access_token={token}"
+    elif style == "Both":
+        base["Authorization"] = f"Bearer {token}"
+        base["Cookie"]        = f"access_token={token}"
+    else:
+        base["NetWitness-Token"] = token
+
+    return base
+
+
+def nw_tls_verify():
+    """
+    Returns the value to pass as requests(verify=...).
+    - If a valid cert path is configured AND the file exists → try it.
+    - If the cert causes any SSL error → silently fall back to False.
+    - Default is False (suppressed via urllib3.disable_warnings above).
+    """
+    cert_path = st.session_state.get("nw_cert_path", "").strip()
+    if cert_path and Path(cert_path).is_file():
+        return cert_path
+    return False
+
+
+def nw_incidents_url(host: str) -> str:
+    """Build the incidents endpoint URL from the configurable path."""
+    path = st.session_state.get("nw_incidents_path", "/rest/api/incidents").strip()
+    if not path.startswith("/"):
+        path = "/" + path
+    return f"{host.rstrip('/')}{path}"
 
 def nw_verify_token() -> tuple[bool, str]:
     host  = st.session_state.nw_host.rstrip("/")
     token = st.session_state.nw_token.strip()
     if not host or not token:
         return False, "Enter both Host URL and token."
-    try:
-        r = requests.get(
-            f"{host}/rest/api/incidents",
+
+    def _attempt(verify):
+        return requests.get(
+            nw_incidents_url(host),
             headers=nw_headers(),
             params={"pageSize": 1, "pageNumber": 0},
             timeout=15,
-            verify=False,
+            verify=verify,
         )
+    try:
+        try:
+            r = _attempt(nw_tls_verify())
+        except requests.exceptions.SSLError:
+            st.session_state.nw_cert_path = ""
+            r = _attempt(False)
+
         if r.status_code == 200:
-            return True, "NetWitness connected · via GlobalProtect"
+            return True, "NetWitness connected"
         elif r.status_code == 403:
             return False, (
                 "Access Denied — add 'integration-server.api.access' "
@@ -446,34 +1039,103 @@ def nw_verify_token() -> tuple[bool, str]:
     except Exception as e:
         return False, f"Cannot reach server: {e}"
 
-def nw_fetch_incidents(limit: int = 500) -> tuple[bool, list, str]:
+def _bounded_get(url: str, *, headers=None, params=None, verify=False,
+                 timeout: int = 30, wall_seconds: int = 45):
+    """requests.get with a HARD wall-clock cap.
+
+    The `timeout` parameter only bounds the gap between socket reads — a
+    server that dribbles a byte every few seconds holds the connection open
+    forever (this wedged the whole app for hours). The request runs in a
+    daemon thread; if it exceeds wall_seconds in total, TimeoutError is
+    raised and the orphaned thread is abandoned to finish/die on its own."""
+    import threading as _th
+    box: dict = {}
+
+    def _do():
+        try:
+            box["r"] = requests.get(url, headers=headers, params=params,
+                                    timeout=timeout, verify=verify)
+        except Exception as exc:
+            box["e"] = exc
+
+    t = _th.Thread(target=_do, daemon=True)
+    t.start()
+    t.join(timeout=wall_seconds)
+    if t.is_alive():
+        raise TimeoutError(f"request exceeded {wall_seconds}s wall clock "
+                           f"(server stalling mid-response)")
+    if "e" in box:
+        raise box["e"]
+    return box["r"]
+
+
+def nw_fetch_incidents(
+    limit: int | None = None, since: str | None = None,
+    deadline_seconds: int | None = None,
+) -> tuple[bool, list, str]:
     """
     Returns (ok, items, diagnostic_message).
     ok=True even if items is empty (empty just means no incidents in NW right now).
     ok=False means a real error occurred (auth, network, etc).
+
+    limit=None (default) means load every incident the API has — pagination
+    keeps going until the API reports hasNext=False. MAX_PAGES is a safety
+    valve, not a real-world cap, in case an API bug ever returns hasNext=True
+    forever.
+
+    since=None (default) means a full fetch — every incident NetWitness has.
+    Pass an ISO8601 cutoff (see incremental_since()) to ask NetWitness for
+    only incidents created/updated after that point — used by the periodic
+    auto-refresh so it isn't re-fetching + re-enriching the entire incident
+    history (and every incident's full alert history) every 30s.
     """
     if not st.session_state.nw_verified or not st.session_state.nw_token:
         return False, [], "Not authenticated."
     host = st.session_state.nw_host.rstrip("/")
+    headers = nw_headers()
     all_items = []
     page = 0
     diag = ""
+    MAX_PAGES = 1000   # 1000 * pageSize(100) = 100,000 incidents ceiling
+    # Wall-clock budget: a stalling NetWitness (slow pages, dribbling
+    # responses) must yield PARTIAL results with an honest diagnostic —
+    # never an unbounded hang. None -> env NW_FETCH_DEADLINE (default 600s).
+    if deadline_seconds is None:
+        try:
+            deadline_seconds = int(os.environ.get("NW_FETCH_DEADLINE", "600"))
+        except ValueError:
+            deadline_seconds = 600
+    _deadline = time.monotonic() + max(30, deadline_seconds)
+    # Include a wide date range by default — some NW versions return 400 without it
+    since = since or "2020-01-01T00:00:00.000Z"
     try:
         while True:
-            r = requests.get(
-                f"{host}/rest/api/incidents",
-                headers=nw_headers(),
-                params={"pageSize": 100, "pageNumber": page},
-                timeout=30,
-                verify=False,
-            )
+            if time.monotonic() > _deadline:
+                diag = (f"Fetch deadline ({deadline_seconds}s) reached at "
+                        f"page {page} — returning {len(all_items)} incident(s) "
+                        f"fetched so far. NetWitness is responding slowly.")
+                return True, all_items, diag
+            try:
+                r = _bounded_get(
+                    nw_incidents_url(host),
+                    headers=nw_headers(),
+                    params={"pageSize": 100, "pageNumber": page, "since": since},
+                    timeout=30,
+                    wall_seconds=60,
+                    verify=False,
+                )
+            except TimeoutError:
+                diag = (f"NetWitness stalled mid-response on page {page} — "
+                        f"returning {len(all_items)} incident(s) fetched so far.")
+                return True, all_items, diag
             if r.status_code == 200:
                 data      = r.json()
                 items     = data.get("items", [])
                 total_api = data.get("totalItems", "?")
                 all_items.extend(items)
                 has_next  = data.get("hasNext", False)
-                if not has_next or len(all_items) >= limit:
+                reached_limit = limit is not None and len(all_items) >= limit
+                if not has_next or reached_limit or page >= MAX_PAGES:
                     diag = (
                         f"API reports {total_api} total incident(s) — "
                         f"fetched {len(all_items)} across {page+1} page(s)."
@@ -490,6 +1152,71 @@ def nw_fetch_incidents(limit: int = 500) -> tuple[bool, list, str]:
                 )
             else:
                 return False, [], f"HTTP {r.status_code}: {r.text[:200]}"
+        # Fetch associated alerts/logs for each incident — in parallel.
+        # This used to be a serial for-loop doing one blocking request per
+        # incident (up to 15s timeout each), so on a list of N incidents the
+        # whole fetch took N * request-time. Since this runs on every
+        # auto-refresh and on every rerun after one is due (sending a chat
+        # message, uploading a file — any Streamlit interaction reruns the
+        # whole script), that serial loop is what made the entire UI look
+        # frozen. Fetching concurrently bounds the wall-clock time to
+        # roughly one request instead of N.
+        clean_path = st.session_state.get("nw_incidents_path", "/rest/api/incidents").strip()
+        if clean_path.endswith("/list"):
+            clean_path = clean_path[:-5]
+
+        def _fetch_alerts(inc: dict) -> None:
+            inc_id = str(inc.get("id") or inc.get("incidentId") or "").strip()
+            if not inc_id:
+                inc["alerts"] = []
+                return
+            alerts_url = f"{host.rstrip('/')}{clean_path}/{inc_id}/alerts"
+            # Paginate fully — this used to fetch only pageNumber=0, so any
+            # incident with more than 100 alerts silently lost the rest.
+            collected: list = []
+            a_page = 0
+            try:
+                while a_page < MAX_PAGES:
+                    if time.monotonic() > _deadline:
+                        inc["alerts_fetch_error"] = "fetch deadline reached"
+                        break
+                    r_alerts = _bounded_get(
+                        alerts_url,
+                        headers=headers,
+                        params={"pageSize": 100, "pageNumber": a_page},
+                        timeout=10,
+                        wall_seconds=20,
+                        verify=False,
+                    )
+                    if r_alerts.status_code != 200:
+                        # Remember why alerts are missing — the triage/
+                        # investigation handoff surfaces this instead of
+                        # silently passing an incident with no event data.
+                        inc["alerts_fetch_error"] = f"HTTP {r_alerts.status_code}"
+                        break
+                    a_data = r_alerts.json()
+                    collected.extend(a_data.get("items", []))
+                    if not a_data.get("hasNext", False):
+                        break
+                    a_page += 1
+            except Exception as _exc:
+                inc["alerts_fetch_error"] = str(_exc)[:120]
+            # Tag every alert with its parent incident ID so alerts are
+            # traceable back to the incident they came from.
+            for a in collected:
+                a["incident_id"] = inc_id
+            inc["alerts"] = collected
+
+        if all_items:
+            if time.monotonic() > _deadline:
+                diag += " Alert enrichment skipped (fetch deadline reached)."
+                for inc in all_items:
+                    inc.setdefault("alerts", [])
+                    inc["alerts_fetch_error"] = "fetch deadline reached"
+            else:
+                with ThreadPoolExecutor(max_workers=min(16, len(all_items))) as pool:
+                    list(pool.map(_fetch_alerts, all_items))
+
         return True, all_items, diag
     except requests.exceptions.Timeout:
         return False, [], "Request timed out — check VPN/network."
@@ -502,16 +1229,30 @@ def nw_fetch_incidents(limit: int = 500) -> tuple[bool, list, str]:
 import sqlite3
 import json as _json
 
-DB_FILE = Path(__file__).parent / "soc_incidents.db"
+# All SQLite databases now live in soc_db/ (moved 2026-07-09)
+SOC_DB_DIR = Path(__file__).parent / "soc_db"
+SOC_DB_DIR.mkdir(parents=True, exist_ok=True)
+DB_FILE = SOC_DB_DIR / "soc_incidents.db"
 
 def db_connect() -> sqlite3.Connection:
-    con = sqlite3.connect(str(DB_FILE), check_same_thread=False)
+    # timeout: concurrent writers (background fetch thread, workflow worker,
+    # a second app instance) WAIT for the lock instead of crashing with
+    # "database is locked" — which took the whole app down at db_init.
+    con = sqlite3.connect(str(DB_FILE), check_same_thread=False, timeout=30)
     con.row_factory = sqlite3.Row
     return con
 
 def db_init() -> None:
     """Create tables if they don't exist yet."""
     with db_connect() as con:
+        # WAL: readers never block the writer and vice-versa — essential now
+        # that fetch threads, the workflow worker, and the UI all share these
+        # files. Persistent per-database setting; safe to re-issue.
+        try:
+            con.execute("PRAGMA journal_mode=WAL")
+            con.execute("PRAGMA synchronous=NORMAL")
+        except Exception:
+            pass
         con.execute("""
             CREATE TABLE IF NOT EXISTS incidents (
                 id          TEXT PRIMARY KEY,
@@ -559,8 +1300,14 @@ def db_upsert_incidents(incidents: list) -> int:
         ))
     if not rows:
         return 0
+    # Chunked commits: one giant transaction over 50k+ rows held the write
+    # lock for the whole upsert (the 2.4 GB DB made that minutes) — any
+    # other connection in that window died with "database is locked".
+    CHUNK = 2000
     with db_connect() as con:
-        con.executemany("""
+        for _i in range(0, len(rows), CHUNK):
+            _chunk = rows[_i:_i + CHUNK]
+            con.executemany("""
             INSERT INTO incidents
                 (id, title, severity, status, assignee, alert_count,
                  created, updated, raw_json, first_seen, last_seen)
@@ -574,7 +1321,8 @@ def db_upsert_incidents(incidents: list) -> int:
                 updated     = excluded.updated,
                 raw_json    = excluded.raw_json,
                 last_seen   = excluded.last_seen
-        """, rows)
+            """, _chunk)
+            con.commit()   # release the write lock between chunks
         con.execute(
             "INSERT INTO fetch_log (fetched_at, count) VALUES (?,?)",
             (now, len(rows)),
@@ -656,43 +1404,59 @@ PIPELINE_STAGES = [
     "alerts_to_triage",
     "post_triage_investigate",
     "post_triage_no_investigate",
+    "post_investigation",
     "initial_ticket",
     "pending_ticket_report",
     "finalized_report",
+    "workflow_runs",
 ]
 PIPELINE_LABELS = {
     "alerts_to_triage":           "Alerts to Triage",
     "post_triage_investigate":    "Post-Triage · Needs Investigation",
     "post_triage_no_investigate": "Post-Triage · No Investigation Needed",
+    "post_investigation":         "Post-Investigation · Findings",
     "initial_ticket":             "Initial Ticket Generation",
     "pending_ticket_report":      "Pending Ticket / Report Generation",
     "finalized_report":           "Finalized Report",
+    "workflow_runs":              "Workflow Runs (Audit)",
 }
 PIPELINE_ICONS = {
     "alerts_to_triage":           "🚨",
     "post_triage_investigate":    "🔍",
     "post_triage_no_investigate": "✅",
+    "post_investigation":         "🕵️",
     "initial_ticket":             "🎫",
     "pending_ticket_report":      "⏳",
     "finalized_report":           "📄",
+    "workflow_runs":              "🧾",
 }
 PIPELINE_COLORS = {
     "alerts_to_triage":           "#FF3B3B",
     "post_triage_investigate":    "#FF7700",
     "post_triage_no_investigate": "#0AF0A0",
+    "post_investigation":         "#2DD4BF",
     "initial_ticket":             "#00D4FF",
     "pending_ticket_report":      "#FFB700",
     "finalized_report":           "#A78BFA",
+    "workflow_runs":              "#8B9DC3",
 }
-PIPELINE_DB_FILE = Path(__file__).parent / "soc_pipeline.db"
+PIPELINE_DB_FILE = SOC_DB_DIR / "soc_pipeline.db"
 
 def _pl_con():
-    con = sqlite3.connect(str(PIPELINE_DB_FILE), check_same_thread=False)
+    # Busy-timeout so UI reads and the background worker's writes never
+    # collide into silent 'database is locked' failures.
+    con = sqlite3.connect(str(PIPELINE_DB_FILE), check_same_thread=False,
+                          timeout=15)
     con.row_factory = sqlite3.Row
     return con
 
 def pipeline_db_init():
     with _pl_con() as c:
+        try:
+            c.execute("PRAGMA journal_mode=WAL")
+            c.execute("PRAGMA synchronous=NORMAL")
+        except Exception:
+            pass
         for s in PIPELINE_STAGES:
             c.execute(f"""CREATE TABLE IF NOT EXISTS {s} (
                 id TEXT PRIMARY KEY, incident_id TEXT, title TEXT,
@@ -723,6 +1487,25 @@ def pipeline_insert(stage, record):
     now = datetime.now().isoformat(timespec="seconds")
     try:
         with _pl_con() as c:
+            # Same-id inserts REPLACE the row (re-running the same incident
+            # reuses its ticket ids), which used to look like "nothing
+            # happened". Track a run counter and stamp the summary so a
+            # refreshed record is unmistakably new.
+            runs = 1
+            prev = None
+            try:
+                prev = c.execute(f"SELECT raw_json FROM {stage} WHERE id=?",
+                                 (rec_id,)).fetchone()
+                if prev:
+                    runs = int((_json.loads(prev[0] or "{}"))
+                               .get("workflow_runs_count") or 1) + 1
+            except Exception:
+                runs = 2 if prev else 1
+            record = dict(record)
+            record["workflow_runs_count"] = runs
+            summary = str(record.get("summary") or record.get("description") or "")
+            if runs > 1:
+                summary = f"[run {runs} · {now[11:19]}] {summary}"
             c.execute(
                 f"INSERT OR REPLACE INTO {stage} "
                 "(id,incident_id,title,severity,stage,created_at,summary,raw_json) "
@@ -732,12 +1515,23 @@ def pipeline_insert(stage, record):
                  str(record.get("title") or record.get("name") or ""),
                  str(record.get("severity") or record.get("classification") or ""),
                  stage, now,
-                 str(record.get("summary") or record.get("description") or "")[:500],
+                 summary[:500],
                  _json.dumps(record)))
             c.commit()
     except Exception:
         pass
     return rec_id
+
+
+def pipeline_last_write(stage):
+    """Most recent created_at in a stage — shown on the stage card so it's
+    obvious when the stage last changed (counts alone hide REPLACEs)."""
+    try:
+        with _pl_con() as c:
+            v = c.execute(f"SELECT MAX(created_at) FROM {stage}").fetchone()[0]
+        return str(v)[5:16].replace("T", " ") if v else "—"
+    except Exception:
+        return "—"
 
 def _pl_chroma_col(stage):
     if not CHROMA_OK or not st.session_state.get("chroma_client"):
@@ -992,36 +1786,128 @@ if not st.session_state.incidents:
             _json.loads(r["raw_json"]) for r in _db_rows if r.get("raw_json")
         ]
 
-# Step 2 — silently auto-verify & auto-fetch if .env has credentials
-# This runs once per session (tracked by _startup_done flag)
+# Step 2 — silently auto-verify & auto-fetch if .env has credentials.
+# Runs once per session (tracked by _startup_done flag) in a BACKGROUND
+# thread with a soft wait: a slow or wedged NetWitness (mid-response
+# stalls evade per-request timeouts) previously hung every page load
+# forever, before a single element rendered. The UI now renders from the
+# SQLite cache immediately; live data is adopted whenever the fetch lands.
 if not st.session_state._startup_done and _env["host"] and _env["username"] and _env["password"]:
+    st.session_state._startup_done = True
     st.session_state.nw_host     = _env["host"]
     st.session_state.nw_username = _env["username"]
     st.session_state.nw_password = _env["password"]
-    ok, msg, token = nw_login(_env["host"], _env["username"], _env["password"])
-    if ok:
-        st.session_state.nw_token    = token
-        st.session_state.nw_verified = True
-        st.session_state.nw_msg      = msg
-        ok2, items, _diag = nw_fetch_incidents()
-        if ok2:
-            st.session_state.incidents  = items
-            st.session_state.last_fetch = datetime.now()
-            db_upsert_incidents(items)
-    else:
-        st.session_state.nw_msg = msg
-    st.session_state._startup_done = True
+
+    st.session_state._startup_fetching = True
+
+    def _startup_login_and_fetch() -> None:
+        try:
+            ok, msg, token = nw_login(_env["host"], _env["username"],
+                                      _env["password"])
+            if not ok:
+                st.session_state.nw_msg = msg
+                return
+            st.session_state.nw_token    = token
+            st.session_state.nw_verified = True
+            st.session_state.nw_msg      = msg
+            ok2, items, _diag = nw_fetch_incidents(
+                deadline_seconds=int(os.environ.get("NW_FETCH_DEADLINE", "300")))
+            if ok2 and items:
+                st.session_state.incidents       = items
+                st.session_state.last_fetch      = datetime.now()
+                st.session_state.last_full_fetch = datetime.now()
+                st.session_state.last_fetch_mode = "full"
+                db_upsert_incidents(items)
+        except Exception as _exc:
+            try:
+                st.session_state.nw_msg = f"Startup fetch failed: {_exc}"
+            except Exception:
+                pass
+        finally:
+            try:
+                st.session_state._startup_fetching = False
+            except Exception:
+                pass
+
+    import threading as _threading
+    from streamlit.runtime.scriptrunner import add_script_run_ctx
+    _t = _threading.Thread(target=_startup_login_and_fetch, daemon=True)
+    add_script_run_ctx(_t)   # lets the thread read/write this session's state
+    _t.start()
+    # Soft wait: if NetWitness answers quickly, first render has live data;
+    # if it's slow or wedged, render proceeds on cached incidents and the
+    # thread adopts results whenever (if ever) the fetch completes.
+    _t.join(timeout=int(os.environ.get("NW_STARTUP_WAIT", "20")))
+    if _t.is_alive():
+        st.session_state.nw_msg = ("NetWitness is responding slowly — "
+                                   "showing cached incidents; live data "
+                                   "will appear when the fetch completes.")
+
+def incremental_since(last_fetch: datetime) -> str:
+    """
+    ISO8601 cutoff for an incremental refresh — everything since the last
+    successful fetch, minus a 5-minute overlap to tolerate clock skew and
+    NetWitness indexing lag. Incidents re-fetched inside that overlap just
+    get upserted again by id — harmless, not duplicated.
+    """
+    cutoff = last_fetch - INCREMENTAL_OVERLAP
+    return cutoff.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+
+def _merge_incidents(cached: list, fresh: list) -> list:
+    """
+    Upsert `fresh` incidents into `cached` by id, keeping everything else
+    untouched. Used for incremental refreshes, where `fresh` is only the
+    new/updated subset NetWitness returned for the `since` window — not
+    the full incident set, so a plain replace would drop everything older.
+    """
+    by_id = {
+        str(inc.get("id") or inc.get("incidentId") or f"_unkeyed_{i}"): inc
+        for i, inc in enumerate(cached)
+    }
+    for inc in fresh:
+        key = str(inc.get("id") or inc.get("incidentId") or "").strip()
+        if key:
+            by_id[key] = inc
+    return list(by_id.values())
+
 
 def maybe_auto_fetch():
     if not st.session_state.nw_verified:
         return
+    # Don't stack a second fetch on top of the startup background fetch.
+    if st.session_state.get("_startup_fetching"):
+        return
     now  = datetime.now()
     last = st.session_state.last_fetch
     if last is None or (now - last).total_seconds() >= REFRESH_INTERVAL:
-        ok, items, _diag = nw_fetch_incidents()
+        # We don't actually know whether NetWitness's `since` filter matches
+        # on incident creation time or last-updated time — the API isn't
+        # documented clearly enough to bet on it. If it's creation-time only,
+        # a purely incremental refresh would silently miss status/alert
+        # changes on older incidents. So: incremental fetches most cycles
+        # (cheap — only new/updated incidents come back), but force a full
+        # ground-truth resync every FULL_RESYNC_INTERVAL regardless, which
+        # caps how stale the cache can ever get at a known worst case.
+        last_full  = st.session_state.last_full_fetch
+        needs_full = last_full is None or (now - last_full) >= FULL_RESYNC_INTERVAL
+        since = None if needs_full else incremental_since(last)
+
+        # Auto-refresh runs INSIDE the page render — keep its budget tight so
+        # a slow/wedged NetWitness degrades to "stale data + warning" instead
+        # of freezing the UI. (Manual refresh buttons keep the larger default.)
+        _budget = 45 if since is not None else 120
+        ok, items, _diag = nw_fetch_incidents(since=since,
+                                              deadline_seconds=_budget)
         if ok:
-            st.session_state.incidents  = items
-            st.session_state.last_fetch = now
+            st.session_state.incidents = (
+                items if since is None
+                else _merge_incidents(st.session_state.incidents, items)
+            )
+            st.session_state.last_fetch      = now
+            st.session_state.last_fetch_mode = "full" if since is None else "incremental"
+            if since is None:
+                st.session_state.last_full_fetch = now
             db_upsert_incidents(items)   # ← persist every fetch to SQLite
 
 def chroma_connect(path: str = "./chroma_db") -> tuple[bool, str]:
@@ -1102,10 +1988,10 @@ maybe_auto_fetch()
 with st.sidebar:
 
     st.markdown(
-        '<div style="font-family:var(--mono);font-size:1.05rem;color:var(--accent);'
-        'letter-spacing:3px;padding:2px 0">🛡️ SOC PLATFORM</div>'
-        '<div style="font-family:var(--mono);font-size:0.55rem;color:var(--muted);'
-        'letter-spacing:2px;margin-bottom:4px">SECURITY OPERATIONS CENTER</div>',
+        '<div class="app-logo">'
+        '<div class="name">🛡️ Security Dashboard</div>'
+        '<div class="sub">Powered by NetWitness</div>'
+        '</div>',
         unsafe_allow_html=True,
     )
     st.markdown("---")
@@ -1132,13 +2018,16 @@ with st.sidebar:
             f'<div style="background:#040C14;border:1px solid #0E2030;'
             f'border-radius:7px;padding:11px 13px">'
             f'<div style="font-family:var(--mono);font-size:0.68rem">'
-            f'<span class="dot dot-green"></span>CONNECTED</div>'
+            f'<span class="dot dot-green"></span>Connected ✓</div>'
             f'<div style="margin-top:4px">{_gp_status}</div>'
             f'<div style="font-family:var(--mono);font-size:0.58rem;'
             f'color:var(--muted);margin-top:3px">{st.session_state.nw_msg}</div>'
             f'<div style="font-family:var(--mono);font-size:0.56rem;'
             f'color:#1A4A62;margin-top:6px">'
             f'Synced {last_str} &nbsp;·&nbsp; refresh in {remaining}s</div>'
+            f'<div style="font-family:var(--mono);font-size:0.55rem;'
+            f'color:#2A5A78;margin-top:4px">'
+            f'📡 {st.session_state.nw_incidents_path} · {st.session_state.nw_auth_style}</div>'
             f'<div style="background:#060E1A;border-radius:2px;height:3px;'
             f'width:100%;margin-top:7px;overflow:hidden">'
             f'<div style="width:{pct*100:.0f}%;height:100%;border-radius:2px;'
@@ -1150,14 +2039,14 @@ with st.sidebar:
         st.markdown(
             '<div style="background:#0A0608;border:1px solid #2A1010;'
             'border-radius:7px;padding:11px 13px;font-family:var(--mono);font-size:0.68rem">'
-            '<span class="dot dot-red"></span>NOT CONNECTED<br>'
+            '<span class="dot dot-red"></span>Not Connected<br>'
             '<span style="font-size:0.57rem;color:var(--muted)">'
-            'Enter credentials below</span></div>',
+            'Please enter your login details below</span></div>',
             unsafe_allow_html=True,
         )
 
     # ── NetWitness credentials ─────────────────────────────────
-    st.markdown('<div class="sec-label">■ NETWITNESS</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec-label">🔌  Connection</div>', unsafe_allow_html=True)
 
     # If already auto-connected from .env, show a clean status + update option
     if st.session_state.nw_verified and _env["username"]:
@@ -1237,6 +2126,16 @@ with st.sidebar:
                 )
                 st.rerun()
     else:
+        # Show last login error if there is one
+        _last_err = st.session_state.get("nw_msg", "")
+        if _last_err and not st.session_state.nw_verified:
+            st.markdown(
+                f'<div style="background:#1A0505;border:1px solid #5A1010;border-radius:5px;'
+                f'padding:8px 11px;font-family:var(--mono);font-size:0.6rem;'
+                f'color:#FF6B6B;margin-bottom:8px">'
+                f'❌ Last error: {_last_err}</div>',
+                unsafe_allow_html=True,
+            )
         if DOTENV_OK and not _env["username"]:
             st.markdown(
                 '<div style="background:#0A0800;border:1px solid #3A3000;border-radius:5px;'
@@ -1357,8 +2256,75 @@ with st.sidebar:
             )
             st.rerun()
 
+    # ── TLS Certificate (Option B — verified HTTPS) ─────────────
+    st.markdown('<div class="sec-label">🔒  Security Certificate</div>', unsafe_allow_html=True)
+
+    # Auto-clear bad cert if last message was an SSL error
+    _last_msg = st.session_state.get("nw_msg", "")
+    if "SSL error" in _last_msg and st.session_state.get("nw_cert_path", ""):
+        st.warning(
+            f"⚠️ The uploaded cert caused an SSL error — it has been removed. "
+            f"Revert to browser export or try again.\n\n`{_last_msg}`"
+        )
+        st.session_state.nw_cert_path = ""
+
+    _cert_active = st.session_state.get("nw_cert_path", "").strip()
+    _cert_valid  = bool(_cert_active) and Path(_cert_active).is_file()
+
+    if _cert_valid:
+        st.markdown(
+            f'<div style="font-family:var(--mono);font-size:0.62rem;color:var(--green);'
+            f'margin-bottom:6px"><span class="dot dot-green"></span>'
+            f'Verifying against: {Path(_cert_active).name}</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div style="font-family:var(--mono);font-size:0.62rem;color:var(--warn);'
+            'margin-bottom:6px"><span class="dot dot-yellow"></span>'
+            'No cert configured — TLS verification skipped (insecure)</div>',
+            unsafe_allow_html=True,
+        )
+
+    cert_upload = st.file_uploader(
+        "Upload server/CA certificate (.pem / .crt)",
+        type=["pem", "crt", "cer"],
+        key="cert_uploader",
+        label_visibility="collapsed",
+    )
+    if cert_upload is not None:
+        certs_dir = Path(__file__).parent / "certs"
+        certs_dir.mkdir(exist_ok=True)
+        cert_dest = certs_dir / cert_upload.name
+        cert_dest.write_bytes(cert_upload.getvalue())
+        st.session_state.nw_cert_path = str(cert_dest)
+        nw_cert_env_save(str(cert_dest))
+        st.success(f"✅ Saved {cert_upload.name} — re-login to apply verified TLS")
+        st.rerun()
+
+    cert_path_in = st.text_input(
+        "…or enter an existing cert path",
+        value=st.session_state.get("nw_cert_path", ""),
+        placeholder="/path/to/netwitness-ca.pem",
+        key="cert_path_text",
+    )
+    ccert1, ccert2 = st.columns(2)
+    if ccert1.button("💾 Use this path", use_container_width=True):
+        if cert_path_in.strip() and Path(cert_path_in.strip()).is_file():
+            st.session_state.nw_cert_path = cert_path_in.strip()
+            nw_cert_env_save(cert_path_in.strip())
+            st.success("✅ Cert path set — re-login to apply")
+        else:
+            st.error("File not found at that path.")
+        st.rerun()
+    if ccert2.button("✕ Remove cert", use_container_width=True):
+        st.session_state.nw_cert_path = ""
+        nw_cert_env_clear()
+        st.info("Reverted to verify=False (insecure)")
+        st.rerun()
+
     # ── Foundation LLM (HuggingFace) ──────────────────────────
-    st.markdown('<div class="sec-label">■ FOUNDATION LLM</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec-label">🤖  AI Settings</div>', unsafe_allow_html=True)
 
     # Connection status indicator
     if st.session_state.cisco_connected:
@@ -1447,7 +2413,7 @@ with st.sidebar:
         st.rerun()
 
     # ── ChromaDB ───────────────────────────────────────────────
-    st.markdown('<div class="sec-label">■ CHROMADB</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec-label">🧠  Knowledge Base</div>', unsafe_allow_html=True)
 
     chroma_path = st.text_input("Persist path", value="./chroma_db")
     cc1, cc2 = st.columns(2)
@@ -1528,14 +2494,64 @@ st.markdown("---")
 # ══════════════════════════════════════════════════════════════════════════════
 # TABS
 # ══════════════════════════════════════════════════════════════════════════════
+_connected = st.session_state.nw_verified
+_inc_count = len(incidents)
+st.markdown(
+    f'<div style="display:flex;align-items:center;justify-content:space-between;'
+    f'padding:10px 0 16px">'
+    f'<div>'
+    f'<div style="font-size:1.3rem;font-weight:700;color:var(--accent)">🛡️ Security Dashboard</div>'
+    f'<div style="font-size:0.8rem;color:var(--muted);margin-top:2px">'
+    f'{"✅ Connected — " + str(_inc_count) + " alerts loaded" if _connected else "⚠️ Not connected — please log in using the left panel"}'
+    f'</div></div>'
+    f'<div style="font-size:0.72rem;color:var(--muted);text-align:right">'
+    f'{datetime.now().strftime("%A, %d %B %Y")}</div>'
+    f'</div>',
+    unsafe_allow_html=True,
+)
+
 tab_dash, tab_inc, tab_chat, tab_chroma, tab_log, tab_pipeline = st.tabs([
-    "📊  DASHBOARD",
-    "📋  INCIDENTS",
-    "💬  CHAT",
-    "🗄️  CHROMADB",
-    "📁  LOG HISTORY",
-    "🔁  PIPELINE DB",
+    "📊  Overview",
+    "🚨  Security Alerts",
+    "💬  Ask a Question",
+    "🧠  Knowledge Base",
+    "📁  History",
+    "🔁  Data Pipeline",
 ])
+
+# Streamlit's st.tabs has no server-side "set active tab" API — the click
+# from the "🩺 Triage" button is simulated client-side by finding the tab
+# button whose label contains "Ask a Question" and clicking it. One-shot:
+# the flag is cleared immediately so this doesn't refire on later reruns.
+if st.session_state.jump_to_ask_tab:
+    st.session_state.jump_to_ask_tab = False
+    components.html(
+        """
+        <script>
+        (function() {
+            function clickAskTab() {
+                const doc = window.parent.document;
+                const tabs = doc.querySelectorAll('button[role="tab"], [data-baseweb="tab"]');
+                for (const t of tabs) {
+                    if (t.innerText && t.innerText.includes("Ask a Question")) {
+                        t.click();
+                        return true;
+                    }
+                }
+                return false;
+            }
+            let attempts = 0;
+            const timer = setInterval(() => {
+                attempts++;
+                if (clickAskTab() || attempts > 20) {
+                    clearInterval(timer);
+                }
+            }, 100);
+        })();
+        </script>
+        """,
+        height=0,
+    )
 
 SEV_COLORS = {
     "CRITICAL": "#FF3B3B",
@@ -1560,8 +2576,11 @@ with tab_dash:
     # ── Live diagnostic banner ─────────────────────────────────
     if st.session_state.nw_verified:
         _last = st.session_state.last_fetch
+        _mode = st.session_state.last_fetch_mode
+        _mode_str = {"full": "🌐 full", "incremental": "⚡ incremental"}.get(_mode, "—")
         _diag_str = (
-            f"🕐 Last fetch: {_last.strftime('%H:%M:%S') if _last else 'never'} · "
+            f"🕐 Last fetch: {_last.strftime('%H:%M:%S') if _last else 'never'} "
+            f"({_mode_str}) · "
             f"Incidents in session: {len(incidents)} · "
             f"Host: {st.session_state.nw_host}"
         )
@@ -1573,11 +2592,13 @@ with tab_dash:
             unsafe_allow_html=True,
         )
         rc1, rc2 = st.columns([1, 4])
-        if rc1.button("🔄 Force Refresh", use_container_width=True):
+        if rc1.button("🔄 Refresh Data", use_container_width=True, help="Forces a full resync, not incremental"):
             ok_r, items_r, diag_r = nw_fetch_incidents()
             if ok_r:
-                st.session_state.incidents  = items_r
-                st.session_state.last_fetch = datetime.now()
+                st.session_state.incidents       = items_r
+                st.session_state.last_fetch      = datetime.now()
+                st.session_state.last_full_fetch = datetime.now()
+                st.session_state.last_fetch_mode = "full"
                 db_upsert_incidents(items_r)
                 st.success(f"✅ {diag_r}")
             else:
@@ -1587,20 +2608,173 @@ with tab_dash:
     if not incidents:
         if st.session_state.nw_verified:
             st.warning(
-                "✅ Connected but **no incidents returned** by NetWitness. "
-                "This is normal if there are genuinely no incidents, or if the account "
-                "lacks the `integration-server.api.access` permission. "
-                "Check NW Admin → Security → Roles → Administrators."
+                "✅ Connected successfully, but there are **no security alerts** to show right now. "
+                "This is normal if everything is quiet. If you expected to see data, please "
+                "contact your IT administrator to check your account permissions."
             )
         else:
+            # ── Connection Test Panel ──────────────────────────
             st.markdown(
-                '<div style="text-align:center;padding:80px;font-family:var(--mono);'
-                'font-size:0.8rem;color:var(--muted)">'
-                '● AWAITING DATA<br>'
-                '<span style="font-size:0.65rem">'
-                'Verify token — incidents load automatically</span></div>',
+                '<div style="font-family:var(--mono);font-size:0.65rem;'
+                'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
+                '🔧  Getting Started — Connection Setup</div>',
                 unsafe_allow_html=True,
             )
+            st.markdown(
+                '<div style="font-family:var(--sans);font-size:0.78rem;'
+                'color:var(--muted);margin-bottom:14px">'
+                "Let's get you connected. Follow the steps below.</div>",
+                unsafe_allow_html=True,
+            )
+
+            host  = st.session_state.nw_host.strip()
+            token = st.session_state.nw_token.strip()
+
+            # ── Step 1: Check host is set ──────────────────────
+            s1_ok = bool(host)
+            st.markdown(
+                f'<div style="display:flex;align-items:center;gap:10px;'
+                f'font-family:var(--mono);font-size:0.65rem;'
+                f'padding:8px 12px;margin-bottom:6px;border-radius:4px;'
+                f'background:{"#041A0A" if s1_ok else "#1A0505"};'
+                f'border-left:3px solid {"#00E676" if s1_ok else "#FF5252"}">'
+                f'{"✅" if s1_ok else "❌"} '
+                f'<strong>Step 1 — Server Address</strong> &nbsp;'
+                f'<span style="color:var(--muted)">'
+                f'{"Set to: " + host if s1_ok else "Not set — enter https://192.168.x.x in the sidebar"}'
+                f'</span></div>',
+                unsafe_allow_html=True,
+            )
+
+            # ── Step 2: Check token is set ─────────────────────
+            s2_ok = bool(token)
+            token_preview = (token[:12] + "…" + token[-6:]) if len(token) > 20 else token
+            st.markdown(
+                f'<div style="display:flex;align-items:center;gap:10px;'
+                f'font-family:var(--mono);font-size:0.65rem;'
+                f'padding:8px 12px;margin-bottom:6px;border-radius:4px;'
+                f'background:{"#041A0A" if s2_ok else "#1A0505"};'
+                f'border-left:3px solid {"#00E676" if s2_ok else "#FF5252"}">'
+                f'{"✅" if s2_ok else "❌"} '
+                f'<strong>Step 2 — Login Session</strong> &nbsp;'
+                f'<span style="color:var(--muted)">'
+                f'{"Token present: " + token_preview if s2_ok else "No token — login with credentials in the sidebar"}'
+                f'</span></div>',
+                unsafe_allow_html=True,
+            )
+
+            # ── Step 3: Live connectivity test ─────────────────
+            st.markdown(
+                '<div style="font-family:var(--mono);font-size:0.62rem;'
+                'color:var(--muted);margin:10px 0 6px">Step 3 — Live Tests</div>',
+                unsafe_allow_html=True,
+            )
+            t3a, t3b, t3c = st.columns(3)
+
+            # Test A: Can we reach the host at all?
+            if t3a.button("🌐 Check Network", use_container_width=True,
+                          disabled=not s1_ok, key="ping_host"):
+                with st.spinner("Reaching host…"):
+                    try:
+                        r = requests.get(host, timeout=8, verify=False)
+                        st.session_state["_test_ping"] = (True, f"HTTP {r.status_code} — host reachable")
+                    except requests.exceptions.ConnectionError:
+                        st.session_state["_test_ping"] = (False, "Connection refused — check VPN/host")
+                    except requests.exceptions.Timeout:
+                        st.session_state["_test_ping"] = (False, "Timed out — check VPN")
+                    except Exception as e:
+                        st.session_state["_test_ping"] = (False, str(e)[:100])
+
+            # Test B: Does the auth endpoint respond?
+            if t3b.button("🔑 Check Login Page", use_container_width=True,
+                          disabled=not s1_ok, key="test_auth"):
+                with st.spinner("Testing auth endpoint…"):
+                    try:
+                        r = requests.post(
+                            f"{host.rstrip('/')}/rest/api/auth/userpass",
+                            data={"username": "test", "password": "test"},
+                            headers={"Content-Type": "application/x-www-form-urlencoded"},
+                            timeout=8, verify=False,
+                        )
+                        if r.status_code == 200:
+                            st.session_state["_test_auth"] = (True, "Auth endpoint OK — credentials accepted")
+                        elif r.status_code in (401, 403):
+                            st.session_state["_test_auth"] = (True, f"Auth endpoint reachable (HTTP {r.status_code} — wrong test creds, expected)")
+                        else:
+                            st.session_state["_test_auth"] = (False, f"Unexpected HTTP {r.status_code}: {r.text[:80]}")
+                    except Exception as e:
+                        st.session_state["_test_auth"] = (False, str(e)[:100])
+
+            # Test C: Does the incidents endpoint respond with the current token?
+            if t3c.button("📋 Check Data Access", use_container_width=True,
+                          disabled=not (s1_ok and s2_ok), key="test_incidents"):
+                with st.spinner("Testing incidents endpoint…"):
+                    try:
+                        r = requests.get(
+                            nw_incidents_url(host),
+                            headers=nw_headers(),
+                            params={"pageSize": 1, "pageNumber": 0},
+                            timeout=10, verify=False,
+                        )
+                        body = r.text[:200]
+                        if r.status_code == 200:
+                            total = r.json().get("totalItems", "?")
+                            st.session_state["_test_inc"] = (True, f"✅ HTTP 200 — {total} incident(s) in NW")
+                        elif r.status_code == 401:
+                            st.session_state["_test_inc"] = (False, "401 Unauthorised — token expired, login again")
+                        elif r.status_code == 403:
+                            st.session_state["_test_inc"] = (False, "403 Forbidden — account needs 'integration-server.api.access' permission in NW Admin → Roles")
+                        elif r.status_code == 400:
+                            st.session_state["_test_inc"] = (False, f"400 Bad Request — {body}")
+                        else:
+                            st.session_state["_test_inc"] = (False, f"HTTP {r.status_code}: {body}")
+                    except Exception as e:
+                        st.session_state["_test_inc"] = (False, str(e)[:120])
+
+            # Show test results
+            for key, label in [("_test_ping","🌐 Ping"), ("_test_auth","🔑 Auth"), ("_test_inc","📋 Incidents")]:
+                result = st.session_state.get(key)
+                if result:
+                    ok, msg = result
+                    st.markdown(
+                        f'<div style="font-family:var(--mono);font-size:0.62rem;'
+                        f'padding:6px 12px;margin:3px 0;border-radius:4px;'
+                        f'background:{"#041A0A" if ok else "#1A0505"};'
+                        f'border-left:3px solid {"#00E676" if ok else "#FF5252"}">'
+                        f'{label}: {msg}</div>',
+                        unsafe_allow_html=True,
+                    )
+
+            # ── Step 4: One-click fix ──────────────────────────
+            st.markdown(
+                '<div style="font-family:var(--mono);font-size:0.62rem;'
+                'color:var(--muted);margin:12px 0 6px">Step 4 — Quick Fix</div>',
+                unsafe_allow_html=True,
+            )
+            fa, fb = st.columns(2)
+            if fa.button("🔌 Connect Automatically",
+                         use_container_width=True, key="quick_relogin",
+                         disabled=not (bool(_env.get("host")) and bool(_env.get("username")) and bool(_env.get("password")))):
+                with st.spinner("Logging in…"):
+                    ok, msg, tok = nw_login(_env["host"], _env["username"], _env["password"])
+                if ok:
+                    st.session_state.nw_token    = tok
+                    st.session_state.nw_verified = True
+                    st.session_state.nw_msg      = msg
+                    ok2, items2, diag2 = nw_fetch_incidents()
+                    if ok2:
+                        st.session_state.incidents  = items2
+                        st.session_state.last_fetch = datetime.now()
+                        db_upsert_incidents(items2)
+                    st.rerun()
+                else:
+                    st.error(f"❌ {msg}")
+
+            if fb.button("🗑️ Reset",
+                         use_container_width=True, key="clear_tests"):
+                for k in ["_test_ping", "_test_auth", "_test_inc"]:
+                    st.session_state.pop(k, None)
+                st.rerun()
     else:
         col_sev, col_status, col_recent = st.columns([1.1, 1.1, 2.2])
 
@@ -1609,10 +2783,10 @@ with tab_dash:
             st.markdown(
                 '<div style="font-family:var(--mono);font-size:0.65rem;'
                 'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
-                '■ SEVERITY</div>', unsafe_allow_html=True,
+                '🎯  Alert Priority Breakdown</div>', unsafe_allow_html=True,
             )
             sev_total = sum(by_sev.values()) or 1
-            for s in ["CRITICAL","HIGH","MEDIUM","LOW"]:
+            for s in ["CRITICAL","HIGH","MEDIUM","LOW"]:  # shown with friendly labels below
                 cnt   = by_sev.get(s, 0)
                 pct   = cnt / sev_total
                 color = SEV_COLORS[s]
@@ -1620,7 +2794,7 @@ with tab_dash:
                     f'<div style="margin:8px 0">'
                     f'<div style="display:flex;justify-content:space-between;'
                     f'font-family:var(--mono);font-size:0.63rem;margin-bottom:4px">'
-                    f'<span style="color:{color}">{s}</span>'
+                    f'<span style="color:{color}">{{"CRITICAL":"🔴 Critical","HIGH":"🟠 High","MEDIUM":"🟡 Medium","LOW":"🟢 Low"}}.get(s, s)</span>'
                     f'<span style="color:var(--muted)">{cnt}</span></div>'
                     f'<div style="background:#0A1420;border-radius:3px;height:7px">'
                     f'<div style="width:{pct*100:.1f}%;height:100%;border-radius:3px;'
@@ -1634,7 +2808,7 @@ with tab_dash:
             st.markdown(
                 '<div style="font-family:var(--mono);font-size:0.65rem;'
                 'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
-                '■ STATUS</div>', unsafe_allow_html=True,
+                '📌  Current Status</div>', unsafe_allow_html=True,
             )
             status_counts = Counter(
                 str(i.get("status") or "UNKNOWN").upper() for i in incidents
@@ -1661,7 +2835,7 @@ with tab_dash:
             st.markdown(
                 '<div style="font-family:var(--mono);font-size:0.65rem;'
                 'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
-                '■ LATEST INCIDENTS</div>', unsafe_allow_html=True,
+                '🕐  Most Recent Alerts</div>', unsafe_allow_html=True,
             )
             for inc in incidents[:10]:
                 sev     = normalise_sev(inc)
@@ -1687,7 +2861,7 @@ with tab_dash:
         st.markdown(
             '<div style="font-family:var(--mono);font-size:0.65rem;'
             'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
-            '■ WORKLOAD BY ASSIGNEE</div>', unsafe_allow_html=True,
+            '👤  Team Workload</div>', unsafe_allow_html=True,
         )
         assignee_counts = Counter(
             str(i.get("assignee") or "Unassigned") for i in incidents
@@ -1716,13 +2890,20 @@ with tab_dash:
 # TAB 2 — INCIDENTS
 # ─────────────────────────────────────────────────────────────
 with tab_inc:
+    st.markdown(
+        '<div class="info-box"><div class="title">🚨 Security Alerts</div>'
+        'This page lists all security incidents detected by NetWitness. '
+        'Use the filter below to focus on the most urgent alerts. '
+        'Click any alert to see full details.</div>',
+        unsafe_allow_html=True,
+    )
     col_filter, col_sync, col_info = st.columns([1.4, 1.2, 5])
 
     sev_filter = col_filter.selectbox(
-        "Filter", ["ALL","CRITICAL","HIGH","MEDIUM","LOW"],
-        label_visibility="collapsed",
+        "Filter by priority", ["ALL","CRITICAL","HIGH","MEDIUM","LOW"],
+        label_visibility="visible",
     )
-    if col_sync.button("⬆️ Sync ChromaDB", use_container_width=True):
+    if col_sync.button("⬆️ Sync to Knowledge Base", use_container_width=True):
         if not incidents:
             st.warning("No incidents loaded yet.")
         elif st.session_state.chroma_col is None:
@@ -1747,9 +2928,19 @@ with tab_inc:
     with st.expander("🔧 Endpoint Diagnostics", expanded=not bool(incidents)):
         st.markdown(
             '<div style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);margin-bottom:8px">'
-            'Tests all known NW endpoints with all auth styles to find the working combination.</div>',
+            'Tests all known NW endpoints with all auth styles to find the working combination. '
+            'Click "✅ Use this" on a hit to wire it into the app automatically.</div>',
             unsafe_allow_html=True,
         )
+
+        # Map scanner's auth-style labels → nw_headers() style names
+        _AUTH_STYLE_MAP = {
+            "NW-Token": "NetWitness-Token",
+            "Bearer":   "Bearer",
+            "Cookie":   "Cookie",
+            "Both":     "Both",
+        }
+
         if st.button("🔍 Run Endpoint Scan", use_container_width=False):
             if not st.session_state.nw_token:
                 st.error("Login first.")
@@ -1785,6 +2976,7 @@ with tab_inc:
                 for ep in eps:
                     for style, ah in auth_styles.items():
                         try:
+                            ah = dict(ah)  # avoid mutating shared dict across iterations
                             ah["Accept"] = "application/json"
                             r = requests.get(f"{host}{ep}?limit=1", headers=ah,
                                              timeout=10, verify=False)
@@ -1794,20 +2986,27 @@ with tab_inc:
                                 "endpoint": ep, "auth": style,
                                 "status": r.status_code,
                                 "json": "✅ JSON" if is_j else "❌ HTML",
+                                "is_hit": is_j and r.status_code == 200,
                                 "preview": r.text[:80] if is_j else "",
                             })
                         except Exception as e:
                             results.append({"endpoint": ep, "auth": style,
-                                            "status": "ERR", "json": str(e)[:50], "preview": ""})
+                                            "status": "ERR", "json": str(e)[:50],
+                                            "is_hit": False, "preview": ""})
+                # Persist across reruns (so "✅ Use this" buttons survive)
+                st.session_state.endpoint_scan_results = results
 
-                # Show results
-                for res in results:
-                    color   = "#00E676" if "✅" in res["json"] else "#3A607A"
-                    preview = res["preview"]
-                    preview_html = (
-                        f'<br><span style="color:#00E676">{preview}</span>'
-                        if preview else ""
-                    )
+        results = st.session_state.get("endpoint_scan_results", [])
+        if results:
+            for i, res in enumerate(results):
+                color   = "#00E676" if res.get("is_hit") else "#3A607A"
+                preview = res["preview"]
+                preview_html = (
+                    f'<br><span style="color:#00E676">{preview}</span>'
+                    if preview else ""
+                )
+                rc1, rc2 = st.columns([6, 1])
+                with rc1:
                     st.markdown(
                         f'<div style="font-family:var(--mono);font-size:0.65rem;'
                         f'padding:3px 8px;border-left:2px solid {color};margin:2px 0">'
@@ -1817,8 +3016,73 @@ with tab_inc:
                         f'</div>',
                         unsafe_allow_html=True,
                     )
+                with rc2:
+                    if res.get("is_hit"):
+                        if st.button("✅ Use this", key=f"use_ep_{i}", use_container_width=True):
+                            # Wire the found endpoint + auth style into the app
+                            clean_path = res["endpoint"].split("?")[0]
+                            st.session_state.nw_incidents_path = clean_path
+                            st.session_state.nw_auth_style     = _AUTH_STYLE_MAP.get(res["auth"], "NetWitness-Token")
+                            st.session_state.nw_working_ep      = res["endpoint"]
+                            st.session_state.nw_working_auth    = {"style": res["auth"]}
+
+                            ok_v, msg_v = nw_verify_token()
+                            st.session_state.nw_verified = ok_v
+                            st.session_state.nw_msg      = msg_v
+                            if ok_v:
+                                ok_f, items_f, diag_f = nw_fetch_incidents()
+                                if ok_f:
+                                    st.session_state.incidents  = items_f
+                                    st.session_state.last_fetch = datetime.now()
+                                    db_upsert_incidents(items_f)
+                                st.success(f"Applied {clean_path} ({res['auth']}) — {msg_v}")
+                            else:
+                                st.error(f"Applied but verify failed: {msg_v}")
+                            st.rerun()
+
         if st.session_state.nw_working_ep:
-            st.success(f"✅ Working: {st.session_state.nw_working_ep}")
+            st.success(
+                f"✅ Active endpoint: `{st.session_state.nw_incidents_path}` "
+                f"· auth style: `{st.session_state.nw_auth_style}`"
+            )
+
+    # ── Manual endpoint / auth override ─────────────────────────
+    with st.expander("⚙️ Manual Endpoint Config"):
+        st.markdown(
+            '<div style="font-family:var(--mono);font-size:0.62rem;color:var(--muted);margin-bottom:6px">'
+            'Set these directly if you already know your NW instance\'s working values.</div>',
+            unsafe_allow_html=True,
+        )
+        mc1, mc2 = st.columns(2)
+        new_path = mc1.text_input(
+            "Incidents path", value=st.session_state.nw_incidents_path, key="manual_inc_path"
+        )
+        new_style = mc2.selectbox(
+            "Auth header style",
+            ["NetWitness-Token", "Bearer", "Cookie", "Both"],
+            index=["NetWitness-Token", "Bearer", "Cookie", "Both"].index(
+                st.session_state.nw_auth_style
+                if st.session_state.nw_auth_style in ["NetWitness-Token","Bearer","Cookie","Both"]
+                else "NetWitness-Token"
+            ),
+            key="manual_auth_style",
+        )
+        if st.button("💾 Apply & Re-verify", key="manual_apply"):
+            st.session_state.nw_incidents_path = new_path.strip() or "/rest/api/incidents"
+            st.session_state.nw_auth_style     = new_style
+            ok_v, msg_v = nw_verify_token()
+            st.session_state.nw_verified = ok_v
+            st.session_state.nw_msg      = msg_v
+            if ok_v:
+                ok_f, items_f, diag_f = nw_fetch_incidents()
+                if ok_f:
+                    st.session_state.incidents  = items_f
+                    st.session_state.last_fetch = datetime.now()
+                    db_upsert_incidents(items_f)
+                st.success(f"✅ {msg_v}")
+            else:
+                st.error(f"❌ {msg_v}")
+            st.rerun()
 
     st.markdown("---")
 
@@ -1832,11 +3096,49 @@ with tab_inc:
             unsafe_allow_html=True,
         )
     else:
+        # Rendering a card (+ 2 buttons, + a possible nested alerts expander)
+        # per incident used to loop over the *entire* incidents list — with
+        # tens of thousands of incidents that's tens of thousands of widgets
+        # dumped into the DOM at once. Streamlit renders every tab's content
+        # into the page regardless of which tab is active, so this was
+        # slowing down the whole app, not just this tab. Filter first, then
+        # only render one page of cards at a time.
+        filtered = [
+            inc for inc in incidents
+            if sev_filter == "ALL" or normalise_sev(inc) == sev_filter
+        ]
+        total_filtered = len(filtered)
+
+        PAGE_SIZE   = 25
+        total_pages = max(1, -(-total_filtered // PAGE_SIZE))   # ceil div
+
+        # Jump back to page 1 whenever the filter changes, so you don't land
+        # on a now-empty page after narrowing the results.
+        if st.session_state.get("_sec_alerts_filter") != sev_filter:
+            st.session_state._sec_alerts_filter = sev_filter
+            st.session_state.sec_alerts_page    = 1
+        page = min(max(1, st.session_state.get("sec_alerts_page", 1)), total_pages)
+
+        pg1, pg2, pg3 = st.columns([1, 3, 1])
+        if pg1.button("◀ Prev", disabled=page <= 1, use_container_width=True):
+            st.session_state.sec_alerts_page = page - 1
+            st.rerun()
+        pg2.markdown(
+            f'<div style="text-align:center;font-family:var(--mono);'
+            f'font-size:0.68rem;color:var(--muted);padding-top:8px">'
+            f'Page {page} of {total_pages} &nbsp;·&nbsp; '
+            f'{total_filtered} incident(s) matching filter'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        if pg3.button("Next ▶", disabled=page >= total_pages, use_container_width=True):
+            st.session_state.sec_alerts_page = page + 1
+            st.rerun()
+
+        start = (page - 1) * PAGE_SIZE
         shown = 0
-        for inc in incidents:
+        for inc in filtered[start:start + PAGE_SIZE]:
             sev = normalise_sev(inc)
-            if sev_filter != "ALL" and sev != sev_filter:
-                continue
             shown += 1
 
             inc_id   = str(inc.get("id") or inc.get("incidentId") or "—")
@@ -1851,6 +3153,7 @@ with tab_inc:
                 f'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
                 f'<span class="badge badge-{sev.lower()}">{sev}</span>'
                 f'<strong style="flex:1;font-size:0.9rem">{title}</strong>'
+                f'<span style="color:var(--muted);font-size:0.62rem">Incident ID:</span>'
                 f'<code style="color:var(--muted);font-size:0.68rem">{inc_id}</code>'
                 f'</div>'
                 f'<div style="margin-top:8px;font-size:0.75rem;color:var(--muted);'
@@ -1861,12 +3164,57 @@ with tab_inc:
                 unsafe_allow_html=True,
             )
             b1, b2, _ = st.columns([0.9, 0.7, 6])
-            if b1.button("💬 Chat", key=f"chat_{inc_id}"):
-                st.session_state.chat_incident = inc
+            if b1.button("🩺 Triage", key=f"chat_{inc_id}"):
+                st.session_state.chat_incident       = inc
+                st.session_state.pending_auto_triage = True
+                st.session_state.jump_to_ask_tab     = True
                 st.rerun()
             if b2.button("{ }", key=f"json_{inc_id}"):
                 with st.expander(f"JSON — {inc_id}", expanded=True):
                     st.json(inc)
+            if inc.get("alerts_fetch_error"):
+                st.warning(f"⚠️ Alerts fetch failed: {inc['alerts_fetch_error']}. Triage/investigation will have no event data. Click 'Refresh Data' in the sidebar to re-fetch.")
+
+            # Associated Alerts / Logs
+            alerts_list = inc.get("alerts")
+            if alerts_list:
+                with st.expander(f"🚨 Associated Alerts ({len(alerts_list)})", expanded=False):
+                    for alert in alerts_list:
+                        a_title = alert.get("title") or alert.get("name") or "Untitled Alert"
+                        a_id = alert.get("id") or ""
+                        a_source = alert.get("source") or "Unknown"
+                        a_type = alert.get("type") or "Unknown"
+                        a_created = alert.get("created") or alert.get("receivedTime") or ""
+                        st.markdown(
+                            f'<div style="background:#091624;padding:8px 12px;border-radius:4px;margin-bottom:6px;border-left:3px solid var(--accent)">'
+                            f'<div style="display:flex;justify-content:between;align-items:center">'
+                            f'<strong>{a_title}</strong>'
+                            f'<code style="color:var(--muted);font-size:0.7rem;margin-left:auto">{a_id}</code>'
+                            f'</div>'
+                            f'<div style="font-size:0.72rem;color:var(--muted);margin-top:4px">'
+                            f'Incident ID: <strong style="color:var(--accent)">{inc_id}</strong> &nbsp;·&nbsp; '
+                            f'Source: {a_source} &nbsp;·&nbsp; Type: {a_type} &nbsp;·&nbsp; Time: {a_created}'
+                            f'</div>'
+                            f'</div>',
+                            unsafe_allow_html=True
+                        )
+                        # Nested event details
+                        events = alert.get("events")
+                        if events:
+                            for idx, ev in enumerate(events):
+                                ev_src = ev.get("source", {})
+                                ev_dst = ev.get("destination", {})
+                                src_ip = ev_src.get("device", {}).get("ipAddress") or ev_src.get("ipAddress") or "—"
+                                dst_ip = ev_dst.get("device", {}).get("ipAddress") or ev_dst.get("ipAddress") or "—"
+                                user = ev_src.get("user", {}).get("username") or ev_src.get("username") or "—"
+                                ev_proto = ev.get("ip_proto") or ev.get("protocol") or "—"
+                                ev_port = ev_dst.get("device", {}).get("port") or ev_dst.get("port") or "—"
+                                st.markdown(
+                                    f'<div style="margin-left:15px;padding:4px 8px;font-family:var(--mono);font-size:0.7rem;color:var(--muted);border-left:1px dashed #1B4A62">'
+                                    f'Event {idx+1}: 🧑‍💻 {user} | ➡️ {src_ip} → {dst_ip} (Port {ev_port}, Proto {ev_proto})'
+                                    f'</div>',
+                                    unsafe_allow_html=True
+                                )
 
         if shown == 0:
             st.info(f"No incidents match filter: {sev_filter}")
@@ -1876,6 +3224,14 @@ with tab_inc:
 # TAB 3 — CHAT
 # ─────────────────────────────────────────────────────────────
 with tab_chat:
+    st.markdown(
+        '<div class="info-box"><div class="title">💬 Ask a Question</div>'
+        'You can ask plain-language questions about your security alerts here. '
+        'For example: <em>"What are the most critical incidents today?"</em> or '
+        '<em>"Summarise the latest high-priority alerts."</em> '
+        'You do not need any technical knowledge to use this.</div>',
+        unsafe_allow_html=True,
+    )
 
     # ── Global CSS for the spinning phase icon (injected once, never reset) ──
     st.markdown("""
@@ -1988,6 +3344,8 @@ with tab_chat:
                 f'</div>',
                 unsafe_allow_html=True,
             )
+            if nw_inc.get("alerts_fetch_error"):
+                st.warning(f"⚠️ Alerts fetch failed: {nw_inc['alerts_fetch_error']}. Triage/investigation will have no event data. Click 'Refresh Data' in the sidebar to re-fetch.")
         elif up_inc:
             st.markdown(
                 f'<div style="background:#050F1A;border:1px solid var(--warn);'
@@ -2020,52 +3378,257 @@ with tab_chat:
 
     st.markdown("---")
 
-    # ── File uploader ──────────────────────────────────────────
+    # ── AGENT BOARD — live thinking + outputs for all 3 agents ─────────────
     st.markdown(
         '<div style="font-family:var(--mono);font-size:0.62rem;color:var(--muted);'
-        'letter-spacing:2px;margin-bottom:8px">■ UPLOAD INCIDENT FILE</div>',
+        'letter-spacing:2px;margin-bottom:8px">■ AGENT BOARD — CLICK AN AGENT '
+        'TO SEE ITS THINKING &amp; OUTPUT</div>',
         unsafe_allow_html=True,
     )
 
-    uploaded_file = st.file_uploader(
-        "Upload incident file",
-        type=["json", "csv", "txt", "log"],
-        label_visibility="collapsed",
-        help="Upload a JSON export, CSV log, or plain-text log file to use as incident context.",
-    )
+    _AGENTS = [
+        ("triage",        "🩺", "Triage Agent",        "#00D4FF"),
+        ("investigation", "🔎", "Investigation Agent", "#FF7700"),
+        ("reporting",     "📄", "Reporting Agent",     "#A78BFA"),
+    ]
+    _BOARD_BADGES = {
+        "idle":    ("○ IDLE",    "#3A607A"),
+        "queued":  ("⏸ QUEUED",  "#8B9DC3"),
+        "running": ("⏳ RUNNING", "#FFB700"),
+        "done":    ("✅ DONE",    "#0AF0A0"),
+        "cached":  ("♻️ CACHED",  "#0AF0A0"),
+        "skipped": ("⏭️ SKIPPED", "#3A607A"),
+        "failed":  ("❌ FAILED",  "#FF3B3B"),
+    }
 
-    if uploaded_file is not None:
-        # Only re-parse if it's a new file
-        if uploaded_file.name != st.session_state.uploaded_filename:
-            parsed_inc, err = _parse_uploaded_file(uploaded_file)
-            if err:
-                st.error(f"❌ {err}")
-            else:
-                st.session_state.uploaded_incident = parsed_inc
-                st.session_state.uploaded_filename  = uploaded_file.name
-                st.session_state.chat_incident      = None   # clear NW incident
-                st.rerun()
+    # ── Background workflow sync: worker state → board, finalize once ──────
+    _wf_active = _workflow_store().get("run")
+    if _wf_active:
+        # Adopt the worker's live panel dicts (same objects — subsequent
+        # worker writes are visible on every poll rerun).
+        for _ag in ("investigation", "reporting"):
+            if _ag in _wf_active.get("panels", {}):
+                st.session_state.agent_board[_ag] = _wf_active["panels"][_ag]
+        if _wf_active.get("done") and not _wf_active.get("finalized"):
+            _wf_active["finalized"] = True
+            for _stage, _rec in _wf_active.get("chroma_queue", []):
+                try:
+                    pipeline_chroma_insert(_stage, _rec)
+                except Exception:
+                    pass
+            st.session_state.chat_history.append(
+                {"role": "assistant",
+                 "content": "\n".join(_wf_active.get("wf_md") or
+                                      ["Workflow finished."]),
+                 "ts": datetime.now().strftime("%H:%M:%S")})
+            st.session_state.setdefault("_surfaced_runs", []).append(
+                _wf_active.get("run_id"))
+            _workflow_store()["run"] = None
+    else:
+        # No active worker — sweep zombie states from interrupted sessions.
+        for _ag in ("investigation", "reporting"):
+            if st.session_state.agent_board[_ag]["status"] in ("running", "queued"):
+                st.session_state.agent_board[_ag]["status"] = "failed"
+                st.session_state.agent_board[_ag]["thinking"].append(
+                    f"[{datetime.now().strftime('%H:%M:%S')}] ⚠️ previous run "
+                    "was interrupted before completion")
 
-    # Preview of parsed file fields
-    if st.session_state.uploaded_incident and not nw_inc:
-        preview_inc = st.session_state.uploaded_incident
-        preview_keys = [k for k in preview_inc if not k.startswith("_")][:12]
-        preview_html = " &nbsp;·&nbsp; ".join(
-            f'<span style="color:var(--accent)">{k}</span>'
-            f':<span style="color:var(--text)"> '
-            f'{str(preview_inc[k])[:40]}</span>'
-            for k in preview_keys
-        )
-        st.markdown(
-            f'<div style="background:#060C16;border:1px solid var(--border);'
-            f'border-radius:5px;padding:8px 12px;font-family:var(--mono);'
-            f'font-size:0.62rem;margin:6px 0;line-height:1.8">'
-            f'📋 Parsed fields: {preview_html}'
-            f'</div>',
+    # ── Disk fallback: surface a completed run this session never saw ──────
+    # The in-memory finalize above only works while the session's poll loop
+    # stays alive for the whole run. The worker also persists its finished
+    # results to disk; if a recent run (< 30 min) hasn't been surfaced in
+    # THIS session, deliver its board panels + chat summary now.
+    try:
+        _lwr_path = SOC_DB_DIR / "last_workflow_result.json"
+        if _lwr_path.exists():
+            _lwr = _json.loads(_lwr_path.read_text(encoding="utf-8"))
+            _surf = st.session_state.setdefault("_surfaced_runs", [])
+            _fresh = (time.time() - float(_lwr.get("finished_at") or 0)) < 1800
+            if (_lwr.get("done") and _fresh
+                    and _lwr.get("run_id") not in _surf
+                    and not (_workflow_store().get("run") or {})):
+                for _ag in ("investigation", "reporting"):
+                    _p = (_lwr.get("panels") or {}).get(_ag)
+                    if _p:
+                        st.session_state.agent_board[_ag] = _p
+                st.session_state.chat_history.append(
+                    {"role": "assistant",
+                     "content": "\n".join(_lwr.get("wf_md") or
+                                          ["Workflow finished."]),
+                     "ts": datetime.now().strftime("%H:%M:%S")})
+                _surf.append(_lwr.get("run_id"))
+    except Exception:
+        pass
+
+    _ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+    def _board_set(agent: str, status: str | None = None,
+                   think: str | None = None, output: str | None = None) -> None:
+        """Update an agent's board state (+ live card/detail refresh mid-run)."""
+        panel = st.session_state.agent_board[agent]
+        if status is not None:
+            panel["status"] = status
+        if think is not None:
+            clean = _ANSI_RE.sub("", str(think))   # subprocess logs carry colours
+            panel["thinking"].append(f"[{datetime.now().strftime('%H:%M:%S')}] {clean}")
+            panel["thinking"] = panel["thinking"][-60:]   # keep the tail
+        if output is not None:
+            panel["output"] = output
+        panel["updated"] = datetime.now().strftime("%H:%M:%S")
+        # Live refresh of this agent's card + open detail panel during a run.
+        slot = _board_live.get(agent)
+        if slot is not None:
+            try:
+                _render_board_card(slot, agent)
+            except Exception:
+                pass
+        try:
+            _render_board_detail(agent)
+        except Exception:
+            pass
+
+    class _BoardTee:
+        """Duck-typed st.empty() that mirrors writes to several containers —
+        used to send the triage LLM token stream to both the in-status panel
+        and the agent board's detail view."""
+        def __init__(self, *targets):
+            self.targets = [t for t in targets if t is not None]
+
+        def markdown(self, *a, **k):
+            for t in self.targets:
+                try:
+                    t.markdown(*a, **k)
+                except Exception:
+                    pass
+
+        def empty(self):
+            for t in self.targets:
+                try:
+                    t.empty()
+                except Exception:
+                    pass
+
+    def _render_board_card(container, agent: str) -> None:
+        icon, name, color = {a: (i, n, c) for a, i, n, c in _AGENTS}[agent]
+        panel  = st.session_state.agent_board[agent]
+        status = panel["status"]
+        badge, bcolor = _BOARD_BADGES.get(status, _BOARD_BADGES["idle"])
+        upd = panel.get("updated") or "—"
+        tail = ""
+        if status == "running" and panel["thinking"]:
+            last = panel["thinking"][-1]
+            tail = (f'<div style="font-family:var(--mono);font-size:0.52rem;'
+                    f'color:var(--muted);margin-top:5px;white-space:nowrap;'
+                    f'overflow:hidden;text-overflow:ellipsis">{last[-80:]}</div>')
+        container.markdown(
+            f'<div style="background:#060C16;border:1px solid {color}44;'
+            f'border-left:3px solid {color};border-radius:7px;'
+            f'padding:10px 12px;min-height:74px">'
+            f'<div style="display:flex;align-items:center;gap:8px">'
+            f'<span style="font-size:1.15rem">{icon}</span>'
+            f'<strong style="flex:1;font-size:0.8rem;color:{color}">{name}</strong>'
+            f'<span style="background:{bcolor}22;color:{bcolor};'
+            f'border:1px solid {bcolor}44;padding:1px 7px;border-radius:3px;'
+            f'font-family:var(--mono);font-size:0.55rem">{badge}</span></div>'
+            f'<div style="font-family:var(--mono);font-size:0.52rem;'
+            f'color:var(--muted);margin-top:5px">last activity: {upd}</div>'
+            f'{tail}</div>',
             unsafe_allow_html=True,
         )
-        with st.expander("🔍 View full parsed incident JSON"):
-            st.json({k: v for k, v in preview_inc.items() if k != "raw_log"})
+
+    _board_live: dict = {}
+    _b_cols = st.columns(3)
+    for _bi, (_ag, _icon, _name, _color) in enumerate(_AGENTS):
+        with _b_cols[_bi]:
+            _slot = st.empty()
+            _board_live[_ag] = _slot
+            _render_board_card(_slot, _ag)
+            if st.button("View", key=f"board_view_{_ag}", use_container_width=True):
+                st.session_state.agent_board_sel = (
+                    None if st.session_state.agent_board_sel == _ag else _ag)
+                st.rerun()
+
+    # ── Detail panel for the selected agent (live slots) ───────────────────
+    # The thinking/output areas are st.empty() slots registered in
+    # _board_live_detail; _board_set rewrites them mid-run, so the panel
+    # updates in real time while the workflow executes further down the page.
+    _board_live_detail: dict = {}
+
+    def _render_board_detail(agent: str) -> None:
+        slots = _board_live_detail.get(agent)
+        if not slots:
+            return
+        panel = st.session_state.agent_board[agent]
+        if panel["thinking"]:
+            slots["think"].code("\n".join(panel["thinking"]), language=None)
+        else:
+            slots["think"].caption("No activity yet — run a triage to see "
+                                   "this agent think.")
+        if panel["output"]:
+            slots["out"].markdown(panel["output"], unsafe_allow_html=True)
+        else:
+            slots["out"].caption("No output yet.")
+
+    _sel_ag = st.session_state.agent_board_sel
+    if _sel_ag:
+        _panel = st.session_state.agent_board[_sel_ag]
+        _icon, _name, _color = {a: (i, n, c) for a, i, n, c in _AGENTS}[_sel_ag]
+        st.markdown(
+            f'<div style="font-family:var(--mono);font-size:0.6rem;color:{_color};'
+            f'letter-spacing:2px;margin:10px 0 4px">{_icon} {_name.upper()} — DETAIL</div>',
+            unsafe_allow_html=True,
+        )
+        with st.expander("🧠 Thinking process", expanded=True):
+            _think_slot = st.empty()
+            _token_slot = st.empty()   # live LLM token stream (triage phases)
+        with st.expander("📤 Output", expanded=bool(_panel["output"])):
+            _out_slot = st.empty()
+        _board_live_detail[_sel_ag] = {"think": _think_slot,
+                                       "token": _token_slot, "out": _out_slot}
+        _render_board_detail(_sel_ag)
+
+    # ── File uploader (kept — tucked below the board) ──────────────────────
+    with st.expander("📎 Upload incident file (JSON · CSV · TXT · LOG)"):
+        uploaded_file = st.file_uploader(
+            "Upload incident file",
+            type=["json", "csv", "txt", "log"],
+            label_visibility="collapsed",
+            help="Upload a JSON export, CSV log, or plain-text log file to use as incident context.",
+        )
+
+        if uploaded_file is not None:
+            # Only re-parse if it's a new file
+            if uploaded_file.name != st.session_state.uploaded_filename:
+                parsed_inc, err = _parse_uploaded_file(uploaded_file)
+                if err:
+                    st.error(f"❌ {err}")
+                else:
+                    st.session_state.uploaded_incident = parsed_inc
+                    st.session_state.uploaded_filename  = uploaded_file.name
+                    st.session_state.chat_incident      = None   # clear NW incident
+                    st.rerun()
+
+        # Preview of parsed file fields
+        if st.session_state.uploaded_incident and not nw_inc:
+            preview_inc = st.session_state.uploaded_incident
+            preview_keys = [k for k in preview_inc if not k.startswith("_")][:12]
+            preview_html = " &nbsp;·&nbsp; ".join(
+                f'<span style="color:var(--accent)">{k}</span>'
+                f':<span style="color:var(--text)"> '
+                f'{str(preview_inc[k])[:40]}</span>'
+                for k in preview_keys
+            )
+            st.markdown(
+                f'<div style="background:#060C16;border:1px solid var(--border);'
+                f'border-radius:5px;padding:8px 12px;font-family:var(--mono);'
+                f'font-size:0.62rem;margin:6px 0;line-height:1.8">'
+                f'📋 Parsed fields: {preview_html}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            # (checkbox, not an expander — Streamlit forbids nesting expanders)
+            if st.checkbox("🔍 View full parsed incident JSON", key="upl_json_view"):
+                st.json({k: v for k, v in preview_inc.items() if k != "raw_log"})
 
     st.markdown("---")
 
@@ -2083,6 +3646,13 @@ with tab_chat:
 
     # ── Chat input  (called first — always fixed at page bottom by Streamlit)
     user_input = st.chat_input("Ask the SOC agent…")
+
+    # The "🩺 Triage" button sets this flag instead of the user typing a
+    # message — synthesize the trigger word so it flows through the exact
+    # same pipeline below, with no manual typing required.
+    if not user_input and st.session_state.pending_auto_triage and active_inc:
+        st.session_state.pending_auto_triage = False
+        user_input = "Triage this incident"
 
     # Append user message immediately so it shows in the history render below
     if user_input:
@@ -2154,12 +3724,26 @@ with tab_chat:
                     "Classifying incident severity and generating recommended actions",
             }
 
+            # Receives the structured triage result (metakeys_payload + ticket)
+            # so the downstream investigation/reporting agents can consume it.
+            _triage_sink: dict = {}
+
+            # Fresh board run: clear the triage panel and go live.
+            st.session_state.agent_board["triage"].update(
+                {"thinking": [], "output": ""})
+            _board_set("triage", status="running", think="Triage started")
+
             # st.status() + st.write() is Streamlit's guaranteed progressive-update
             # pattern — st.write() calls inside the with-block appear live as each
             # phase fires; status.update(label=…) changes the header to the current phase.
             with st.status("⏳ Initialising triage pipeline…", expanded=True) as triage_status:
 
                 thinking_panel = st.empty()   # token-by-token stream inside the status
+                # Mirror the token stream into the agent board's detail view
+                # (live "thinking" like the original single-agent experience).
+                thinking_tee = _BoardTee(
+                    thinking_panel,
+                    (_board_live_detail.get("triage") or {}).get("token"))
 
                 def on_progress(event: str, label: str, text: str = "") -> None:
                     key = next(
@@ -2170,11 +3754,13 @@ with tab_chat:
                     if event == "phase_start":
                         desc = PHASE_DESC.get(key, label)
                         triage_status.update(label=f"🔍 {desc}…", expanded=True)
-                        thinking_panel.empty()
+                        thinking_tee.empty()
+                        _board_set("triage", think=f"▶ {desc}")
                     elif event == "phase_complete":
                         result = f" — {text}" if text else ""
                         st.write(f"✅ **{key}**{result}")
-                        thinking_panel.empty()
+                        thinking_tee.empty()
+                        _board_set("triage", think=f"✅ {key}{result}")
 
                 try:
                     reply = soc_triage_chat_respond(
@@ -2182,18 +3768,42 @@ with tab_chat:
                         incident           = active_inc,
                         llm_config         = get_cisco_cfg(),
                         progress_fn        = on_progress,
-                        thinking_container = thinking_panel,
+                        thinking_container = thinking_tee,
+                        result_sink        = _triage_sink,
                     )
                     if not reply:
                         reply = "⚠️ Triage returned an empty response."
                     triage_status.update(
                         label="✅ Triage complete", state="complete", expanded=False
                     )
+                    _board_set(
+                        "triage",
+                        status=("cached" if (_triage_sink.get("result") or {})
+                                .get("cached") else "done"),
+                        think="Triage complete", output=reply)
                 except Exception as exc:
-                    reply = f"❌ Triage error: {exc}"
+                    _es = str(exc)
+                    if "503" in _es or "unavailable" in _es.lower():
+                        reply = ("⏸️ **The LLM endpoint is asleep (HTTP 503).** "
+                                 "Your HuggingFace endpoint scales to zero when "
+                                 "idle and needs a few minutes to boot — this "
+                                 "request has started waking it. **Wait 2–5 "
+                                 "minutes and send `triage` again.** (Your "
+                                 "token is fine: 503 means the server isn't "
+                                 "running, not an auth problem.)")
+                    elif "401" in _es or "unauthorized" in _es.lower():
+                        reply = ("🔑 **The LLM endpoint rejected the "
+                                 "credentials (HTTP 401).** Check the token "
+                                 "and endpoint URL in the sidebar LLM "
+                                 "settings, and that the endpoint still "
+                                 "exists in your HuggingFace console.")
+                    else:
+                        reply = f"❌ Triage error: {exc}"
                     triage_status.update(
                         label="❌ Triage failed", state="error", expanded=True
                     )
+                    _board_set("triage", status="failed",
+                               think=f"❌ {str(exc)[:150]}", output=reply)
 
         # ── Plain Q&A fallback ─────────────────────────────────────────────────
         else:
@@ -2205,7 +3815,10 @@ with tab_chat:
             except Exception as exc:
                 reply = f"❌ Error: {exc}"
 
-        # ── Pipeline auto-insert (fires on every triage trigger) ──────────
+        # ── Sequential agent workflow: triage → investigation → reporting ──
+        # Driven by the STRUCTURED triage result (not keyword-matching the
+        # rendered reply). Stage records land in the pipeline DB as each
+        # agent completes, matching the Pipeline DB tab's 6 stages.
         if active_inc and _TRIAGE_TRIGGER.search(user_input):
             _inc_id  = str(active_inc.get("id") or active_inc.get("incidentId") or "")
             _title   = str(active_inc.get("title") or active_inc.get("name") or "Untitled")
@@ -2217,28 +3830,97 @@ with tab_chat:
                 "incident_id": _inc_id, "title": _title,
                 "severity": _sev, "summary": _summary})
 
-            _needs = any(w in reply.lower() for w in [
-                "investigate", "escalate", "critical", "high risk",
-                "malicious", "confirmed", "requires action", "ioc confirmed"])
-            if _needs:
-                pipeline_insert_full("post_triage_investigate", {
-                    "id": f"inv_{_inc_id}", "incident_id": _inc_id,
-                    "title": _title, "severity": _sev, "summary": _summary})
-            else:
-                pipeline_insert_full("post_triage_no_investigate", {
-                    "id": f"noinv_{_inc_id}", "incident_id": _inc_id,
-                    "title": _title, "severity": _sev, "summary": _summary})
+            _tri = _triage_sink.get("result") if WORKFLOW_OK else None
+            if _tri and not _tri.get("error"):
+                # Sub-agents must inherit the SAME live credentials triage
+                # just used (sidebar/session state) — the .env copy can be
+                # stale or base64-encoded, which surfaces as LLM 401s.
+                _cfg_live = get_cisco_cfg()
+                if _cfg_live.api_key and _cfg_live.api_key != "changeme":
+                    os.environ["CISCO_LLM_URL"]   = _cfg_live.base_url
+                    os.environ["CISCO_LLM_KEY"]   = _cfg_live.api_key
+                    os.environ["CISCO_LLM_MODEL"] = _cfg_live.model
+                _ticket = _tri["ticket"]
+                _cls    = _ticket.get("classification") or _sev
+                _unc    = _ticket.get("unc") or f"#TKT_{_inc_id[:6]}"
+                _wf_md  = ["", "---", "", "## 🔗 Agent Workflow"]
+                _run_started = datetime.now()
+                _run_stamp   = _run_started.strftime("%Y%m%d-%H%M%S")
+                if _tri.get("cached"):
+                    _wf_md.append("- ♻️ Triage served from cache — MITRE mapping "
+                                  "and metakey extraction reflect the *original* "
+                                  "run. Type **retriage** for a fresh analysis "
+                                  "with the latest agent upgrades.")
+                _n_alerts_reported = int(active_inc.get("alertCount") or 0)
+                _n_alerts_attached = len(active_inc.get("alerts") or [])
+                if _n_alerts_reported and not _n_alerts_attached:
+                    _fetch_err = active_inc.get("alerts_fetch_error")
+                    _wf_md.append(f"- ⚠️ NetWitness reports "
+                                  f"{_n_alerts_reported} alert(s) for this "
+                                  f"incident but none were attached"
+                                  + (f" (alerts fetch: {_fetch_err})"
+                                     if _fetch_err else "")
+                                  + " — usernames/hosts may be missing from "
+                                    "the investigation.")
 
-            _unc_m = re.search(r"#\d{5}[A-Z]+", reply)
-            _unc   = _unc_m.group(0) if _unc_m else f"#TKT_{_inc_id[:6]}"
-            pipeline_insert_full("initial_ticket", {
-                "id": _unc, "incident_id": _inc_id,
-                "title": f"Ticket {_unc} — {_title}",
-                "severity": _sev, "summary": _summary})
-            pipeline_insert_full("pending_ticket_report", {
-                "id": f"pending_{_unc}", "incident_id": _inc_id,
-                "title": f"[PENDING] {_title}", "severity": _sev,
-                "summary": "Awaiting analyst sign-off before finalisation."})
+                pipeline_insert_full("initial_ticket", {
+                    "id": _unc, "incident_id": _inc_id,
+                    "title": f"Ticket {_unc} — {_title}",
+                    "severity": _cls, "summary": _ticket.get("summary") or ""})
+
+                # ── Stages 2+3: hand off to the BACKGROUND WORKER ───────────
+                # Inline execution died whenever the user interacted mid-run
+                # (Streamlit kills the script at its next UI call). The
+                # worker thread survives clicks/refreshes; the board polls it.
+                import threading as _threading
+                _investigate = wf_needs_investigation(_tri)
+                if _investigate:
+                    pipeline_insert_full("post_triage_investigate", {
+                        "id": f"inv_{_inc_id}", "incident_id": _inc_id,
+                        "title": _title, "severity": _cls, "summary": _summary})
+                else:
+                    pipeline_insert_full("post_triage_no_investigate", {
+                        "id": f"noinv_{_inc_id}", "incident_id": _inc_id,
+                        "title": _title, "severity": _cls, "summary": _summary})
+                pipeline_insert_full("pending_ticket_report", {
+                    "id": f"pending_{_unc}", "incident_id": _inc_id,
+                    "title": f"[PENDING] {_title}", "severity": _cls,
+                    "summary": "Handed off to reporting agent."})
+
+                _run_rec = {
+                    "run_id": _run_stamp, "incident_id": _inc_id,
+                    "title": _title, "cls": _cls, "unc": _unc,
+                    "investigate": _investigate,
+                    "started_ts": _run_started.timestamp(),
+                    "started_hms": _run_started.strftime("%H:%M:%S"),
+                    "cached_triage": bool(_tri.get("cached")),
+                    "done": False, "finalized": False,
+                    "panels": {
+                        "investigation": {"status": "queued", "thinking": [],
+                                          "output": "", "updated": ""},
+                        "reporting":     {"status": "queued", "thinking": [],
+                                          "output": "", "updated": ""},
+                    },
+                    "wf_md": _wf_md,
+                    "chroma_queue": [],
+                }
+                _workflow_store()["run"] = _run_rec
+                _threading.Thread(target=_workflow_worker,
+                                  args=(_run_rec, _tri, active_inc),
+                                  daemon=True).start()
+                reply += ("\n\n---\n\n🔗 **Investigation & reporting are now "
+                          "running in the background.** Watch them live on the "
+                          "**Agent Board** above — clicking around no longer "
+                          "interrupts the run. Results will be posted here "
+                          "when finished.")
+            else:
+                # Triage failed or workflow module unavailable — record the
+                # alert only; downstream agents need a valid triage result.
+                pipeline_insert_full("pending_ticket_report", {
+                    "id": f"pending_{_inc_id}", "incident_id": _inc_id,
+                    "title": f"[PENDING] {_title}", "severity": _sev,
+                    "summary": "Triage did not produce a structured result; "
+                               "workflow not started."})
 
         st.session_state.chat_history.append(
             {"role": "assistant", "content": reply,
@@ -2256,11 +3938,18 @@ with tab_chat:
 # TAB 4 — CHROMADB
 # ─────────────────────────────────────────────────────────────
 with tab_chroma:
+    st.markdown(
+        '<div class="info-box"><div class="title">🧠 Knowledge Base</div>'
+        'This is where the AI stores its understanding of your security alerts. '
+        'Once synced, the AI can answer questions much more accurately. '
+        'Use the search box below to find specific incidents by description.</div>',
+        unsafe_allow_html=True,
+    )
     if st.session_state.chroma_col is None:
-        st.warning("Connect ChromaDB from the sidebar first.")
+        st.warning("⚠️ The Knowledge Base isn't connected yet. Connect it from the left panel under 🧠 Knowledge Base.")
     else:
         col = st.session_state.chroma_col
-        st.markdown(f"### CHROMADB — soc_incidents &nbsp; `{col.count()} vectors`")
+        st.markdown(f"### Knowledge Base — {col.count()} incidents indexed")
         st.markdown("---")
 
         st.markdown(
@@ -2347,12 +4036,19 @@ return chain.invoke(user_msg)["result"]
 # TAB 5 — LOG HISTORY  (permanent SQLite store)
 # ─────────────────────────────────────────────────────────────
 with tab_log:
+    st.markdown(
+        '<div class="info-box"><div class="title">📁 History</div>'
+        'All security alerts that have ever been loaded are saved here permanently, '
+        'even after a restart. You can search, filter, export to Excel, or generate '
+        'a report for any incident.</div>',
+        unsafe_allow_html=True,
+    )
     stats = db_stats()
 
     # ── Summary stats ──────────────────────────────────────────
     st.markdown(
-        '<div style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);'
-        'letter-spacing:2px;margin-bottom:12px">■ PERMANENT LOG STATS</div>',
+        '<div style="font-size:0.75rem;font-weight:600;color:var(--muted);'
+        'text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">📊 Summary</div>',
         unsafe_allow_html=True,
     )
     ls1, ls2, ls3, ls4 = st.columns(4)
@@ -2442,6 +4138,7 @@ with tab_log:
                 f'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
                 f'<span class="badge badge-{sev.lower()}">{sev}</span>'
                 f'<strong style="flex:1;font-size:0.88rem">{title}</strong>'
+                f'<span style="color:var(--muted);font-size:0.62rem">Incident ID:</span>'
                 f'<code style="color:var(--muted);font-size:0.68rem">{inc_id}</code>'
                 f'</div>'
                 f'<div style="margin-top:8px;font-size:0.73rem;color:var(--muted);'
@@ -2464,6 +4161,51 @@ with tab_log:
                     raw = row
                 with st.expander(f"Full JSON — {inc_id}", expanded=True):
                     st.json(raw)
+            
+            # Associated Alerts / Logs
+            try:
+                raw_dict = _json.loads(row.get("raw_json") or "{}")
+            except Exception:
+                raw_dict = {}
+            alerts_list = raw_dict.get("alerts")
+            if alerts_list:
+                with st.expander(f"🚨 Associated Alerts ({len(alerts_list)})", expanded=False):
+                    for alert in alerts_list:
+                        a_title = alert.get("title") or alert.get("name") or "Untitled Alert"
+                        a_id = alert.get("id") or ""
+                        a_source = alert.get("source") or "Unknown"
+                        a_type = alert.get("type") or "Unknown"
+                        a_created = alert.get("created") or alert.get("receivedTime") or ""
+                        st.markdown(
+                            f'<div style="background:#091624;padding:8px 12px;border-radius:4px;margin-bottom:6px;border-left:3px solid var(--accent)">'
+                            f'<div style="display:flex;justify-content:between;align-items:center">'
+                            f'<strong>{a_title}</strong>'
+                            f'<code style="color:var(--muted);font-size:0.7rem;margin-left:auto">{a_id}</code>'
+                            f'</div>'
+                            f'<div style="font-size:0.72rem;color:var(--muted);margin-top:4px">'
+                            f'Incident ID: <strong style="color:var(--accent)">{inc_id}</strong> &nbsp;·&nbsp; '
+                            f'Source: {a_source} &nbsp;·&nbsp; Type: {a_type} &nbsp;·&nbsp; Time: {a_created}'
+                            f'</div>'
+                            f'</div>',
+                            unsafe_allow_html=True
+                        )
+                        # Nested event details
+                        events = alert.get("events")
+                        if events:
+                            for idx, ev in enumerate(events):
+                                ev_src = ev.get("source", {})
+                                ev_dst = ev.get("destination", {})
+                                src_ip = ev_src.get("device", {}).get("ipAddress") or ev_src.get("ipAddress") or "—"
+                                dst_ip = ev_dst.get("device", {}).get("ipAddress") or ev_dst.get("ipAddress") or "—"
+                                user = ev_src.get("user", {}).get("username") or ev_src.get("username") or "—"
+                                ev_proto = ev.get("ip_proto") or ev.get("protocol") or "—"
+                                ev_port = ev_dst.get("device", {}).get("port") or ev_dst.get("port") or "—"
+                                st.markdown(
+                                    f'<div style="margin-left:15px;padding:4px 8px;font-family:var(--mono);font-size:0.7rem;color:var(--muted);border-left:1px dashed #1B4A62">'
+                                    f'Event {idx+1}: 🧑‍💻 {user} | ➡️ {src_ip} → {dst_ip} (Port {ev_port}, Proto {ev_proto})'
+                                    f'</div>',
+                                    unsafe_allow_html=True
+                                )
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # TAB 6 — PIPELINE DB
@@ -2471,6 +4213,13 @@ with tab_log:
 # st.stop() removed from tab_chroma so this tab always renders.
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab_pipeline:
+    st.markdown(
+        '<div class="info-box"><div class="title">🔁 Data Pipeline</div>'
+        'This tool helps IT staff manage how security data flows through the system — '
+        'from collection, to review, to archiving. If you are not sure what this is for, '
+        'you likely do not need to use it.</div>',
+        unsafe_allow_html=True,
+    )
 
     # ── session defaults ──────────────────────────────────────────────────────
     if "pl_stage"      not in st.session_state: st.session_state.pl_stage      = None
@@ -2495,6 +4244,7 @@ with tab_pipeline:
         _active = st.session_state.pl_stage == _stage
         _border = f"3px solid {_color}" if _active else f"1px solid {_color}44"
         _bg     = f"{_color}18"          if _active else "#060C16"
+        _last = pipeline_last_write(_stage)
         with _pl_cols[_idx]:
             st.markdown(
                 f'<div style="background:{_bg};border:{_border};border-radius:7px;'
@@ -2505,6 +4255,8 @@ with tab_pipeline:
                 f'<div style="font-family:var(--mono);font-size:0.48rem;'
                 f'color:var(--muted);letter-spacing:1px;line-height:1.4">'
                 f'{_label.upper()}</div>'
+                f'<div style="font-family:var(--mono);font-size:0.5rem;'
+                f'color:{_color}99;margin-top:3px">last: {_last}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -2661,6 +4413,36 @@ with tab_pipeline:
                     # ── Stage-specific export badge ─────────────────────────
                     _is_csv_stage  = _sel in ("post_triage_investigate", "post_triage_no_investigate")
                     _is_docx_stage = _sel == "initial_ticket"
+                    _is_report_stage = _sel == "finalized_report"
+                    _is_postinv_stage = _sel == "post_investigation"
+                    # Post-investigation records carry the analysis narrative
+                    # (markdown) produced by the investigation agent.
+                    _postinv_md = ""
+                    if _is_postinv_stage:
+                        try:
+                            _rj_inv = _json.loads(_row.get("raw_json") or "{}")
+                            _inv_j  = _rj_inv.get("investigation") or {}
+                            _postinv_md = _inv_j.get("narrative_report") or ""
+                            if not _postinv_md:
+                                _md_path = (_inv_j.get("artifacts") or {}).get("report_markdown")
+                                if _md_path and Path(str(_md_path)).exists():
+                                    _postinv_md = Path(str(_md_path)).read_text(encoding="utf-8")
+                        except Exception:
+                            _postinv_md = ""
+                    # Finalized reports carry real Word/PDF files generated by
+                    # the reporting agent — resolve their paths from raw_json.
+                    _report_exports = {}
+                    if _is_report_stage:
+                        try:
+                            _rj_exp = _json.loads(_row.get("raw_json") or "{}")
+                            _report_exports = ((_rj_exp.get("report") or {})
+                                               .get("document_exports") or {})
+                        except Exception:
+                            _report_exports = {}
+                        _report_exports = {
+                            k: v for k, v in _report_exports.items()
+                            if k in ("docx", "pdf") and v and Path(str(v)).exists()
+                        }
                     _export_badge  = ""
                     if _is_csv_stage:
                         _export_badge = (
@@ -2675,6 +4457,22 @@ with tab_pipeline:
                             f'border:1px solid #A78BFA44;padding:2px 8px;'
                             f'border-radius:3px;font-family:var(--mono);font-size:0.56rem;'
                             f'margin-left:6px">📄 DOCX</span>'
+                        )
+                    elif _is_report_stage and _report_exports:
+                        _fmt_txt = " · ".join(k.upper() for k in ("docx", "pdf")
+                                              if k in _report_exports)
+                        _export_badge = (
+                            f'<span style="background:#1A0040;color:#A78BFA;'
+                            f'border:1px solid #A78BFA44;padding:2px 8px;'
+                            f'border-radius:3px;font-family:var(--mono);font-size:0.56rem;'
+                            f'margin-left:6px">📄 {_fmt_txt}</span>'
+                        )
+                    elif _is_postinv_stage and _postinv_md:
+                        _export_badge = (
+                            f'<span style="background:#04342C;color:#2DD4BF;'
+                            f'border:1px solid #2DD4BF44;padding:2px 8px;'
+                            f'border-radius:3px;font-family:var(--mono);font-size:0.56rem;'
+                            f'margin-left:6px">📜 REPORT</span>'
                         )
 
                     st.markdown(
@@ -2700,10 +4498,15 @@ with tab_pipeline:
                     )
 
                     # ── Button row: JSON | export | delete ──────────────────
+                    _bj2b = None
                     if _is_csv_stage:
                         _bj1, _bj2, _bj3, _ = st.columns([0.6, 1.2, 0.28, 7])
                     elif _is_docx_stage:
                         _bj1, _bj2, _bj3, _ = st.columns([0.6, 1.3, 0.28, 7])
+                    elif _is_report_stage and _report_exports:
+                        _bj1, _bj2, _bj2b, _bj3, _ = st.columns([0.6, 1.1, 1.1, 0.28, 6])
+                    elif _is_postinv_stage and _postinv_md:
+                        _bj1, _bj2, _bj2b, _bj3, _ = st.columns([0.6, 1.1, 1.3, 0.28, 6])
                     else:
                         _bj1, _bj3, _ = st.columns([0.6, 0.28, 9])
                         _bj2 = None
@@ -2745,6 +4548,52 @@ with tab_pipeline:
                             ),
                             key=f"pl_docx_{_sel}_{_r_id}",
                         )
+
+                    # ── Word/PDF downloads for finalized_report stage ───────
+                    # Serves the actual documents generated by the reporting
+                    # agent (outputs/<incident>/reports/exports/), not a
+                    # reconstruction from the pipeline record.
+                    elif _is_report_stage and _report_exports and _bj2 is not None:
+                        _safe_id = re.sub(r"[^A-Za-z0-9_\-]", "_", _r_id)[:40]
+                        if _report_exports.get("docx"):
+                            try:
+                                _bj2.download_button(
+                                    label="📝 Word Report",
+                                    data=Path(str(_report_exports["docx"])).read_bytes(),
+                                    file_name=f"incident_report_{_safe_id}.docx",
+                                    mime=("application/vnd.openxmlformats-officedocument"
+                                          ".wordprocessingml.document"),
+                                    key=f"pl_repdocx_{_sel}_{_r_id}",
+                                )
+                            except Exception:
+                                pass
+                        if _report_exports.get("pdf") and _bj2b is not None:
+                            try:
+                                _bj2b.download_button(
+                                    label="📕 PDF Report",
+                                    data=Path(str(_report_exports["pdf"])).read_bytes(),
+                                    file_name=f"incident_report_{_safe_id}.pdf",
+                                    mime="application/pdf",
+                                    key=f"pl_reppdf_{_sel}_{_r_id}",
+                                )
+                            except Exception:
+                                pass
+
+                    # ── Investigation findings for post_investigation stage ──
+                    elif _is_postinv_stage and _postinv_md and _bj2 is not None:
+                        _safe_id = re.sub(r"[^A-Za-z0-9_\-]", "_", _r_id)[:40]
+                        _bj2.download_button(
+                            label="📜 Report (MD)",
+                            data=_postinv_md.encode("utf-8"),
+                            file_name=f"investigation_{_safe_id}.md",
+                            mime="text/markdown",
+                            key=f"pl_invmd_{_sel}_{_r_id}",
+                        )
+                        if _bj2b is not None and _bj2b.button(
+                                "🔎 View Findings", key=f"pl_invview_{_sel}_{_r_id}"):
+                            with st.expander(f"Investigation findings — {_r_id}",
+                                             expanded=True):
+                                st.markdown(_postinv_md)
 
                     if _bj3.button("✕", key=f"pl_del_{_sel}_{_r_id}"):
                         pipeline_delete(_sel, _r_id)
@@ -2867,3 +4716,17 @@ with tab_pipeline:
                         st.rerun()
                     except Exception as _we:
                         st.error(str(_we))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BACKGROUND WORKFLOW POLL — last statement so every tab renders first.
+# While the worker thread runs, rerun every ~1.5s so the agent board (and any
+# open detail panel) refreshes with the worker's latest thinking/output.
+# ══════════════════════════════════════════════════════════════════════════════
+try:
+    _wf_poll = _workflow_store().get("run")
+    if _wf_poll is not None:
+        if not _wf_poll.get("done"):
+            time.sleep(1.5)
+        st.rerun()
+except Exception:
+    pass
