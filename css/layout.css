@@ -1,0 +1,213 @@
+/* Application shell and major layout regions */
+
+.shell {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 250px minmax(0, 1fr);
+}
+
+.side {
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    background: var(--nav);
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+}
+
+.main {
+    min-width: 0;
+}
+
+.top {
+    height: 78px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 9;
+    background: #07101bd9;
+    backdrop-filter: blur(16px);
+}
+
+.top-right {
+    margin-left: auto;
+    margin-right: 0;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.top-center {
+    position: absolute;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transform: translateX(-50%);
+}
+
+.content {
+    padding: 20px 24px 35px;
+    max-width: 1680px;
+    margin: auto;
+}
+
+.section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+
+.section-head h2 {
+    margin: 0;
+    font-size: 14px;
+}
+
+.section-head p {
+    margin: 3px 0 0;
+    color: var(--sub);
+    font-size: 11px;
+}
+
+.stage-columns {
+    display: grid;
+    grid-template-columns: 1.25fr 0.75fr;
+    gap: 10px;
+}
+
+.top-brand b {
+    font-size: 18px;
+}
+
+.top-brand small {
+    font-size: 11px;
+}
+
+.top .heading small {
+    font-size: 11px;
+}
+
+.top .heading h1 {
+    font-size: 18px;
+}
+
+.top-command button {
+    font-size: 11px;
+}
+
+.welcome p,
+.section-head p,
+.queue-head p,
+.pipeline-wrap .section-head p {
+    font-size: 11px;
+}
+
+.section-head h2,
+.queue-head h2 {
+    font-size: 16px;
+}
+
+.shell {
+    display: block;
+}
+
+.side {
+    display: none;
+}
+
+.top {
+    height: 72px;
+    padding: 0 20px;
+    gap: 14px;
+}
+
+.top-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.top .heading {
+    min-width: 132px;
+    padding-left: 14px;
+    border-left: 1px solid var(--line);
+}
+
+.top .heading h1 {
+    font-size: 16px;
+}
+
+.top-command {
+    display: flex;
+    align-items: center;
+    margin-left: 0;
+    gap: 3px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: #0a1422;
+}
+
+.top-command button {
+    height: 31px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--sub);
+    padding: 0 9px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.top-command button:hover {
+    color: #fff;
+    background: #151f33;
+}
+
+.top-command button.active {
+    color: #fff;
+    background: #202b4d;
+}
+
+.top-command button .nav-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 17px;
+    height: 16px;
+    margin-left: 4px;
+    padding: 0 4px;
+    border-radius: 99px;
+    background: #27324a;
+    font-size: 11px;
+}
+
+.top-command button .nav-count.hot {
+    background: #40202a;
+    color: #ff9da6;
+}
+
+.top-divider {
+    width: 1px;
+    height: 19px;
+    background: var(--line);
+    margin: 0 2px;
+}
+
+.top .search {
+    margin-left: 0;
+    width: min(300px, 22vw);
+}
+
+.content {
+    max-width: 1800px;
+    padding-left: 28px;
+    padding-right: 28px;
+}

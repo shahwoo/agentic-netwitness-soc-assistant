@@ -1,0 +1,309 @@
+/* Responsive layout adjustments */
+
+@media (max-width: 850px) {
+    .stage-columns {
+        grid-template-columns: 1fr;
+    }
+    .stage-detail-body {
+        overflow: auto;
+    }
+    .mini-table {
+        min-width: 620px;
+    }
+}
+
+@media (max-width: 850px) {
+    .pipeline {
+        grid-template-columns: repeat(2, 1fr);
+        row-gap: 16px;
+    }
+    .stage:nth-child(even):after {
+        display: none;
+    }
+    .stage-detail-head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+    .stage-detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 850px) {
+    .agent-report-head {
+        flex-wrap: wrap;
+    }
+    .agent-meta-row {
+        flex-direction: column;
+    }
+    .modal-fact-row {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 1250px) {
+    .top-brand small,
+    .top-command .secondary-nav {
+        display: none;
+    }
+    .top .search {
+        width: 230px;
+    }
+    .top {
+        gap: 9px;
+    }
+    .top-command button {
+        padding: 0 8px;
+    }
+}
+
+@media (max-width: 850px) {
+    .user-details {
+        display: none;
+    }
+
+    .top {
+        height: auto;
+        min-height: 70px;
+        flex-wrap: wrap;
+        padding: 9px 14px;
+    }
+
+    .top-center {
+        position: static;
+        order: 3;
+        width: 100%;
+        transform: none;
+    }
+    .top .heading {
+        display: none;
+    }
+    .top-command {
+        width: 100%;
+        overflow: auto;
+    }
+    .top .search {
+        display: flex;
+        flex: 1;
+        width: auto;
+    }
+    .content {
+        padding: 15px;
+    }
+    .content.operations-mode .attention {
+        grid-template-columns: 1fr 1fr;
+    }
+    .investigation-preview-grid,
+    .entity-graph-layout {
+        grid-template-columns: 1fr;
+    }
+    .entity-details {
+        border-top: 1px solid #293950;
+        border-left: 0;
+    }
+    .entity-details__empty {
+        min-height: 180px;
+    }
+    .timeline-event__summary {
+        grid-template-columns: 38px 96px minmax(0, 1fr) auto;
+    }
+    .timeline-event__summary .timeline-significance {
+        display: none;
+    }
+    .mitre-card__summary {
+        grid-template-columns: 120px minmax(180px, 1fr) auto 20px;
+    }
+    .mitre-validation-status {
+        display: none;
+    }
+}
+
+@media (max-width: 1150px) {
+    .case-layout {
+        grid-template-columns: 1fr;
+    }
+    .case-chat {
+        position: static;
+        height: 520px;
+    }
+}
+
+@media (max-width: 900px) {
+    .case-header {
+        grid-template-columns: 1fr;
+    }
+    .case-grid {
+        grid-template-columns: 1fr;
+    }
+    .case-next {
+        grid-template-columns: 38px 1fr;
+    }
+    .case-next .cta {
+        grid-column: 1/-1;
+    }
+    .content.operations-mode .attention {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 1150px) {
+    .shell {
+        grid-template-columns: 76px 1fr;
+    }
+    .brand {
+        padding: 0 20px;
+    }
+    .brand > div:last-child,
+    .workspace > div,
+    .nav-label,
+    .nav button span,
+    .nav button b,
+    .shift {
+        display: none;
+    }
+    .workspace {
+        justify-content: center;
+    }
+    .nav button {
+        justify-content: center;
+    }
+    .attention {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    .hero {
+        grid-column: 1/-1;
+    }
+    .pipeline {
+        grid-template-columns: repeat(4, 1fr);
+        row-gap: 18px;
+    }
+    .stage:nth-child(4):after {
+        display: none;
+    }
+}
+
+@media (max-width: 760px) {
+    .shell {
+        display: block;
+    }
+    .side {
+        display: none;
+    }
+    .investigation-tabs {
+        width: 100%;
+        padding-bottom: 4px;
+    }
+    .investigation-preview-grid {
+        grid-template-columns: 1fr;
+    }
+    .investigation-preview-card,
+    .investigation-panel__head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+    .investigation-preview-card button,
+    .timeline-order,
+    .timeline-filters,
+    .entity-graph-filters,
+    .timeline-filters select,
+    .timeline-filters button,
+    .entity-graph-filters select,
+    .entity-graph-filters label {
+        width: 100%;
+    }
+    .incident-timeline {
+        padding-left: 0;
+    }
+    .incident-timeline::before {
+        left: 20px;
+    }
+    .timeline-event__summary {
+        grid-template-columns: 40px minmax(0, 1fr) 22px;
+    }
+    .timeline-event__summary time {
+        grid-column: 2;
+        grid-row: 1;
+    }
+    .timeline-event__heading {
+        grid-column: 2;
+        grid-row: 2;
+    }
+    .timeline-event__marker {
+        grid-row: 1 / span 2;
+    }
+    .timeline-event__chevron {
+        grid-column: 3;
+        grid-row: 1 / span 2;
+    }
+    .timeline-event__details,
+    .mitre-card__details,
+    .evidence-card__details {
+        padding: 12px;
+    }
+    .investigation-detail-list {
+        grid-template-columns: 1fr;
+    }
+    .mitre-card__summary {
+        grid-template-columns: 1fr auto;
+    }
+    .mitre-card__tactic,
+    .mitre-card__identity,
+    .mitre-card__summary .stage-status {
+        grid-column: 1;
+    }
+    .evidence-card__summary {
+        grid-template-columns: 32px minmax(0, 1fr) auto;
+    }
+    .evidence-card__summary > span:nth-child(3) {
+        display: none;
+    }
+    .entity-graph-layout,
+    .entity-graph-canvas svg {
+        min-height: 430px;
+    }
+    .top {
+        padding: 0 14px;
+    }
+    .search,
+    .health {
+        display: none;
+    }
+    .content {
+        padding: 15px;
+    }
+    .attention {
+        grid-template-columns: 1fr 1fr;
+    }
+    .hero {
+        grid-template-columns: 42px 1fr;
+    }
+    .hero .cta {
+        grid-column: 1/-1;
+    }
+    .metric:last-child {
+        grid-column: 1/-1;
+    }
+    .pipeline {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .stage:nth-child(even):after {
+        display: none;
+    }
+    .legend {
+        display: none;
+    }
+    .queue-head {
+        flex-wrap: wrap;
+    }
+    .controls {
+        margin: 0;
+        width: 100%;
+    }
+    .ticket-search {
+        flex: 1;
+        min-width: 0;
+    }
+    table {
+        min-width: 930px;
+    }
+}

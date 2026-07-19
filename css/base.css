@@ -1,0 +1,55 @@
+/* Design tokens, reset, typography, and shared defaults */
+
+:root {
+    color-scheme: dark;
+    --bg: #060b13;
+    --nav: #07101b;
+    --card: #0e1929;
+    --card2: #101d30;
+    --line: #223149;
+    --text: #f3f6fb;
+    --sub: #8b9bb2;
+    --faint: #61738d;
+    --blue: #6f7cff;
+    --cyan: #36c5d3;
+    --red: #ff6e7c;
+    --amber: #f4bc5f;
+    --green: #43d28c;
+    --purple: #a67af4;
+    --r: 14px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+button,
+select,
+input,
+textarea {
+    font-family: inherit;
+}
+
+body {
+    margin: 0;
+    background:
+        radial-gradient(circle at 64% -20%, #17233b 0, transparent 33%),
+        var(--bg);
+    color: var(--text);
+    font:
+        13px/1.45 Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        "Segoe UI",
+        sans-serif;
+}
+
+button,
+input {
+    font: inherit;
+}
+
+body {
+    font-size: 14px;
+}

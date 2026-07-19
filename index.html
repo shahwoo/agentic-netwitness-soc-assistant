@@ -1,0 +1,2514 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>Aegis — SOC Operations</title>
+        <link rel="stylesheet" href="css/base.css" />
+        <link rel="stylesheet" href="css/layout.css" />
+        <link rel="stylesheet" href="css/components.css" />
+        <link rel="stylesheet" href="css/pages.css" />
+        <link rel="stylesheet" href="css/responsive.css" />
+    </head>
+    <body>
+        <div class="shell">
+            <aside class="side">
+                <div class="brand">
+                    <img
+                        class="brand-mark"
+                        src="assets/images/aegis-logo.png"
+                        alt="Aegis"
+                        width="123"
+                        height="40"
+                    />
+                </div>
+                <div class="workspace">
+                    <i>▦</i>
+                    <div>
+                        <b>Republic Polytechnic SOC</b
+                        ><small>Production workspace</small>
+                    </div>
+                </div>
+                <nav class="nav">
+                    <div class="nav-label">Command centre</div>
+                    <button class="active" id="operationsNav">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                        >
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" /></svg
+                        ><span>Operations</span></button
+                    ><button id="myQueueNav">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                        >
+                            <path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" /></svg
+                        ><span>My Workspace</span><b>7</b></button
+                    ><button>
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                        >
+                            <path
+                                d="M12 3 4 7v5c0 5 3 8 8 10 5-2 8-5 8-10V7z"
+                            /></svg
+                        ><span>Approvals</span><b class="hot">3</b>
+                    </button>
+                    <div class="nav-label">Operations</div>
+                    <button>
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                        >
+                            <path d="M4 7h16v12H4zM8 7V5h8v2" /></svg
+                        ><span>Cases</span><b>51</b></button
+                    ><button>
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                        >
+                            <circle cx="12" cy="12" r="8" />
+                            <path d="M4 12h16M12 4c4 4 4 12 0 16" /></svg
+                        ><span>Threat Intelligence Enrichment</span></button
+                    ><button>
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                        >
+                            <path d="M6 3h9l4 4v14H6zM14 3v5h5" /></svg
+                        ><span>Reports</span></button
+                    ><button>
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                        >
+                            <circle cx="12" cy="12" r="8" />
+                            <path d="M12 7v5l3 2" /></svg
+                        ><span>Audit Log</span>
+                    </button>
+                </nav>
+                <div class="shift">
+                    <strong>Morning shift</strong><em>On duty</em>
+                    <div class="progress"><i></i></div>
+                    <small>4h 58m remaining</small>
+                </div>
+            </aside>
+            <main class="main">
+                <header class="top">
+                    <div class="top-brand">
+                        <img
+                            class="brand-mark"
+                            src="assets/images/aegis-logo.png"
+                            alt="Aegis"
+                            width="105"
+                            height="34"
+                        />
+                    </div>
+                    <div class="heading">
+                        <small>DASHBOARD</small>
+                        <h1 id="pageTitle">Operations overview</h1>
+                    </div>
+                    <div class="top-center">
+                        <nav
+                            class="top-command"
+                            aria-label="Primary navigation"
+                        >
+                            <button class="active" id="topOperationsNav">
+                                Overview</button
+                            ><button id="topMyQueueNav">
+                                My Workspace
+                                <span class="nav-count">10</span></button
+                            ><i class="top-divider"></i
+                            ><button
+                                class="secondary-nav"
+                                id="topAllCasesNav"
+                                data-message="Showing every case across the SOC."
+                            >
+                                All Cases
+                            </button>
+                        </nav>
+                        <label class="search"
+                            >⌕<input
+                                id="global"
+                                aria-label="Search cases, indicators, or users"
+                                placeholder="Search cases, IOCs or users"
+                            /><button
+                                class="global-filter-toggle"
+                                id="globalFilterToggle"
+                                type="button"
+                                aria-label="Filter and sort"
+                            >
+                                ⚙
+                            </button>
+                            <div
+                                class="global-filter-popover"
+                                id="globalFilterPopover"
+                                hidden
+                            >
+                                <div class="gfp-row">
+                                    <label for="globalFilterSeverity"
+                                        >Severity</label
+                                    ><select id="globalFilterSeverity">
+                                        <option value="">All</option>
+                                        <option value="critical">
+                                            Critical
+                                        </option>
+                                        <option value="high">High</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="low">Low</option>
+                                    </select>
+                                </div>
+                                <div class="gfp-row">
+                                    <label for="globalFilterStage">Stage</label
+                                    ><select id="globalFilterStage">
+                                        <option value="">All</option>
+                                        <option value="Parsing">Parsing</option>
+                                        <option value="Triage">Triage</option>
+                                        <option
+                                            value="Threat Intelligence Enrichment"
+                                        >
+                                            Threat Intelligence Enrichment
+                                        </option>
+                                        <option value="Investigation">
+                                            Investigation
+                                        </option>
+                                        <option value="Reporting">
+                                            Reporting
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="gfp-row">
+                                    <label for="globalFilterOwner">Owner</label
+                                    ><select id="globalFilterOwner">
+                                        <option value="">All</option>
+                                        <option value="mine">Soong Yang</option>
+                                        <option value="unassigned">
+                                            Unassigned
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="gfp-row">
+                                    <label for="globalSortKey">Sort by</label
+                                    ><select id="globalSortKey">
+                                        <option value="">None</option>
+                                        <option value="id">Ticket ID</option>
+                                        <option value="case">Case</option>
+                                        <option value="severity">
+                                            Severity
+                                        </option>
+                                        <option value="stage">
+                                            Current stage
+                                        </option>
+                                        <option value="owner">Owner</option>
+                                        <option value="next">
+                                            Next action
+                                        </option></select
+                                    ><button
+                                        class="global-sort-dir"
+                                        id="globalSortDir"
+                                        type="button"
+                                        aria-label="Toggle sort direction"
+                                    >
+                                        ▲
+                                    </button>
+                                </div>
+                            </div></label
+                        >
+                    </div>
+                    <div class="top-right">
+                        <div class="avatar" aria-hidden="true">SY</div>
+                        <div class="user-details">
+                            <strong>Soong Yang</strong>
+                            <span>SOC Analyst</span>
+                        </div>
+                    </div>
+                </header>
+                <div class="content">
+                    <div class="welcome">
+                        <div>
+                            <h2 id="viewTitle">System operations</h2>
+                            <p id="viewCopy">
+                                All tickets and workflow activity across the
+                                SOC.
+                            </p>
+                        </div>
+                        <div class="updated">Last synced · 05:28:16 PM</div>
+                    </div>
+                    <section class="attention">
+                        <article class="hero">
+                            <div class="hero-icon">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path
+                                        d="M12 3 3 20h18L12 3zM12 9v4M12 17h.01"
+                                    />
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="eyebrow" id="heroEyebrow">
+                                    Highest-priority ticket
+                                </div>
+                                <h3 id="heroTitle">
+                                    Review containment for WannaCry on MSS-ECSVC
+                                </h3>
+                                <p id="heroWhy">
+                                    Critical severity · Threat Intelligence
+                                    Enrichment complete · Approval required
+                                </p>
+                            </div>
+                            <button
+                                class="cta"
+                                data-message="Containment review opened"
+                            >
+                                Review containment →
+                            </button>
+                        </article>
+                        <article class="metric red">
+                            <span id="metric1Label">Critical cases</span
+                            ><strong id="metric1Value">6</strong
+                            ><small id="metric1Copy"
+                                >Requires immediate attention</small
+                            >
+                        </article>
+                        <article class="metric amber">
+                            <span id="metric2Label">Approval required</span
+                            ><strong id="metric2Value">1</strong
+                            ><small id="metric2Copy"
+                                >Awaiting SOC analyst approval</small
+                            >
+                        </article>
+                        <article class="metric blue">
+                            <span id="metric3Label">Unassigned cases</span
+                            ><strong id="metric3Value">16</strong
+                            ><small id="metric3Copy"
+                                >Waiting for an owner</small
+                            >
+                        </article>
+                    </section>
+                    <section class="section pipeline-wrap">
+                        <div class="section-head">
+                            <div>
+                                <h2 id="pipelineTitle">System case pipeline</h2>
+                                <p id="pipelineCopy">
+                                    51 open tickets moving through the
+                                    investigation workflow
+                                </p>
+                            </div>
+                            <div class="legend">
+                                <span
+                                    ><i
+                                        class="legend-dot legend-dot--progress"
+                                    ></i
+                                    >In progress</span
+                                ><span
+                                    ><i
+                                        class="legend-dot legend-dot--approval"
+                                    ></i
+                                    >Approval required</span
+                                ><span
+                                    ><i
+                                        class="legend-dot legend-dot--queued"
+                                    ></i
+                                    >Queued</span
+                                >
+                            </div>
+                        </div>
+                        <div class="pipeline">
+                            <div class="stage live" data-stage="Parsing">
+                                <div class="node">49</div>
+                                <b>Parsing</b><small>Automated intake</small>
+                            </div>
+                            <div class="stage live" data-stage="Triage">
+                                <div class="node">1</div>
+                                <b>Triage</b><small>1 needs review</small>
+                            </div>
+                            <div
+                                class="stage live"
+                                data-stage="Threat Intelligence Enrichment"
+                            >
+                                <div class="node">1</div>
+                                <b>Threat Intelligence Enrichment</b
+                                ><small>Enrichment running</small>
+                            </div>
+                            <div class="stage" data-stage="Investigation">
+                                <div class="node">0</div>
+                                <b>Investigation</b
+                                ><small>No active cases</small>
+                            </div>
+                            <div class="stage" data-stage="Reporting">
+                                <div class="node">0</div>
+                                <b>Reporting</b><small>No reports ready</small>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="section queue">
+                        <div class="queue-head">
+                            <div>
+                                <h2 id="queueTitle">Open tickets</h2>
+                                <p id="queueCopy">
+                                    All system tickets, ranked by severity and
+                                    required action
+                                </p>
+                            </div>
+                            <div class="controls">
+                                <input
+                                    class="ticket-search"
+                                    id="ticketSearch"
+                                    aria-label="Search tickets"
+                                    placeholder="Search tickets"
+                                /><select
+                                    class="filter-select"
+                                    id="filterSeverity"
+                                >
+                                    <option value="">All severities</option>
+                                    <option value="critical">Critical</option>
+                                    <option value="high">High</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="low">Low</option></select
+                                ><select class="filter-select" id="filterStage">
+                                    <option value="">All stages</option>
+                                    <option value="Parsing">Parsing</option>
+                                    <option value="Triage">Triage</option>
+                                    <option
+                                        value="Threat Intelligence Enrichment"
+                                    >
+                                        Threat Intelligence Enrichment
+                                    </option>
+                                    <option value="Investigation">
+                                        Investigation
+                                    </option>
+                                    <option value="Reporting">
+                                        Reporting
+                                    </option></select
+                                ><select class="filter-select" id="filterOwner">
+                                    <option value="">All owners</option>
+                                    <option value="mine">Soong Yang</option>
+                                    <option value="unassigned">
+                                        Unassigned
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <colgroup>
+                                    <col class="queue-col--ticket" />
+                                    <col class="queue-col--case" />
+                                    <col class="queue-col--severity" />
+                                    <col class="queue-col--stage" />
+                                    <col class="queue-col--confidence" />
+                                    <col class="queue-col--owner" />
+                                    <col class="queue-col--updated" />
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th class="sortable" data-sort="id">
+                                            Ticket ID<span
+                                                class="sort-arrow"
+                                            ></span>
+                                        </th>
+                                        <th class="sortable" data-sort="case">
+                                            Case<span class="sort-arrow"></span>
+                                        </th>
+                                        <th
+                                            class="sortable"
+                                            data-sort="severity"
+                                        >
+                                            Severity<span
+                                                class="sort-arrow"
+                                            ></span>
+                                        </th>
+                                        <th class="sortable" data-sort="stage">
+                                            Current stage<span
+                                                class="sort-arrow"
+                                            ></span>
+                                        </th>
+                                        <th class="sortable" data-sort="owner">
+                                            Owner<span
+                                                class="sort-arrow"
+                                            ></span>
+                                        </th>
+                                        <th class="sortable" data-sort="next">
+                                            Next action<span
+                                                class="sort-arrow"
+                                            ></span>
+                                        </th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rows">
+                                    <tr
+                                        class="hot"
+                                        data-severity="critical"
+                                        data-owner="mine"
+                                        data-action="true"
+                                        data-current-stage="Threat Intelligence Enrichment"
+                                    >
+                                        <td class="id">TKT-2026-00125</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar critical"></i
+                                                ><b
+                                                    title="WannaCry Ransomware Activity — msssecsvc.exe with Kill-Switch Domain"
+                                                    >WannaCry Ransomware
+                                                    Activity — msssecsvc.exe
+                                                    with Kill-Switch Domain</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill critical"
+                                                >Critical</span
+                                            >
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Threat Intelligence
+                                                Enrichment</span
+                                            >
+                                        </td>
+                                        <td>Soong Yang</td>
+                                        <td class="next">
+                                            <b>Review containment</b
+                                            ><span
+                                                >Analyst decision required</span
+                                            >
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00125"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign owner"
+                                                    data-message="Assignment options opened"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                    data-message="More case actions opened"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="high"
+                                        data-owner="mine"
+                                        data-action="true"
+                                        data-current-stage="Triage"
+                                    >
+                                        <td class="id">TKT-2026-00126</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar high"></i
+                                                ><b
+                                                    >High Risk Alerts: ESA for
+                                                    192.168.0.19</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill high">High</span>
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Triage</span
+                                            >
+                                        </td>
+                                        <td>Soong Yang</td>
+                                        <td class="next">
+                                            <b>Validate severity</b
+                                            ><span>Triage review required</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00126"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign owner"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="high"
+                                        data-owner="unassigned"
+                                        data-action="true"
+                                        data-current-stage="Parsing"
+                                    >
+                                        <td class="id">TKT-2026-00175</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar high"></i
+                                                ><b
+                                                    >High Risk Alerts: ESA for
+                                                    192.168.1.64</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill high">High</span>
+                                        </td>
+                                        <td>
+                                            <span class="pill wait"
+                                                >Parsing</span
+                                            >
+                                        </td>
+                                        <td class="unassigned">Unassigned</td>
+                                        <td class="next">
+                                            <b>Assign analyst</b
+                                            ><span>Waiting 12 minutes</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00175"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign to me"
+                                                    data-message="Ticket assigned to you"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="high"
+                                        data-owner="unassigned"
+                                        data-action="false"
+                                        data-current-stage="Parsing"
+                                    >
+                                        <td class="id">TKT-2026-00174</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar high"></i
+                                                ><b
+                                                    >NetWitness Endpoint alert
+                                                    for BETHANYCHUCHU</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill high">High</span>
+                                        </td>
+                                        <td>
+                                            <span class="pill wait"
+                                                >Parsing</span
+                                            >
+                                        </td>
+                                        <td class="unassigned">Unassigned</td>
+                                        <td class="next">
+                                            <span>Await automated parsing</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00174"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign to me"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="high"
+                                        data-owner="unassigned"
+                                        data-action="false"
+                                        data-current-stage="Parsing"
+                                    >
+                                        <td class="id">TKT-2026-00173</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar high"></i
+                                                ><b
+                                                    >NetWitness Endpoint alert
+                                                    for BETHANYCHUCHU</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill high">High</span>
+                                        </td>
+                                        <td>
+                                            <span class="pill wait"
+                                                >Parsing</span
+                                            >
+                                        </td>
+                                        <td class="unassigned">Unassigned</td>
+                                        <td class="next">
+                                            <span>Await automated parsing</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00173"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign to me"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="medium"
+                                        data-owner="mine"
+                                        data-action="false"
+                                        data-current-stage="Threat Intelligence Enrichment"
+                                    >
+                                        <td class="id">TKT-2026-00172</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar"></i
+                                                ><b
+                                                    >Unusual outbound traffic
+                                                    from KELLYWANG
+                                                    workstation</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill medium"
+                                                >Medium</span
+                                            >
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Threat Intelligence
+                                                Enrichment</span
+                                            >
+                                        </td>
+                                        <td>Soong Yang</td>
+                                        <td class="next">
+                                            <span>Enrichment running</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00172"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Reassign owner"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <tr
+                                        data-severity="critical"
+                                        data-owner="mine"
+                                        data-action="true"
+                                        data-current-stage="Investigation"
+                                    >
+                                        <td class="id">TKT-2026-00171</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar critical"></i
+                                                ><b
+                                                    >Malware Signature Match:
+                                                    Emotet Loader</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill critical"
+                                                >Critical</span
+                                            >
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Investigation</span
+                                            >
+                                        </td>
+                                        <td>Soong Yang</td>
+                                        <td class="next">
+                                            <b>Review findings</b
+                                            ><span
+                                                >Analyst decision required</span
+                                            >
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00171"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign owner"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="high"
+                                        data-owner="unassigned"
+                                        data-action="true"
+                                        data-current-stage="Triage"
+                                    >
+                                        <td class="id">TKT-2026-00170</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar high"></i
+                                                ><b
+                                                    >Brute Force Login Attempts
+                                                    against VPN Gateway</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill high">High</span>
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Triage</span
+                                            >
+                                        </td>
+                                        <td class="unassigned">Unassigned</td>
+                                        <td class="next">
+                                            <b>Validate severity</b
+                                            ><span>Triage review required</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00170"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign to me"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="low"
+                                        data-owner="unassigned"
+                                        data-action="false"
+                                        data-current-stage="Parsing"
+                                    >
+                                        <td class="id">TKT-2026-00169</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar"></i
+                                                ><b
+                                                    >Phishing Email Reported by
+                                                    HR Department</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill low">Low</span>
+                                        </td>
+                                        <td>
+                                            <span class="pill wait"
+                                                >Parsing</span
+                                            >
+                                        </td>
+                                        <td class="unassigned">Unassigned</td>
+                                        <td class="next">
+                                            <span>Await automated parsing</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00169"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign to me"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="medium"
+                                        data-owner="mine"
+                                        data-action="true"
+                                        data-current-stage="Reporting"
+                                    >
+                                        <td class="id">TKT-2026-00168</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar"></i
+                                                ><b
+                                                    >Unauthorized USB Device
+                                                    Detected on DEV-LAPTOP12</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill medium"
+                                                >Medium</span
+                                            >
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Reporting</span
+                                            >
+                                        </td>
+                                        <td>Soong Yang</td>
+                                        <td class="next">
+                                            <b>Approve report</b
+                                            ><span
+                                                >Awaiting SOC analyst
+                                                approval</span
+                                            >
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00168"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign owner"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="high"
+                                        data-owner="unassigned"
+                                        data-action="false"
+                                        data-current-stage="Threat Intelligence Enrichment"
+                                    >
+                                        <td class="id">TKT-2026-00167</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar high"></i
+                                                ><b
+                                                    >DNS Tunneling Activity from
+                                                    Marketing Subnet</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill high">High</span>
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Threat Intelligence
+                                                Enrichment</span
+                                            >
+                                        </td>
+                                        <td class="unassigned">Unassigned</td>
+                                        <td class="next">
+                                            <span>Enrichment running</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00167"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign to me"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="medium"
+                                        data-owner="mine"
+                                        data-action="true"
+                                        data-current-stage="Triage"
+                                    >
+                                        <td class="id">TKT-2026-00166</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar"></i
+                                                ><b
+                                                    >Multiple Failed MFA
+                                                    Challenges for user
+                                                    jsmith</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill medium"
+                                                >Medium</span
+                                            >
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Triage</span
+                                            >
+                                        </td>
+                                        <td>Soong Yang</td>
+                                        <td class="next">
+                                            <b>Validate severity</b
+                                            ><span>Triage review required</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00166"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign owner"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="critical"
+                                        data-owner="unassigned"
+                                        data-action="true"
+                                        data-current-stage="Triage"
+                                    >
+                                        <td class="id">TKT-2026-00165</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar critical"></i
+                                                ><b
+                                                    >Anomalous Data Exfiltration
+                                                    to Unknown Cloud Storage</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill critical"
+                                                >Critical</span
+                                            >
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Triage</span
+                                            >
+                                        </td>
+                                        <td class="unassigned">Unassigned</td>
+                                        <td class="next">
+                                            <b>Assign analyst</b
+                                            ><span>Waiting 6 minutes</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00165"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign to me"
+                                                    data-message="Ticket assigned to you"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="high"
+                                        data-owner="unassigned"
+                                        data-action="true"
+                                        data-current-stage="Investigation"
+                                    >
+                                        <td class="id">TKT-2026-00164</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar high"></i
+                                                ><b
+                                                    >Privilege Escalation
+                                                    Attempt on SQL-PROD-03</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill high">High</span>
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Investigation</span
+                                            >
+                                        </td>
+                                        <td class="unassigned">Unassigned</td>
+                                        <td class="next">
+                                            <b>Assign analyst</b
+                                            ><span>Waiting 27 minutes</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00164"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign to me"
+                                                    data-message="Ticket assigned to you"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="low"
+                                        data-owner="unassigned"
+                                        data-action="false"
+                                        data-current-stage="Parsing"
+                                    >
+                                        <td class="id">TKT-2026-00163</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar"></i
+                                                ><b
+                                                    >Suspicious Scheduled Task
+                                                    Created on FINANCE-PC04</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill low">Low</span>
+                                        </td>
+                                        <td>
+                                            <span class="pill wait"
+                                                >Parsing</span
+                                            >
+                                        </td>
+                                        <td class="unassigned">Unassigned</td>
+                                        <td class="next">
+                                            <span>Await automated parsing</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00163"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign to me"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="low"
+                                        data-owner="unassigned"
+                                        data-action="false"
+                                        data-current-stage="Parsing"
+                                    >
+                                        <td class="id">TKT-2026-00162</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar"></i
+                                                ><b
+                                                    >Port Scan Detected from
+                                                    External IP 203.0.113.45</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill low">Low</span>
+                                        </td>
+                                        <td>
+                                            <span class="pill wait"
+                                                >Parsing</span
+                                            >
+                                        </td>
+                                        <td class="unassigned">Unassigned</td>
+                                        <td class="next">
+                                            <span>Await automated parsing</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00162"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign to me"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="critical"
+                                        data-owner="mine"
+                                        data-action="false"
+                                        data-current-stage="Threat Intelligence Enrichment"
+                                    >
+                                        <td class="id">TKT-2026-00161</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar critical"></i
+                                                ><b
+                                                    >Ransomware Note Detected on
+                                                    File Share \\HR-FS01</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill critical"
+                                                >Critical</span
+                                            >
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Threat Intelligence
+                                                Enrichment</span
+                                            >
+                                        </td>
+                                        <td>Soong Yang</td>
+                                        <td class="next">
+                                            <span>Enrichment running</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00161"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign owner"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="medium"
+                                        data-owner="unassigned"
+                                        data-action="true"
+                                        data-current-stage="Reporting"
+                                    >
+                                        <td class="id">TKT-2026-00160</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar"></i
+                                                ><b
+                                                    >Impossible Travel Login
+                                                    Anomaly for user mwong</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill medium"
+                                                >Medium</span
+                                            >
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Reporting</span
+                                            >
+                                        </td>
+                                        <td class="unassigned">Unassigned</td>
+                                        <td class="next">
+                                            <b>Assign analyst</b
+                                            ><span>Waiting 18 minutes</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00160"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign to me"
+                                                    data-message="Ticket assigned to you"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="high"
+                                        data-owner="mine"
+                                        data-action="true"
+                                        data-current-stage="Investigation"
+                                    >
+                                        <td class="id">TKT-2026-00159</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar high"></i
+                                                ><b
+                                                    >C2 Beacon Detected on
+                                                    ENG-LAPTOP19</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill high">High</span>
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Investigation</span
+                                            >
+                                        </td>
+                                        <td>Soong Yang</td>
+                                        <td class="next">
+                                            <b>Review findings</b
+                                            ><span
+                                                >Analyst decision required</span
+                                            >
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00159"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign owner"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="low"
+                                        data-owner="unassigned"
+                                        data-action="false"
+                                        data-current-stage="Reporting"
+                                    >
+                                        <td class="id">TKT-2026-00158</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar"></i
+                                                ><b
+                                                    >SQL Injection Attempt
+                                                    Blocked by WAF</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill low">Low</span>
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Reporting</span
+                                            >
+                                        </td>
+                                        <td class="unassigned">Unassigned</td>
+                                        <td class="next">
+                                            <span>Draft needs review</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00158"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign to me"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="critical"
+                                        data-owner="mine"
+                                        data-action="true"
+                                        data-current-stage="Triage"
+                                    >
+                                        <td class="id">TKT-2026-00157</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar critical"></i
+                                                ><b
+                                                    >Credential Dumping Activity
+                                                    (Mimikatz Signature)</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill critical"
+                                                >Critical</span
+                                            >
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Triage</span
+                                            >
+                                        </td>
+                                        <td>Soong Yang</td>
+                                        <td class="next">
+                                            <b>Validate severity</b
+                                            ><span>Triage review required</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00157"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign owner"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="high"
+                                        data-owner="unassigned"
+                                        data-action="false"
+                                        data-current-stage="Parsing"
+                                    >
+                                        <td class="id">TKT-2026-00156</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar high"></i
+                                                ><b
+                                                    >Suspicious Registry
+                                                    Modification on DC-01</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill high">High</span>
+                                        </td>
+                                        <td>
+                                            <span class="pill wait"
+                                                >Parsing</span
+                                            >
+                                        </td>
+                                        <td class="unassigned">Unassigned</td>
+                                        <td class="next">
+                                            <span>Await automated parsing</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00156"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign to me"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="high"
+                                        data-owner="unassigned"
+                                        data-action="false"
+                                        data-current-stage="Parsing"
+                                    >
+                                        <td class="id">TKT-2026-00155</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar high"></i
+                                                ><b
+                                                    >High Risk Alerts: ESA for
+                                                    10.0.4.221</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill high">High</span>
+                                        </td>
+                                        <td>
+                                            <span class="pill wait"
+                                                >Parsing</span
+                                            >
+                                        </td>
+                                        <td class="unassigned">Unassigned</td>
+                                        <td class="next">
+                                            <span>Await automated parsing</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00155"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign to me"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="medium"
+                                        data-owner="unassigned"
+                                        data-action="false"
+                                        data-current-stage="Parsing"
+                                    >
+                                        <td class="id">TKT-2026-00154</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar"></i
+                                                ><b
+                                                    >NetWitness Endpoint alert
+                                                    for RAJESHKUMAR</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill medium"
+                                                >Medium</span
+                                            >
+                                        </td>
+                                        <td>
+                                            <span class="pill wait"
+                                                >Parsing</span
+                                            >
+                                        </td>
+                                        <td class="unassigned">Unassigned</td>
+                                        <td class="next">
+                                            <span>Await automated parsing</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00154"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign to me"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="critical"
+                                        data-owner="mine"
+                                        data-action="true"
+                                        data-current-stage="Investigation"
+                                    >
+                                        <td class="id">TKT-2026-00153</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar critical"></i
+                                                ><b
+                                                    >Insider Threat: Bulk File
+                                                    Download by Departing
+                                                    Employee</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill critical"
+                                                >Critical</span
+                                            >
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Investigation</span
+                                            >
+                                        </td>
+                                        <td>Soong Yang</td>
+                                        <td class="next">
+                                            <b>Review findings</b
+                                            ><span
+                                                >Analyst decision required</span
+                                            >
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00153"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign owner"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        data-severity="low"
+                                        data-owner="unassigned"
+                                        data-action="false"
+                                        data-current-stage="Reporting"
+                                    >
+                                        <td class="id">TKT-2026-00152</td>
+                                        <td>
+                                            <div class="case">
+                                                <i class="bar"></i
+                                                ><b
+                                                    >Outdated TLS Certificate
+                                                    Flagged on Public Web
+                                                    Server</b
+                                                >
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill low">Low</span>
+                                        </td>
+                                        <td>
+                                            <span class="pill stage"
+                                                >Reporting</span
+                                            >
+                                        </td>
+                                        <td class="unassigned">Unassigned</td>
+                                        <td class="next">
+                                            <span>Draft needs review</span>
+                                        </td>
+                                        <td>
+                                            <div class="actions">
+                                                <button
+                                                    aria-label="Open case"
+                                                    data-message="Opening TKT-2026-00152"
+                                                >
+                                                    ↗</button
+                                                ><button
+                                                    aria-label="Assign to me"
+                                                >
+                                                    ♙</button
+                                                ><button
+                                                    aria-label="More actions"
+                                                >
+                                                    •••
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="foot">
+                            Showing the 26 most relevant of 51 open tickets ·
+                            Use My Workspace for your assigned work
+                        </div>
+                    </section>
+                    <section class="case-page" id="casePage">
+                        <div class="case-crumb">
+                            <button id="backToQueue">My Workspace</button
+                            ><span>›</span><span>TKT-2026-00125</span>
+                        </div>
+                        <div class="case-layout">
+                            <div class="case-main">
+                                <section class="case-header">
+                                    <div class="case-title-row">
+                                        <div class="case-alert">△</div>
+                                        <div class="case-title-copy">
+                                            <div class="case-title-meta">
+                                                <span>TKT-2026-00125</span
+                                                ><span class="pill critical"
+                                                    >Critical</span
+                                                ><span class="pill stage"
+                                                    >Open</span
+                                                >
+                                            </div>
+                                            <h2>
+                                                WannaCry Ransomware Activity —
+                                                msssecsvc.exe with Kill-Switch
+                                                Domain
+                                            </h2>
+                                            <p>
+                                                Endpoint MSS-ECSVC · Malware
+                                                detection · 1 correlated alert
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="case-facts">
+                                        <div class="case-fact">
+                                            <span>Owner</span><b>Soong Yang</b>
+                                        </div>
+                                        <div class="case-fact">
+                                            <span>Current stage</span
+                                            ><b
+                                                >Threat Intelligence
+                                                Enrichment</b
+                                            >
+                                        </div>
+                                        <div
+                                            class="case-fact incident-fact"
+                                            id="incidentsFact"
+                                        >
+                                            <div
+                                                class="incident-fact-trigger"
+                                                id="incidentsTrigger"
+                                            >
+                                                <span>Incidents</span
+                                                ><b>1 correlated</b>
+                                            </div>
+                                            <div
+                                                class="incident-popover"
+                                                id="incidentsPopover"
+                                                hidden
+                                            >
+                                                <div
+                                                    class="incident-popover-head"
+                                                >
+                                                    <b>Correlated incidents</b
+                                                    ><button
+                                                        class="incident-popover-close"
+                                                        id="incidentsPopoverClose"
+                                                        aria-label="Close"
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                </div>
+                                                <div class="incident-item">
+                                                    <div
+                                                        class="incident-item-top"
+                                                    >
+                                                        <b>NW-458921</b
+                                                        ><span
+                                                            class="pill critical"
+                                                            >Critical</span
+                                                        >
+                                                    </div>
+                                                    <span
+                                                        class="incident-item-meta"
+                                                        >NetWitness Endpoint
+                                                        alert · matched on host
+                                                        &amp; file hash</span
+                                                    >
+                                                    <p>
+                                                        msssecsvc.exe execution
+                                                        on MSS-ECSVC with an
+                                                        encoded PowerShell
+                                                        command, correlated into
+                                                        this case during
+                                                        parsing.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="case-fact">
+                                            <span>Last updated</span
+                                            ><b>05:28:16 PM</b>
+                                        </div>
+                                    </div>
+                                </section>
+                                <section class="section case-flow">
+                                    <div class="section-head">
+                                        <div>
+                                            <h2>Case workflow</h2>
+                                            <p>
+                                                Select a stage to inspect its
+                                                work, outputs and actions
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="pipeline">
+                                        <div
+                                            class="stage live workflow-link"
+                                            data-workflow-stage="parsing"
+                                        >
+                                            <div class="node">✓</div>
+                                            <b>Parsing</b
+                                            ><small>Complete</small>
+                                        </div>
+                                        <div
+                                            class="stage live workflow-link"
+                                            data-workflow-stage="triage"
+                                        >
+                                            <div class="node">✓</div>
+                                            <b>Triage</b><small>Complete</small>
+                                        </div>
+                                        <div
+                                            class="stage action workflow-link selected"
+                                            data-workflow-stage="threat-intelligence"
+                                        >
+                                            <div class="node">3</div>
+                                            <b>Threat Intelligence Enrichment</b
+                                            ><small>Current stage</small>
+                                        </div>
+                                        <div
+                                            class="stage workflow-link"
+                                            data-workflow-stage="investigation"
+                                        >
+                                            <div class="node">4</div>
+                                            <b>Investigation</b
+                                            ><small>Next</small>
+                                        </div>
+                                        <div
+                                            class="stage workflow-link"
+                                            data-workflow-stage="reporting"
+                                        >
+                                            <div class="node">5</div>
+                                            <b>Reporting</b
+                                            ><small>Queued</small>
+                                        </div>
+                                    </div>
+                                </section>
+                                <section
+                                    class="section stage-detail"
+                                    id="stageDetail"
+                                >
+                                    <div class="agent-report-head">
+                                        <div
+                                            class="agent-ring agent-ring--complete"
+                                            id="agentRing"
+                                        >
+                                            <div class="agent-ring-text">
+                                                <b id="agentRingPct">100%</b>
+                                            </div>
+                                        </div>
+                                        <div class="agent-report-main">
+                                            <div class="agent-report-title-row">
+                                                <h3 id="stageDetailTitle">
+                                                    Threat Intelligence
+                                                    Enrichment
+                                                </h3>
+                                                <span class="agent-check-badge"
+                                                    >✓</span
+                                                >
+                                            </div>
+                                            <small
+                                                class="agent-report-time"
+                                                id="agentReportTime"
+                                                >Last run —</small
+                                            >
+                                        </div>
+                                        <span
+                                            class="stage-status good"
+                                            id="agentHeadStatus"
+                                            >Completed</span
+                                        >
+                                    </div>
+                                    <div
+                                        class="ai-summary-card"
+                                        id="aiSummaryCard"
+                                    >
+                                        <div class="ai-summary-head">
+                                            <span class="ai-icon">✦</span
+                                            ><b>AI-Generated Summary</b
+                                            ><span
+                                                class="ai-fallback-tag"
+                                                id="aiFallbackTag"
+                                                hidden
+                                                >Fallback logic</span
+                                            >
+                                        </div>
+                                        <p id="aiSummaryText"></p>
+                                    </div>
+                                    <div class="agent-meta-row">
+                                        <div class="agent-meta-box">
+                                            <span>Missing Fields</span
+                                            ><b id="agentMissingFields">None</b>
+                                        </div>
+                                        <div class="agent-meta-box">
+                                            <span>Next Step</span
+                                            ><span
+                                                class="stage-status good"
+                                                id="agentNextStep"
+                                                >Ready for Triage</span
+                                            >
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="agent-warning-banner"
+                                        id="agentWarnings"
+                                        hidden
+                                    >
+                                        <span class="warn-icon" id="warnIcon"
+                                            >⚠</span
+                                        >
+                                        <div class="agent-warning-body">
+                                            <b id="agentWarningHead"
+                                                >Action required</b
+                                            >
+                                            <p id="agentWarningText"></p>
+                                            <div
+                                                class="decision-actions"
+                                                id="decisionActions"
+                                                hidden
+                                            >
+                                                <button
+                                                    class="decision-btn decision-primary"
+                                                    id="btnApprove"
+                                                    data-decision="approve"
+                                                >
+                                                    Approve & Continue</button
+                                                ><button
+                                                    class="decision-btn decision-neutral"
+                                                    id="btnInvestigate"
+                                                    data-decision="investigate"
+                                                >
+                                                    Request Further Analysis</button
+                                                ><button
+                                                    class="decision-btn decision-destructive"
+                                                    id="btnReject"
+                                                    data-decision="reject"
+                                                >
+                                                    Reject & Return to Triage
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="doc-table-card"
+                                        id="docTableCard"
+                                        hidden
+                                    >
+                                        <div class="doc-table-head">
+                                            <b>Generated Files</b
+                                            ><span
+                                                >Download the structured stage
+                                                data or review and export the
+                                                formatted report.</span
+                                            >
+                                        </div>
+                                        <div class="doc-table-wrap">
+                                            <table class="doc-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Document</th>
+                                                        <th>Last Saved</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody
+                                                    id="docTableBody"
+                                                ></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </section>
+                                <nav
+                                    class="case-tabs investigation-tabs"
+                                    id="investigationTabs"
+                                    role="tablist"
+                                    aria-label="Investigation workspace"
+                                >
+                                    <button
+                                        class="active"
+                                        data-case-tab="overview"
+                                        id="investigation-tab-overview"
+                                        type="button"
+                                        role="tab"
+                                        aria-controls="case-overview"
+                                        aria-selected="true"
+                                    >
+                                        Overview</button
+                                    ><button
+                                        data-case-tab="timeline"
+                                        id="investigation-tab-timeline"
+                                        type="button"
+                                        role="tab"
+                                        aria-controls="case-timeline"
+                                        aria-selected="false"
+                                        tabindex="-1"
+                                    >
+                                        Timeline</button
+                                    ><button
+                                        data-case-tab="mitre"
+                                        id="investigation-tab-mitre"
+                                        type="button"
+                                        role="tab"
+                                        aria-controls="case-mitre"
+                                        aria-selected="false"
+                                        tabindex="-1"
+                                    >
+                                        MITRE ATT&amp;CK
+                                        <span
+                                            class="investigation-tab__count"
+                                            data-investigation-count="mitre"
+                                        ></span></button
+                                    ><button
+                                        data-case-tab="entities"
+                                        id="investigation-tab-entities"
+                                        type="button"
+                                        role="tab"
+                                        aria-controls="case-entities"
+                                        aria-selected="false"
+                                        tabindex="-1"
+                                    >
+                                        Entity Graph
+                                        <span
+                                            class="investigation-tab__count"
+                                            data-investigation-count="entities"
+                                        ></span></button
+                                    ><button
+                                        data-case-tab="evidence"
+                                        id="investigation-tab-evidence"
+                                        type="button"
+                                        role="tab"
+                                        aria-controls="case-evidence"
+                                        aria-selected="false"
+                                        tabindex="-1"
+                                    >
+                                        Evidence
+                                        <span
+                                            class="investigation-tab__count"
+                                            data-investigation-count="evidence"
+                                        ></span></button
+                                    ><button
+                                        data-case-tab="activity"
+                                        id="investigation-tab-activity"
+                                        type="button"
+                                        role="tab"
+                                        aria-controls="case-activity"
+                                        aria-selected="false"
+                                        tabindex="-1"
+                                    >
+                                        Activity
+                                    </button>
+                                </nav>
+                                <div
+                                    class="case-tab-page active"
+                                    id="case-overview"
+                                    role="tabpanel"
+                                    aria-labelledby="investigation-tab-overview"
+                                >
+                                    <div class="case-grid">
+                                        <section class="section case-panel">
+                                            <h3>Key findings</h3>
+                                            <p>
+                                                Validated evidence requiring
+                                                analyst attention
+                                            </p>
+                                            <div class="finding">
+                                                <i>!</i>
+                                                <div>
+                                                    <b
+                                                        >Malicious payload
+                                                        confirmed</b
+                                                    ><span
+                                                        >File hash detected as
+                                                        malicious by 66 security
+                                                        vendors</span
+                                                    >
+                                                </div>
+                                                <span class="confidence"
+                                                    >99%</span
+                                                >
+                                            </div>
+                                            <div class="finding">
+                                                <i>◎</i>
+                                                <div>
+                                                    <b
+                                                        >Known
+                                                        command-and-control
+                                                        infrastructure</b
+                                                    ><span
+                                                        >Outbound traffic
+                                                        matched 50
+                                                        threat-intelligence
+                                                        pulses</span
+                                                    >
+                                                </div>
+                                                <span class="confidence"
+                                                    >95%</span
+                                                >
+                                            </div>
+                                            <div class="finding">
+                                                <i>⌁</i>
+                                                <div>
+                                                    <b
+                                                        >Suspicious PowerShell
+                                                        execution</b
+                                                    ><span
+                                                        >Encoded command
+                                                        launched from a
+                                                        user-writable
+                                                        directory</span
+                                                    >
+                                                </div>
+                                                <span class="confidence"
+                                                    >89%</span
+                                                >
+                                            </div>
+                                        </section>
+                                        <aside class="section case-panel">
+                                            <h3>Case context</h3>
+                                            <p>
+                                                Key facts for the current
+                                                decision
+                                            </p>
+                                            <div class="context-grid">
+                                                <div>
+                                                    <span>Severity</span
+                                                    ><b
+                                                        class="context-value--critical"
+                                                        >Critical</b
+                                                    >
+                                                </div>
+                                                <div>
+                                                    <span>Confidence</span
+                                                    ><b
+                                                        class="context-value--positive"
+                                                        >High · 94%</b
+                                                    >
+                                                </div>
+                                                <div>
+                                                    <span>Endpoint</span
+                                                    ><b>MSS-ECSVC</b>
+                                                </div>
+                                                <div>
+                                                    <span>Department</span
+                                                    ><b>Infrastructure</b>
+                                                </div>
+                                                <div>
+                                                    <span>Alerts</span
+                                                    ><b>1 correlated</b>
+                                                </div>
+                                                <div>
+                                                    <span>Evidence</span
+                                                    ><b>12 sources</b>
+                                                </div>
+                                            </div>
+                                        </aside>
+                                    </div>
+                                    <div
+                                        class="investigation-preview-grid"
+                                        id="investigationOverviewPreviews"
+                                    ></div>
+                                </div>
+                                <div
+                                    class="case-tab-page"
+                                    id="case-timeline"
+                                    role="tabpanel"
+                                    aria-labelledby="investigation-tab-timeline"
+                                    hidden
+                                ></div>
+                                <div
+                                    class="case-tab-page"
+                                    id="case-mitre"
+                                    role="tabpanel"
+                                    aria-labelledby="investigation-tab-mitre"
+                                    hidden
+                                ></div>
+                                <div
+                                    class="case-tab-page"
+                                    id="case-entities"
+                                    role="tabpanel"
+                                    aria-labelledby="investigation-tab-entities"
+                                    hidden
+                                ></div>
+                                <div
+                                    class="case-tab-page"
+                                    id="case-evidence"
+                                    role="tabpanel"
+                                    aria-labelledby="investigation-tab-evidence"
+                                    hidden
+                                >
+                                    <section class="section case-panel">
+                                        <h3>Evidence</h3>
+                                        <p>
+                                            Collected telemetry and intelligence
+                                            sources
+                                        </p>
+                                        <div class="finding">
+                                            <i>▣</i>
+                                            <div>
+                                                <b>Endpoint telemetry</b
+                                                ><span
+                                                    >Process tree, encoded
+                                                    PowerShell command and file
+                                                    hash</span
+                                                >
+                                            </div>
+                                            <span>Collected</span>
+                                        </div>
+                                        <div class="finding">
+                                            <i>◎</i>
+                                            <div>
+                                                <b
+                                                    >Threat Intelligence
+                                                    Enrichment</b
+                                                ><span
+                                                    >VirusTotal, AlienVault OTX
+                                                    and AbuseIPDB
+                                                    enrichment</span
+                                                >
+                                            </div>
+                                            <span>Validated</span>
+                                        </div>
+                                        <div class="finding">
+                                            <i>⌁</i>
+                                            <div>
+                                                <b>Network telemetry</b
+                                                ><span
+                                                    >Outbound connection to
+                                                    known command-and-control
+                                                    infrastructure</span
+                                                >
+                                            </div>
+                                            <span>Collected</span>
+                                        </div>
+                                    </section>
+                                </div>
+                                <div
+                                    class="case-tab-page"
+                                    id="case-activity"
+                                    role="tabpanel"
+                                    aria-labelledby="investigation-tab-activity"
+                                    hidden
+                                >
+                                    <section class="section case-panel">
+                                        <h3>Activity</h3>
+                                        <p>
+                                            Agent and analyst events for this
+                                            case
+                                        </p>
+                                        <div class="activity-item">
+                                            <i>✓</i>
+                                            <div>
+                                                <b
+                                                    >Threat Intelligence
+                                                    Enrichment completed</b
+                                                ><span
+                                                    >12 indicators enriched
+                                                    across three providers</span
+                                                >
+                                            </div>
+                                            <time>05:28</time>
+                                        </div>
+                                        <div class="activity-item">
+                                            <i>✓</i>
+                                            <div>
+                                                <b
+                                                    >Triage classified the case
+                                                    as Critical</b
+                                                ><span
+                                                    >Containment recommendation
+                                                    created</span
+                                                >
+                                            </div>
+                                            <time>05:20</time>
+                                        </div>
+                                        <div class="activity-item">
+                                            <i>✓</i>
+                                            <div>
+                                                <b>Alert parsed successfully</b
+                                                ><span
+                                                    >NetWitness event mapped to
+                                                    the case schema</span
+                                                >
+                                            </div>
+                                            <time>05:13</time>
+                                        </div>
+                                    </section>
+                                </div>
+                            </div>
+                            <aside class="section case-chat" id="caseChat">
+                                <div class="chat-head">
+                                    <div class="chat-head-icon">✦</div>
+                                    <div>
+                                        <b>Ask Aegis</b
+                                        ><span
+                                            >Shared across every agent stage
+                                            &amp; Threat Intelligence
+                                            Enrichment</span
+                                        >
+                                    </div>
+                                    <span class="chat-scope" id="chatScope"
+                                        >TKT-2026-00125</span
+                                    >
+                                </div>
+                                <div class="chat-messages" id="chatMessages">
+                                    <div class="chat-msg bot">
+                                        <span class="chat-msg-tag">Aegis</span
+                                        >I'm tracking TKT-2026-00125 — WannaCry
+                                        Ransomware Activity on MSS-ECSVC —
+                                        across every agent stage, including
+                                        Threat Intelligence Enrichment. Ask me
+                                        about parsing, triage, Threat
+                                        Intelligence Enrichment, investigation
+                                        or reporting.
+                                    </div>
+                                    <div class="chat-msg user">
+                                        <span class="chat-msg-tag">You</span
+                                        >What did Threat Intelligence Enrichment
+                                        find?
+                                    </div>
+                                    <div class="chat-msg bot">
+                                        <span class="chat-msg-tag">Aegis</span
+                                        >Threat Intelligence Enrichment
+                                        confirmed that the observed file hash,
+                                        command-and-control IP address and
+                                        kill-switch domain are associated with
+                                        the WannaCry ransomware family, with all
+                                        three connected providers in agreement.
+                                        Two indicators returned outright
+                                        malicious verdicts and one was flagged
+                                        suspicious, giving high confidence in
+                                        the malicious classification of this
+                                        alert.
+                                    </div>
+                                </div>
+                                <div
+                                    class="chat-suggestions"
+                                    id="chatSuggestions"
+                                >
+                                    <button
+                                        type="button"
+                                        data-ask="Summarise the triage decision"
+                                    >
+                                        Summarise triage</button
+                                    ><button
+                                        type="button"
+                                        data-ask="What are the investigation findings?"
+                                    >
+                                        Investigation findings</button
+                                    ><button
+                                        type="button"
+                                        data-ask="Is the report ready for review?"
+                                    >
+                                        Report status</button
+                                    ><button
+                                        type="button"
+                                        data-ask="What evidence is still missing?"
+                                    >
+                                        Missing evidence
+                                    </button>
+                                </div>
+                                <form class="chat-input-row" id="chatForm">
+                                    <input
+                                        id="chatInput"
+                                        aria-label="Ask Aegis about this case"
+                                        placeholder="Ask about this case…"
+                                        autocomplete="off"
+                                    /><button type="submit">Send</button>
+                                </form>
+                            </aside>
+                        </div>
+                    </section>
+                </div>
+            </main>
+        </div>
+        <div class="modal-overlay" id="decisionModalOverlay" hidden>
+            <div class="modal-box">
+                <div class="modal-head">
+                    <b id="modalTitle"></b
+                    ><button
+                        class="modal-close"
+                        id="modalClose"
+                        aria-label="Close"
+                    >
+                        ✕
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p id="modalText"></p>
+                    <div class="modal-fact-row" id="modalFactRow" hidden></div>
+                    <ul class="modal-examples" id="modalExamples" hidden></ul>
+                    <label
+                        class="modal-label"
+                        id="modalCommentLabel"
+                        for="modalComment"
+                        >Comment (optional)</label
+                    ><textarea
+                        id="modalComment"
+                        rows="3"
+                        placeholder="Add context for this decision…"
+                    ></textarea>
+                    <div class="modal-error" id="modalError" hidden></div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-ghost" id="modalCancel">Cancel</button
+                    ><button class="cta" id="modalConfirm">Confirm</button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-overlay" id="reviewModalOverlay" hidden>
+            <div class="modal-box review-modal-box">
+                <div class="modal-head">
+                    <b id="reviewModalTitle"></b
+                    ><button
+                        class="modal-close"
+                        id="reviewModalClose"
+                        aria-label="Close"
+                    >
+                        ✕
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="review-content" id="reviewContent"></div>
+                    <label class="modal-label" for="reviewAmendments"
+                        >Analyst amendments (optional)</label
+                    ><textarea
+                        id="reviewAmendments"
+                        rows="4"
+                        placeholder="Add corrections or notes to include in the exported report…"
+                    ></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-ghost" id="reviewCloseBtn">Close</button
+                    ><button class="doc-action-btn" id="reviewDownloadDocx">
+                        Download Word</button
+                    ><button class="doc-action-btn" id="reviewDownloadPdf">
+                        Download PDF</button
+                    ><button class="cta" id="reviewSaveBtn">Save</button>
+                </div>
+            </div>
+        </div>
+        <div class="toast" id="toast">
+            <b id="toastTitle"></b><span id="toastText"></span>
+        </div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+        <script type="module" src="js/app.js"></script>
+    </body>
+</html>
