@@ -6,7 +6,7 @@ import re
 from typing import List, Literal, Optional, Dict
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
-from policy_engine import PolicyAuditRecord, PolicyManager, run_policy_compliance_rules
+from policy_engine import PolicyAuditRecord, PolicyManager, run_policy_compliance_rules, extract_actionable_rules
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -89,6 +89,165 @@ def get_llm():
             openai_api_key=api_key
         )
     return _llm
+
+class PolicyClassificationResult(BaseModel):
+    relevant_sections: List[str] = Field(description="List of section keys/headers that are relevant to the Investigation Agent.")
+
+def classify_policies_for_investigation(sections: Dict[str, str]) -> List[str]:
+    """Uses a one-time LLM call to classify policy sections relevant to the Investigation Agent."""
+    log_info("[LLM CALL] Running one-time AI Policy Parser to classify relevant sections...")
+    
+    sections_summary = []
+    for key, text in sections.items():
+        first_lines = "\n".join(text.splitlines()[:4])
+        sections_summary.append(f"Section Key: '{key}'\nContent Preview:\n{first_lines}\n---")
+        
+    sections_summary_str = "\n".join(sections_summary)
+    
+    system_prompt = (
+        "You are a SOC Architect. You are given a list of parsed sections from the cybersecurity policies book.\n"
+        "Identify and select which section keys/headers are relevant to the Investigation Agent.\n"
+        "The Investigation Agent is responsible for:\n"
+        "- Assessing incident evidence and determining confidence levels.\n"
+        "- Assessing business impact checklist variables.\n"
+        "- Classifying final severity levels (Low, Medium, High, Critical) and mapping escalation conditions.\n"
+        "- Containment rules and approval policies (autonomous containment vs analyst approval).\n"
+        "- Special incident handling playbooks (e.g. ransomware rules, virtual guest OS compromise rules).\n"
+        "- Post-incident report requirements.\n\n"
+        "Do NOT include administrative sections (e.g. Purpose, Scope, Decision Registers, learning agent updates, policy review, audit logs requirements).\n"
+        "Return the list of relevant section keys strictly conforming to the JSON schema."
+    )
+    
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system_prompt),
+        ("human", "Available parsed policy sections:\n{sections}")
+    ])
+    
+    try:
+        chain = prompt | get_llm().with_structured_output(PolicyClassificationResult, method="json_schema")
+        result = chain.invoke({"sections": sections_summary_str})
+        log_success(f"[LLM RESPONSE] AI Policy Parser classified relevant sections: {result.relevant_sections}")
+        return result.relevant_sections
+    except Exception as e:
+        log_error(f"Failed to run AI Policy Parser: {e}. Falling back to default whitelist.")
+        return ["appendix a", "appendix b", "appendix c", "appendix f", "appendix g", "appendix h", "appendix i", "appendix j", "general escalation rule"]
+
+class PolicyVectorIndex:
+    """
+    ChromaDB vector store mapping policy sections into embeddings to support semantic retrieval.
+    Uses the 'soc_policies' collection.
+    """
+    def __init__(self, db_path: str = "ChromaDatabase"):
+        import chromadb
+        from chromadb.utils import embedding_functions
+        self.client = chromadb.PersistentClient(path=db_path)
+        self.default_ef = embedding_functions.DefaultEmbeddingFunction()
+        self.collection = self.client.get_or_create_collection(
+            name="soc_policies",
+            embedding_function=self.default_ef,
+            metadata={"hnsw:space": "cosine"}
+        )
+
+    def populate(self, sections: Dict[str, str], relevant_keys: List[str]):
+        """Populates the collection with only the whitelisted/classified sections."""
+        try:
+            self.client.delete_collection("soc_policies")
+        except Exception:
+            pass
+            
+        self.collection = self.client.get_or_create_collection(
+            name="soc_policies",
+            embedding_function=self.default_ef,
+            metadata={"hnsw:space": "cosine"}
+        )
+        
+        ids = []
+        documents = []
+        metadatas = []
+        
+        normalized_keys = {k.lower().strip() for k in relevant_keys}
+        
+        for key, text in sections.items():
+            key_clean = key.lower().strip()
+            if any(norm_key in key_clean or key_clean in norm_key for norm_key in normalized_keys):
+                ids.append(key)
+                documents.append(text)
+                metadatas.append({"section_name": key})
+                
+        if ids:
+            self.collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
+            log_success(f"PolicyVectorIndex: Successfully populated with {len(ids)} relevant sections.")
+
+    def retrieve(self, query_text: str, limit: int = 2) -> List[str]:
+        """Queries the policy store to semantically retrieve relevant sections."""
+        try:
+            results = self.collection.query(
+                query_texts=[query_text],
+                n_results=limit
+            )
+            parsed = []
+            if results and results["documents"] and results["documents"][0]:
+                for doc in results["documents"][0]:
+                    parsed.append(doc)
+            return parsed
+        except Exception as e:
+            log_error(f"PolicyVectorIndex: Retrieve failed: {e}")
+            return []
+
+_policy_mgr = None
+_policy_vector_index = None
+
+def get_policy_manager():
+    global _policy_mgr, _policy_vector_index
+    policy_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "policies", "soc_policies.md")
+    
+    if _policy_mgr is None:
+        _policy_mgr = PolicyManager(policy_file_path)
+        _policy_vector_index = PolicyVectorIndex()
+        
+        cache_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "policies", "investigation_sections_cache.json")
+        mtime = os.path.getmtime(policy_file_path)
+        
+        load_from_cache = False
+        cached_keys = []
+        
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    cache_data = json.load(f)
+                if cache_data.get("mtime") == mtime:
+                    cached_keys = cache_data.get("relevant_sections", [])
+                    load_from_cache = True
+                    log_success("PolicyVectorIndex: Loaded relevant sections classification from cache.")
+            except Exception as e:
+                log_warning(f"Failed to read policy cache: {e}")
+                
+        if not load_from_cache:
+            cached_keys = classify_policies_for_investigation(_policy_mgr.policies)
+            try:
+                with open(cache_path, "w", encoding="utf-8") as f:
+                    json.dump({"mtime": mtime, "relevant_sections": cached_keys}, f, indent=2)
+                log_success(f"PolicyVectorIndex: Cached policy classification to {cache_path}")
+            except Exception as e:
+                log_warning(f"Failed to write policy cache: {e}")
+                
+        # Check if vector store is populated
+        collection_empty = False
+        try:
+            if _policy_vector_index.collection.count() == 0:
+                collection_empty = True
+        except Exception:
+            collection_empty = True
+            
+        if not load_from_cache or collection_empty:
+            if load_from_cache and not cached_keys:
+                # Fallback if cache exists but keys are empty
+                cached_keys = classify_policies_for_investigation(_policy_mgr.policies)
+            _policy_vector_index.populate(_policy_mgr.policies, cached_keys)
+        else:
+            log_success("PolicyVectorIndex: Skipping population (using existing cached vector store).")
+        
+    return _policy_mgr, _policy_vector_index
 
 def get_chain_p1():
     global _chain_p1
@@ -197,9 +356,27 @@ def generate_final_analysis(incident_id: str, playbook_name: str, timeline_str: 
     """Final Structural Reporting: Invoked exactly once at the end of the analysis phase."""
     log_info(f"[LLM CALL] Invoking Final Structural Reporting for incident {incident_id}...")
     
-    policy_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "policies", "soc_policies.md")
-    policy_mgr = PolicyManager(policy_file_path)
-    policies_context = policy_mgr.raw_text
+    policy_mgr, policy_vector_index = get_policy_manager()
+    
+    # Core policies (always present)
+    core_keys = ["appendix a", "appendix c", "appendix f", "general escalation rule"]
+    core_sections = []
+    for k in core_keys:
+        sec_text = policy_mgr.get_section(k)
+        if sec_text:
+            core_sections.append(extract_actionable_rules(sec_text))
+            
+    # Retrieve dynamic sections based on timeline
+    retrieved = policy_vector_index.retrieve(timeline_str, limit=2)
+    dynamic_sections = [extract_actionable_rules(doc) for doc in retrieved]
+    
+    # Combine avoiding duplicates
+    all_sections = list(core_sections)
+    for doc in dynamic_sections:
+        if doc not in all_sections:
+            all_sections.append(doc)
+            
+    policies_context = "\n\n".join(all_sections)
     
     system_prompt = (
         "You are a Lead SOC Incident Responder. Review the provided Incident Timeline and the Playbook Execution Trace,\n"
@@ -605,9 +782,27 @@ async def compile_final_report(correlated_alerts: List[dict], playbook_path: str
     timeline_str = build_timeline_text(correlated_alerts)
     log_info(f"[LLM CALL] Pass 2: Re-evaluating playbook and compiling final report for {seed_id}...")
     
-    policy_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "policies", "soc_policies.md")
-    policy_mgr = PolicyManager(policy_file_path)
-    policies_context = policy_mgr.raw_text
+    policy_mgr, policy_vector_index = get_policy_manager()
+    
+    # Core policies (always present)
+    core_keys = ["appendix a", "appendix c", "appendix f", "general escalation rule"]
+    core_sections = []
+    for k in core_keys:
+        sec_text = policy_mgr.get_section(k)
+        if sec_text:
+            core_sections.append(extract_actionable_rules(sec_text))
+            
+    # Retrieve dynamic sections based on timeline
+    retrieved = policy_vector_index.retrieve(timeline_str, limit=2)
+    dynamic_sections = [extract_actionable_rules(doc) for doc in retrieved]
+    
+    # Combine avoiding duplicates
+    all_sections = list(core_sections)
+    for doc in dynamic_sections:
+        if doc not in all_sections:
+            all_sections.append(doc)
+            
+    policies_context = "\n\n".join(all_sections)
     
     trace_json = json.dumps([t.model_dump() for t in p1_trace], indent=2)
     

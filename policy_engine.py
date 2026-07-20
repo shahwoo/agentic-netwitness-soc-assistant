@@ -303,3 +303,41 @@ def run_policy_compliance_rules(
         "modified_containment": modified_containment,
         "audit_records": audit_records
     }
+
+
+def extract_actionable_rules(section_text: str) -> str:
+    """
+    Parses a Markdown policy section to extract only headings, bulleted lists, and tables,
+    stripping out boilerplate blocks like Purpose, Scope, or intro text.
+    """
+    lines = []
+    in_purpose_or_intro = False
+    
+    for line in section_text.splitlines():
+        line_strip = line.strip()
+        if not line_strip:
+            if lines and lines[-1] != "":
+                lines.append("")
+            continue
+            
+        # Detect headings (e.g. ## Heading or **Heading**)
+        is_header = line_strip.startswith('#') or (line_strip.startswith('**') and line_strip.endswith('**'))
+        
+        # If it's a Purpose or Scope header, we skip it and skip subsequent paragraph lines
+        if is_header and any(keyword in line_strip.lower() for keyword in ("purpose", "scope", "definitions", "use of", "standards", "requirements")):
+            in_purpose_or_intro = True
+            continue
+        elif is_header:
+            in_purpose_or_intro = False
+            
+        # We keep headers, list items (starts with -, *, or digit.), and table rows (starts with |)
+        is_bullet = line_strip.startswith('-') or line_strip.startswith('*') or bool(re.match(r'^\d+\.', line_strip))
+        is_table = line_strip.startswith('|')
+        
+        if is_header:
+            lines.append(line)
+        elif not in_purpose_or_intro and (is_bullet or is_table):
+            lines.append(line)
+            
+    return "\n".join(lines).strip()
+

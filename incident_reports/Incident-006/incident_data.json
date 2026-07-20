@@ -4,8 +4,8 @@
     "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1784024025.4661832,
-    "updated_at": 1784024031.0499053,
+    "created_at": 1784537862.13301,
+    "updated_at": 1784537877.5081728,
     "source_type": "Network",
     "similar_to_incident": null
   },
@@ -33,8 +33,8 @@
   "summary_text": "1. An internal system at IP 155.140.254.2 initiated a connection to external IP 64.64.211.3. 2. DNS tunneling traffic was detected over a TCP port, potentially transferring payload 'googleclient.txt'. 3. The non-standard tunneling activity was flagged for command-and-control evasion.",
   "indicators": [
     "64.64.211.3",
+    "155.140.254.",
     "64.64.211.",
-    "155.140.254.2",
-    "155.140.254."
+    "155.140.254.2"
   ]
 }

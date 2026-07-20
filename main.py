@@ -517,27 +517,22 @@ async def main_async():
                 filename = os.path.basename(filepath)
                 shutil.move(filepath, os.path.join(dest_dir, filename))
                 
-        # Clear matched alerts from ChromaDB raw collection
-        try:
-            vector_engine.collection.delete(ids=cluster_ids)
-            orchestrator.log_info(f"Cleared resolved IDs {cluster_ids} from ChromaDB raw collection.")
-        except Exception as e:
-            orchestrator.log_error(f"Failed to delete items from ChromaDB: {e}")
+        # Remove matched alerts deletion to allow playbook pivots to query them in Phase 2
+        # (ChromaDB is cleared at the beginning of each run via vector_engine.clear_collection())
+        pass
 
     # Phase 2: Parallelized Report Generation and Enrichment
     if modified_incidents:
         orchestrator.log_info(f"Running parallel report generation and enrichment for {len(modified_incidents)} incidents...")
         
-        db_lock = asyncio.Lock()
-        
-        async def process_incident_report(inst_id):
+        async def generate_incident_report(inst_id):
             incident = engine.active_incidents.get(inst_id)
             if not incident:
                 incident = await engine.repo.get(inst_id)
             if not incident:
-                return
+                return None
                 
-            current_alerts = incident.raw_alerts
+            current_alerts = list(incident.raw_alerts)
             playbook_path = incident_playbooks[inst_id]
             is_new = incident_is_new[inst_id]
             similar_to = incident_similar_to.get(inst_id)
@@ -559,18 +554,18 @@ async def main_async():
             has_externals = False
             if cleaned_local_pivots:
                 seed_epoch = current_alerts[0]["metadata"]["timestamp_epoch"]
-                extra_fused = await asyncio.to_thread(
-                    vector_engine.correlate_rrf,
-                    active_indicators=cleaned_local_pivots,
-                    query_text=" ".join(cleaned_local_pivots),
+                # Use existing fast metadata check (no ONNX CPU embeddings)
+                window_alerts = await asyncio.to_thread(
+                    vector_engine.get_alerts_by_temporal_window,
                     timestamp_epoch=seed_epoch,
                     time_window_sec=86400
                 )
                 current_ids = {a["id"] for a in current_alerts}
-                for alert_id, score, doc, meta in extra_fused:
+                for alert_id, doc, meta in window_alerts:
                     if alert_id not in current_ids:
-                        has_externals = True
-                        break
+                        if vector_engine.has_technical_token_overlap(meta, cleaned_local_pivots):
+                            has_externals = True
+                            break
                         
             # Check if this incident should bypass LLM call for report generation
             if len(current_alerts) == 1 and not has_externals:
@@ -583,7 +578,7 @@ async def main_async():
                 p1_trace = p1_res["execution_trace"]
                 suggested_pivots = p1_res["suggested_pivots"]
                 
-                # 2. Database query for pivots
+                # 2. Database query for pivots (retails semantic similarity searching)
                 if suggested_pivots:
                     cleaned_pivots = []
                     for p in suggested_pivots:
@@ -617,7 +612,17 @@ async def main_async():
                 # 3. Pass 2 (Always compile final report for dynamic/cluster incidents)
                 report = await orchestrator.compile_final_report(current_alerts, playbook_path, p1_trace)
                 
-            # Save and sync final report
+            return (inst_id, incident, current_alerts, report)
+
+        # Run report generation in parallel (all LLM and I/O tasks run concurrently)
+        results = await asyncio.gather(*(generate_incident_report(inst_id) for inst_id in modified_incidents))
+        
+        # Save and sync final reports sequentially (prevents CPU embedding thread contention during LLM calls)
+        for res in results:
+            if not res:
+                continue
+            inst_id, incident, current_alerts, report = res
+            
             sev_map = {
                 "low": IncidentSeverity.LOW,
                 "medium": IncidentSeverity.MEDIUM,
@@ -639,13 +644,8 @@ async def main_async():
             incident.metadata.updated_at = time.time()
             incident.indicators = list(indicators_set)
             
-            async with db_lock:
-                await engine.sync_update_incident(incident)
-            
-            # Write final markdown report
+            await engine.sync_update_incident(incident)
             write_markdown_report(dest_dir, inst_id, report)
-
-        await asyncio.gather(*(process_incident_report(inst_id) for inst_id in modified_incidents))
         
     # Stop background realtime sync daemon
     stop_background_sync(sync_service, sync_thread, sync_loop)

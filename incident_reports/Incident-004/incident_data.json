@@ -4,8 +4,8 @@
     "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1784024023.9274516,
-    "updated_at": 1784024065.6984065,
+    "created_at": 1784537861.3303833,
+    "updated_at": 1784537878.30295,
     "source_type": "Network",
     "similar_to_incident": null
   },
@@ -49,12 +49,12 @@
       }
     }
   ],
-  "summary_text": "Detection of a cryptomining file initiated by a phishing attempt involving the domain grossform.ru. The source IP 10.100.20.142 made a request to the destination IP 46.28.69.220 on port 80, targeting the resource gate.php. Threat intelligence confirmed the destination IP and domain as malicious, indicating command-and-control activity.",
+  "summary_text": "Detection of a cryptomining file was triggered at 2026-01-31T02:18:00.693Z from the source IP 10.100.20.142 to the destination IP 46.28.69.220, which is associated with the domain grossform.ru. The domain is flagged for phishing and malware drop gate activities. A subsequent HTTP GET flood alert was also generated from the same source IP to the same destination IP shortly after.",
   "indicators": [
     "10.100.20.142",
-    "10.100.20.",
+    "46.28.69.",
     "grossform.ru",
     "46.28.69.220",
-    "46.28.69."
+    "10.100.20."
   ]
 }

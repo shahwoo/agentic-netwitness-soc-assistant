@@ -4,8 +4,8 @@
     "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1784024023.2427223,
-    "updated_at": 1784024031.032219,
+    "created_at": 1784537860.9113243,
+    "updated_at": 1784537878.1160867,
     "source_type": "Authentication",
     "similar_to_incident": null
   },
@@ -22,7 +22,7 @@
         "timestamp_epoch": 1769770060,
         "tactic": "credential-access",
         "technique": "Unknown",
-        "ips": "5.1.57.22,155.140.254.100",
+        "ips": "155.140.254.100,5.1.57.22",
         "sha256s": "",
         "md5s": "",
         "emails": "",
@@ -32,12 +32,12 @@
   ],
   "summary_text": "1. Multiple authentication attempts were initiated from source IP 5.1.57.22 targeting the user account 'sally' on bnpparibasgroup.com. 2. The login attempts resulted in failures, indicating a brute-force attack. 3. The suspicious authentication traffic was detected and flagged at the perimeter firewall.",
   "indicators": [
+    "155.140.254.100",
     "5.1.57.22",
     "auth.failures.user",
-    "sally",
-    "bnpparibasgroup.com",
-    "5.1.57.",
     "155.140.254.",
-    "155.140.254.100"
+    "bnpparibasgroup.com",
+    "sally",
+    "5.1.57."
   ]
 }
