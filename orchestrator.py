@@ -12,6 +12,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 import ingest_pipeline
 import vector_engine
+import mitre_mapper
 
 load_dotenv()
 
@@ -56,12 +57,14 @@ class FinalIncidentAnalysis(BaseModel):
     severity: Literal["Low", "Medium", "High", "Critical"]
     confidence: Literal["Low", "Medium", "High"]
     execution_trace: List[MilestoneExecution] = Field(description="The step-by-step trace of how the playbook was executed.")
-    incident_summary: str = Field(description="Chronological summary of what happened.")
+    incident_summary: str = Field(description="Comprehensive chronological summary detailing what happened, recorded IOCs, timestamps, and stage linkage.")
     actions_taken: List[str] = Field(description="Actions taken during investigation.")
     recommended_containment: List[str] = Field(description="Recommended containment actions based on policies.")
     business_impact_checklist: BusinessImpactChecklist = Field(description="Checklist mapping factor names to analysis answers for Appendix C.")
     severity_justification: str = Field(description="Brief justification of the severity rating based on Appendix A/B factors.")
     confidence_justification: str = Field(description="Brief justification of the confidence rating based on Appendix F.")
+    mitre_mappings: List[mitre_mapper.MitreTTPMapping] = Field(default_factory=list, description="Chronological list of MITRE ATT&CK TTP mappings evaluated holistically at the incident level.")
+    mitre_attack_table: Optional[str] = Field(default=None, description="Markdown summary table mapping incident timeline events to MITRE ATT&CK TTPs at the incident level.")
     policy_audit_logs: List[PolicyAuditRecord] = Field(default_factory=list, description="The list of PolicyAuditRecord generated during policy-based verification checks.")
 
 class Pass1StepResult(BaseModel):
@@ -279,8 +282,9 @@ def get_chain_p2():
             "1. Re-evaluate each step in the playbook using the updated timeline and populate the execution_trace.\n"
             "2. Complete the business_impact_checklist by answering the policy-based questions in Appendix C (e.g., critical_system, essential_service, data_sensitivity, operational_impact).\n"
             "3. Assign final severity and confidence based on the guidelines in Appendix A, B, and F, and provide their justifications.\n"
-            "4. For the 'incident_summary' (Technical Chronology Summary) field: Provide a clear, chronological step-by-step summary listing exactly what actions were taken in this incident (e.g., phishing email sent -> user clicked and executed attachment -> executable spawned process -> reverse shell created). It MUST NOT include severity ratings, confidence levels, or other meta-information. If there is only 1 alert, keep the steps concise and do not include excessive granular details (MD5s, ports, agent IDs, etc.). Map out the timeline using playbook execution traces if helpful.\n"
-            "5. For the 'recommended_containment' field: Recommend containment actions adhering to Appendix G, H, and I. Ensure all recommended containment actions are highly specific and action-oriented. Do not write generic recommendations (e.g., do not say 'isolate affected machine' or 'isolate host'). Instead, specify the exact steps to isolate the specific affected asset, detailing the specific IP address or hostname involved (e.g., 'Isolate the host rp-soc-ws-win14 at IP 10.100.20.16 immediately from the network by disabling its network adapter or blocking its IP at the local switch').\n"
+            "4. For the 'incident_summary' (Technical Chronology Summary) field: Provide a clear, chronological step-by-step summary listing exactly what actions were taken in this incident (e.g., phishing email sent -> user clicked and executed attachment -> executable spawned process -> reverse shell created), including timestamps, recorded IOCs, and affected assets.\n"
+            "5. For the 'recommended_containment' field: Recommend containment actions adhering to Appendix G, H, and I. Ensure all recommended containment actions are highly specific and action-oriented. Do not write generic recommendations.\n"
+            "6. For the 'mitre_mappings' field: Evaluate the full event sequence holistically at the incident level and map the attack steps to precise MITRE ATT&CK TTPs in chronological order. Always resolve precise sub-techniques (e.g. T1566.002, T1569.002, T1021.002) and populate timeline_phase, observed_evidence, tactic, technique_name, and technique_id.\n"
             "Note: Your output must be structured to match the Pydantic schema."
         )
         prompt_p2 = ChatPromptTemplate.from_messages([
@@ -352,7 +356,7 @@ def check_milestone_sufficiency(timeline_str: str, instruction: str, step_id: st
             suggested_pivots=[]
         )
 
-def generate_final_analysis(incident_id: str, playbook_name: str, timeline_str: str, execution_trace: List[MilestoneExecution]) -> FinalIncidentAnalysis:
+def generate_final_analysis(incident_id: str, playbook_name: str, timeline_str: str, execution_trace: List[MilestoneExecution], correlated_alerts: Optional[List[dict]] = None) -> FinalIncidentAnalysis:
     """Final Structural Reporting: Invoked exactly once at the end of the analysis phase."""
     log_info(f"[LLM CALL] Invoking Final Structural Reporting for incident {incident_id}...")
     
@@ -386,8 +390,9 @@ def generate_final_analysis(incident_id: str, playbook_name: str, timeline_str: 
         "Instructions:\n"
         "1. Complete the business_impact_checklist by answering the policy-based questions in Appendix C (e.g., critical_system, essential_service, data_sensitivity, operational_impact).\n"
         "2. Assign final severity and confidence based on the guidelines in Appendix A, B, and F, and provide their justifications.\n"
-        "3. For the 'incident_summary' (Technical Chronology Summary) field: Provide a clear, chronological step-by-step summary listing exactly what actions were taken in this incident (e.g., phishing email sent -> user clicked and executed attachment -> executable spawned process -> reverse shell created). It MUST NOT include severity ratings, confidence levels, or other meta-information. If there is only 1 alert, keep the steps concise and do not include excessive granular details (MD5s, ports, agent IDs, etc.). Map out the timeline using playbook execution traces if helpful.\n"
-        "4. For the 'recommended_containment' field: Recommend containment actions adhering to Appendix G, H, and I. Ensure all recommended containment actions are highly specific and action-oriented. Do not write generic recommendations (e.g., do not say 'isolate affected machine' or 'isolate host'). Instead, specify the exact steps to isolate the specific affected asset, detailing the specific IP address or hostname involved (e.g., 'Isolate the host rp-soc-ws-win14 at IP 10.100.20.16 immediately from the network by disabling its network adapter or blocking its IP at the local switch').\n"
+        "3. For the 'incident_summary' (Technical Chronology Summary) field: Provide a clear, chronological step-by-step summary listing exactly what actions were taken in this incident (e.g., phishing email sent -> user clicked and executed attachment -> executable spawned process -> reverse shell created), including timestamps, recorded IOCs, and affected assets.\n"
+        "4. For the 'recommended_containment' field: Recommend containment actions adhering to Appendix G, H, and I. Ensure all recommended containment actions are highly specific and action-oriented.\n"
+        "5. For the 'mitre_mappings' field: Evaluate the full event sequence holistically at the incident level and map the attack steps to precise MITRE ATT&CK TTPs in chronological order. Always resolve precise sub-techniques (e.g. T1566.002, T1569.002, T1021.002) and populate timeline_phase, observed_evidence, tactic, technique_name, and technique_id.\n"
         "Note: Your output must be structured to match the Pydantic schema."
     )
     
@@ -423,11 +428,26 @@ def generate_final_analysis(incident_id: str, playbook_name: str, timeline_str: 
             
         result.policy_audit_logs = compliance["audit_records"]
         
+        # Render MITRE ATT&CK TTP Mapping locally (0 extra LLM calls)
+        if getattr(result, "mitre_mappings", None):
+            mitre_analysis = mitre_mapper.IncidentMitreAnalysis(
+                incident_id=incident_id,
+                attack_chain_summary=result.incident_summary,
+                mappings=result.mitre_mappings
+            )
+            result.mitre_attack_table = mitre_mapper.generate_markdown_table(mitre_analysis)
+        else:
+            try:
+                _, mitre_table = mitre_mapper.map_incident_mitre_ttps(correlated_alerts or timeline_str, llm=None)
+                result.mitre_attack_table = mitre_table
+            except Exception:
+                pass
+
         log_success(f"[LLM RESPONSE] Generated final report with severity: {result.severity} | confidence: {result.confidence}")
         return result
     except Exception as e:
         log_error(f"Failed to generate final structured report: {e}")
-        return FinalIncidentAnalysis(
+        fallback_report = FinalIncidentAnalysis(
             incident_id=incident_id,
             severity="High",
             confidence="Low",
@@ -440,6 +460,12 @@ def generate_final_analysis(incident_id: str, playbook_name: str, timeline_str: 
             confidence_justification="Fallback due to error",
             policy_audit_logs=[]
         )
+        try:
+            _, mitre_table = mitre_mapper.map_incident_mitre_ttps(correlated_alerts or timeline_str, llm=None)
+            fallback_report.mitre_attack_table = mitre_table
+        except Exception:
+            pass
+        return fallback_report
 
 # --- CONSTRUCT TIMELINE TEXT ---
 
@@ -700,7 +726,7 @@ def orchestrate_incident(seed_alert_path: str, playbook_path: str) -> dict:
 
     # 4. Generate Final Structural Analysis (Exactly once at the end)
     timeline_str = build_timeline_text(correlated_alerts)
-    final_report = generate_final_analysis(seed_id, playbook_name, timeline_str, execution_trace)
+    final_report = generate_final_analysis(seed_id, playbook_name, timeline_str, execution_trace, correlated_alerts=correlated_alerts)
     
     return {
         "correlated_alerts": correlated_alerts,
@@ -830,13 +856,28 @@ async def compile_final_report(correlated_alerts: List[dict], playbook_path: str
             final_report.recommended_containment = compliance["modified_containment"]
             
         final_report.policy_audit_logs = compliance["audit_records"]
-        
+
+        # Render MITRE ATT&CK TTP Mapping locally (0 extra LLM calls)
+        if getattr(final_report, "mitre_mappings", None):
+            mitre_analysis = mitre_mapper.IncidentMitreAnalysis(
+                incident_id=seed_id,
+                attack_chain_summary=final_report.incident_summary,
+                mappings=final_report.mitre_mappings
+            )
+            final_report.mitre_attack_table = mitre_mapper.generate_markdown_table(mitre_analysis)
+        else:
+            try:
+                _, mitre_table = mitre_mapper.map_incident_mitre_ttps(correlated_alerts, llm=None)
+                final_report.mitre_attack_table = mitre_table
+            except Exception:
+                pass
+
         log_success(f"[LLM RESPONSE] Pass 2 completed for {seed_id} (Severity: {final_report.severity})")
         return final_report
     except Exception as e:
         log_error(f"Pass 2 LLM call failed: {e}")
         # Return fallback FinalIncidentAnalysis
-        return FinalIncidentAnalysis(
+        fallback_report = FinalIncidentAnalysis(
             incident_id=seed_id,
             severity="High",
             confidence="Low",
@@ -849,6 +890,12 @@ async def compile_final_report(correlated_alerts: List[dict], playbook_path: str
             confidence_justification="Fallback due to error",
             policy_audit_logs=[]
         )
+        try:
+            _, mitre_table = mitre_mapper.map_incident_mitre_ttps(correlated_alerts, llm=None)
+            fallback_report.mitre_attack_table = mitre_table
+        except Exception:
+            pass
+        return fallback_report
 
 def analyze_alert_group(correlated_alerts: List[dict], playbook_path: str) -> dict:
     """Legacy synchronous wrapper for two-pass evaluation."""

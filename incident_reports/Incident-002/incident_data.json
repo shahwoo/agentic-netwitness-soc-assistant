@@ -4,8 +4,8 @@
     "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1784539910.7608302,
-    "updated_at": 1784539930.7513585,
+    "created_at": 1784713766.5488436,
+    "updated_at": 1784713799.0159378,
     "source_type": "LogIndicators",
     "similar_to_incident": null
   },
@@ -32,9 +32,9 @@
   ],
   "summary_text": "1. An unauthorized attempt was made to escalate privileges on host 'RP-SOC/PHILLYVDI' (10.100.30.37) by user 'philly'. 2. The user account requested administrative privilege 'SeSecurityPrivilege'. 3. The privilege escalation requests failed and were flagged by local security auditing.",
   "indicators": [
-    "rp-soc/phillyvdi",
     "10.100.30.",
-    "philly",
-    "10.100.30.37"
+    "rp-soc/phillyvdi",
+    "10.100.30.37",
+    "philly"
   ]
 }

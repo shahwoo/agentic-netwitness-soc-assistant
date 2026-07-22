@@ -12,6 +12,7 @@ import ingest_pipeline
 import vector_engine
 import orchestrator
 import policy_engine
+import mitre_mapper
 from correlation_engine import CorrelationEngine
 from sync_engine import (
     RealtimeSyncService,
@@ -80,9 +81,11 @@ def write_markdown_report(dest_folder: str, incident_num_id: str, report: orches
             f.write(f"- {action}\n")
         f.write("\n")
         
-        f.write("## Technical Chronology Summary\n")
+        f.write("## Technical Chronology & MITRE ATT&CK TTP Mapping\n\n")
         f.write(f"{report.incident_summary}\n\n")
-        
+        if getattr(report, "mitre_attack_table", None):
+            f.write(f"{report.mitre_attack_table}\n\n")
+
         f.write("## Playbook Execution Trace\n")
         f.write("| Step ID | Instruction | Status | Findings |\n")
         f.write("| --- | --- | --- | --- |\n")
@@ -331,6 +334,12 @@ def generate_local_standalone_report(alert: dict, playbook_path: str, inst_id: s
         policy_audit_logs=compliance["audit_records"]
     )
     
+    try:
+        _, mitre_table = mitre_mapper.map_incident_mitre_ttps([alert], llm=None)
+        report.mitre_attack_table = mitre_table
+    except Exception:
+        pass
+
     return {
         "report": report,
         "suggested_pivots": []

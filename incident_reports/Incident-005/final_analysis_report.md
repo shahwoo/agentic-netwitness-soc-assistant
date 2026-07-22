@@ -11,8 +11,13 @@
 - Indicator search
 - Playbook heuristic validation
 
-## Technical Chronology Summary
+## Technical Chronology & MITRE ATT&CK TTP Mapping
+
 1. Host at IP 10.100.20.121 performed multiple anomalous DNS queries for lookalike/phishing domain 'bankofmoney.com'. 2. The query lookup triggered a reputation alert for potential command-and-control communication.
+
+| Timeline Phase / Activity | Observed Evidence | MITRE Tactic | MITRE Technique Name | MITRE ID |
+| --- | --- | --- | --- | --- |
+| Initial Detection of Anomalous DNS Activity | Timestamp: 2026-01-31T02:30:46.024Z; Source IP: 10.100.20.121; Destination IP: 10.100.10.3; Queried Domain: bankofmoney.com; Source Port: 53; Destination Port: 64659; Incident ID: INC-6142; Risk Score: 70; Severity: High. | Command and Control | Application Layer Protocol: DNS | T1071.004 |
 
 ## Playbook Execution Trace
 | Step ID | Instruction | Status | Findings |
@@ -32,7 +37,7 @@
 
 | Audit ID | Decision Point | Policy Reference | Input Summary | Result | Decision Made | Human Review? | Timestamp |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `AUD-DP07-1784539912-1` | **DP-07** | Appendix C | Critical System: False, Sensitive Data: False | *Pass* | `Investigate` | Yes | 2026-07-20T09:31:52Z |
-| `AUD-DP08-1784539912-2` | **DP-08** | Appendix A | Severity classification: High | *Warning* | `Escalate` | Yes | 2026-07-20T09:31:52Z |
-| `AUD-DP09-1784539912-3` | **DP-09** | Appendix F | Confidence level: High | *Pass* | `Investigate` | Yes | 2026-07-20T09:31:52Z |
-| `AUD-DP10-1784539912-4` | **DP-10/DP-11** | Appendix G | Severity: High, Confidence: High, Ransomware: False, Guest OS: False | *Fail* | `Escalate` | Yes | 2026-07-20T09:31:52Z |
+| `AUD-DP07-1784713773-1` | **DP-07** | Appendix C | Critical System: False, Sensitive Data: False | *Pass* | `Investigate` | Yes | 2026-07-22T09:49:33Z |
+| `AUD-DP08-1784713773-2` | **DP-08** | Appendix A | Severity classification: High | *Warning* | `Escalate` | Yes | 2026-07-22T09:49:33Z |
+| `AUD-DP09-1784713773-3` | **DP-09** | Appendix F | Confidence level: High | *Pass* | `Investigate` | Yes | 2026-07-22T09:49:33Z |
+| `AUD-DP10-1784713773-4` | **DP-10/DP-11** | Appendix G | Severity: High, Confidence: High, Ransomware: False, Guest OS: False | *Fail* | `Escalate` | Yes | 2026-07-22T09:49:33Z |

@@ -11,8 +11,13 @@
 - Indicator search
 - Playbook heuristic validation
 
-## Technical Chronology Summary
+## Technical Chronology & MITRE ATT&CK TTP Mapping
+
 1. Multiple authentication attempts were initiated from source IP 5.1.57.22 targeting the user account 'sally' on bnpparibasgroup.com. 2. The login attempts resulted in failures, indicating a brute-force attack. 3. The suspicious authentication traffic was detected and flagged at the perimeter firewall.
+
+| Timeline Phase / Activity | Observed Evidence | MITRE Tactic | MITRE Technique Name | MITRE ID |
+| --- | --- | --- | --- | --- |
+| Brute Force Login Attempt | User: sally, Source IP: 5.1.57.22, Destination IP: 155.140.254.100, Destination Domain: bnpparibasgroup.com, Authentication Outcome: Failure, Risk Score: 70 | Credential Access | Brute Force | T1110 |
 
 ## Playbook Execution Trace
 | Step ID | Instruction | Status | Findings |
@@ -32,7 +37,7 @@
 
 | Audit ID | Decision Point | Policy Reference | Input Summary | Result | Decision Made | Human Review? | Timestamp |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `AUD-DP07-1784539912-1` | **DP-07** | Appendix C | Critical System: False, Sensitive Data: False | *Pass* | `Investigate` | Yes | 2026-07-20T09:31:52Z |
-| `AUD-DP08-1784539912-2` | **DP-08** | Appendix A | Severity classification: High | *Warning* | `Escalate` | Yes | 2026-07-20T09:31:52Z |
-| `AUD-DP09-1784539912-3` | **DP-09** | Appendix F | Confidence level: High | *Pass* | `Investigate` | Yes | 2026-07-20T09:31:52Z |
-| `AUD-DP10-1784539912-4` | **DP-10/DP-11** | Appendix G | Severity: High, Confidence: High, Ransomware: False, Guest OS: False | *Fail* | `Escalate` | Yes | 2026-07-20T09:31:52Z |
+| `AUD-DP07-1784713776-1` | **DP-07** | Appendix C | Critical System: False, Sensitive Data: False | *Pass* | `Investigate` | Yes | 2026-07-22T09:49:36Z |
+| `AUD-DP08-1784713776-2` | **DP-08** | Appendix A | Severity classification: High | *Warning* | `Escalate` | Yes | 2026-07-22T09:49:36Z |
+| `AUD-DP09-1784713776-3` | **DP-09** | Appendix F | Confidence level: High | *Pass* | `Investigate` | Yes | 2026-07-22T09:49:36Z |
+| `AUD-DP10-1784713776-4` | **DP-10/DP-11** | Appendix G | Severity: High, Confidence: High, Ransomware: False, Guest OS: False | *Fail* | `Escalate` | Yes | 2026-07-22T09:49:36Z |
