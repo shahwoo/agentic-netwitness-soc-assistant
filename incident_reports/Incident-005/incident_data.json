@@ -4,8 +4,8 @@
     "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1784537861.7262213,
-    "updated_at": 1784537877.7377474,
+    "created_at": 1784539912.004023,
+    "updated_at": 1784539930.0909302,
     "source_type": "Network",
     "similar_to_incident": null
   },
@@ -34,8 +34,8 @@
   "indicators": [
     "bankofmoney.com",
     "10.100.20.121",
+    "10.100.20.",
     "10.100.10.3",
-    "10.100.10.",
-    "10.100.20."
+    "10.100.10."
   ]
 }

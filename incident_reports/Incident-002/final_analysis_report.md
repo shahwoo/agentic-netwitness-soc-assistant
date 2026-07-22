@@ -1,4 +1,4 @@
-# EXECUTIVE INCIDENT OUTCOME REPORT: INC-6131 (Incident-002)
+# INVESTIGATION SUMMARY: INC-6131 (Incident-002)
 
 **Final Severity:** High
 *Programmatic baseline triage for standalone alert.*
@@ -6,11 +6,10 @@
 **Confidence Level:** High
 *Heuristic lookup with no temporal correlation window overlaps.*
 
-## Business Impact Assessment (Appendix C)
-- **Critical System**: no
-- **Essential Service**: no
-- **Data Sensitivity**: no
-- **Operational Impact**: no
+## Investigative Workflow
+- Initial triage
+- Indicator search
+- Playbook heuristic validation
 
 ## Technical Chronology Summary
 1. An unauthorized attempt was made to escalate privileges on host 'RP-SOC/PHILLYVDI' (10.100.30.37) by user 'philly'. 2. The user account requested administrative privilege 'SeSecurityPrivilege'. 3. The privilege escalation requests failed and were flagged by local security auditing.
@@ -24,11 +23,6 @@
 | `step_4` | Analyze the process tree for signs of malicious activity, such as privilege escalation, lateral movement, or data exfiltration. | **MET** | Identified privilege escalation signs: Incident INC-6131 details are as follows: The classification alert type is Multiple Failed Privilege |
 | `step_5` | Based on the analysis, determine if further investigation is necessary and the containment steps | **NOT_MET** | Timeline lacks necessary data to satisfy step. |
 
-## Actions Taken
-- Initial triage
-- Indicator search
-- Playbook heuristic validation
-
 ## Recommended Containment Actions
 - Temporarily disable the user account 'philly' to prevent further unauthorized privilege escalation attempts.
 - Isolate the affected machine RP-SOC/PHILLYVDI at IP 10.100.30.37 (disable its network interface or block traffic at the switch) until the host is verified clean.
@@ -38,7 +32,7 @@
 
 | Audit ID | Decision Point | Policy Reference | Input Summary | Result | Decision Made | Human Review? | Timestamp |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `AUD-DP07-1784537863-1` | **DP-07** | Appendix C | Critical System: False, Sensitive Data: False | *Pass* | `Investigate` | Yes | 2026-07-20T08:57:43Z |
-| `AUD-DP08-1784537863-2` | **DP-08** | Appendix A | Severity classification: High | *Warning* | `Escalate` | Yes | 2026-07-20T08:57:43Z |
-| `AUD-DP09-1784537863-3` | **DP-09** | Appendix F | Confidence level: High | *Pass* | `Investigate` | Yes | 2026-07-20T08:57:43Z |
-| `AUD-DP10-1784537863-4` | **DP-10/DP-11** | Appendix G | Severity: High, Confidence: High, Ransomware: False, Guest OS: False | *Fail* | `Escalate` | Yes | 2026-07-20T08:57:43Z |
+| `AUD-DP07-1784539913-1` | **DP-07** | Appendix C | Critical System: False, Sensitive Data: False | *Pass* | `Investigate` | Yes | 2026-07-20T09:31:53Z |
+| `AUD-DP08-1784539913-2` | **DP-08** | Appendix A | Severity classification: High | *Warning* | `Escalate` | Yes | 2026-07-20T09:31:53Z |
+| `AUD-DP09-1784539913-3` | **DP-09** | Appendix F | Confidence level: High | *Pass* | `Investigate` | Yes | 2026-07-20T09:31:53Z |
+| `AUD-DP10-1784539913-4` | **DP-10/DP-11** | Appendix G | Severity: High, Confidence: High, Ransomware: False, Guest OS: False | *Fail* | `Escalate` | Yes | 2026-07-20T09:31:53Z |

@@ -65,7 +65,7 @@ def write_markdown_report(dest_folder: str, incident_num_id: str, report: orches
     """Writes a beautifully formatted markdown incident report to the target folder."""
     report_path = os.path.join(dest_folder, "final_analysis_report.md")
     with open(report_path, "w", encoding="utf-8") as f:
-        f.write(f"# EXECUTIVE INCIDENT OUTCOME REPORT: {report.incident_id} ({incident_num_id})\n\n")
+        f.write(f"# INVESTIGATION SUMMARY: {report.incident_id} ({incident_num_id})\n\n")
         f.write(f"**Final Severity:** {report.severity}\n")
         if getattr(report, "severity_justification", None):
             f.write(f"*{report.severity_justification}*\n")
@@ -75,18 +75,9 @@ def write_markdown_report(dest_folder: str, incident_num_id: str, report: orches
         else:
             f.write("\n")
             
-        f.write("## Business Impact Assessment (Appendix C)\n")
-        checklist_data = getattr(report, "business_impact_checklist", None)
-        if checklist_data:
-            if hasattr(checklist_data, "model_dump"):
-                checklist_dict = checklist_data.model_dump()
-            else:
-                checklist_dict = dict(checklist_data)
-            for factor, answer in checklist_dict.items():
-                factor_name = factor.replace("_", " ").title()
-                f.write(f"- **{factor_name}**: {answer}\n")
-        else:
-            f.write("No business impact checklist compiled.\n")
+        f.write("## Investigative Workflow\n")
+        for action in report.actions_taken:
+            f.write(f"- {action}\n")
         f.write("\n")
         
         f.write("## Technical Chronology Summary\n")
@@ -97,11 +88,6 @@ def write_markdown_report(dest_folder: str, incident_num_id: str, report: orches
         f.write("| --- | --- | --- | --- |\n")
         for step in report.execution_trace:
             f.write(f"| `{step.step_id}` | {step.instruction} | **{step.status}** | {step.findings} |\n")
-        f.write("\n")
-        
-        f.write("## Actions Taken\n")
-        for action in report.actions_taken:
-            f.write(f"- {action}\n")
         f.write("\n")
         
         f.write("## Recommended Containment Actions\n")

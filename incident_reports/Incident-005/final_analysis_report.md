@@ -1,4 +1,4 @@
-# EXECUTIVE INCIDENT OUTCOME REPORT: INC-6142 (Incident-005)
+# INVESTIGATION SUMMARY: INC-6142 (Incident-005)
 
 **Final Severity:** High
 *Programmatic baseline triage for standalone alert.*
@@ -6,11 +6,10 @@
 **Confidence Level:** High
 *Heuristic lookup with no temporal correlation window overlaps.*
 
-## Business Impact Assessment (Appendix C)
-- **Critical System**: no
-- **Essential Service**: no
-- **Data Sensitivity**: no
-- **Operational Impact**: no
+## Investigative Workflow
+- Initial triage
+- Indicator search
+- Playbook heuristic validation
 
 ## Technical Chronology Summary
 1. Host at IP 10.100.20.121 performed multiple anomalous DNS queries for lookalike/phishing domain 'bankofmoney.com'. 2. The query lookup triggered a reputation alert for potential command-and-control communication.
@@ -24,11 +23,6 @@
 | `step_4` | Analyze the process tree for signs of malicious activity, such as privilege escalation, lateral movement, or data exfiltration. | **NOT_MET** | Timeline lacks necessary data to satisfy step. |
 | `step_5` | Based on the analysis, determine if further investigation is necessary and the containment steps | **NOT_MET** | Timeline lacks necessary data to satisfy step. |
 
-## Actions Taken
-- Initial triage
-- Indicator search
-- Playbook heuristic validation
-
 ## Recommended Containment Actions
 - Isolate the host at IP 10.100.20.121 from the local network by disabling its network interface to prevent command-and-control communications.
 - Block resolution of the lookalike domain 'bankofmoney.com' on all internal DNS servers.
@@ -38,7 +32,7 @@
 
 | Audit ID | Decision Point | Policy Reference | Input Summary | Result | Decision Made | Human Review? | Timestamp |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `AUD-DP07-1784537863-1` | **DP-07** | Appendix C | Critical System: False, Sensitive Data: False | *Pass* | `Investigate` | Yes | 2026-07-20T08:57:43Z |
-| `AUD-DP08-1784537863-2` | **DP-08** | Appendix A | Severity classification: High | *Warning* | `Escalate` | Yes | 2026-07-20T08:57:43Z |
-| `AUD-DP09-1784537863-3` | **DP-09** | Appendix F | Confidence level: High | *Pass* | `Investigate` | Yes | 2026-07-20T08:57:43Z |
-| `AUD-DP10-1784537863-4` | **DP-10/DP-11** | Appendix G | Severity: High, Confidence: High, Ransomware: False, Guest OS: False | *Fail* | `Escalate` | Yes | 2026-07-20T08:57:43Z |
+| `AUD-DP07-1784539912-1` | **DP-07** | Appendix C | Critical System: False, Sensitive Data: False | *Pass* | `Investigate` | Yes | 2026-07-20T09:31:52Z |
+| `AUD-DP08-1784539912-2` | **DP-08** | Appendix A | Severity classification: High | *Warning* | `Escalate` | Yes | 2026-07-20T09:31:52Z |
+| `AUD-DP09-1784539912-3` | **DP-09** | Appendix F | Confidence level: High | *Pass* | `Investigate` | Yes | 2026-07-20T09:31:52Z |
+| `AUD-DP10-1784539912-4` | **DP-10/DP-11** | Appendix G | Severity: High, Confidence: High, Ransomware: False, Guest OS: False | *Fail* | `Escalate` | Yes | 2026-07-20T09:31:52Z |

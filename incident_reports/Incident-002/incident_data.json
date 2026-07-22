@@ -4,8 +4,8 @@
     "severity": "HIGH",
     "status": "TRIAGED",
     "assigned_analyst": "Automated Agent",
-    "created_at": 1784537860.486345,
-    "updated_at": 1784537877.921862,
+    "created_at": 1784539910.7608302,
+    "updated_at": 1784539930.7513585,
     "source_type": "LogIndicators",
     "similar_to_incident": null
   },
