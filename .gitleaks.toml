@@ -1,0 +1,47 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Gitleaks config for the SOC platform repo (used by .github/workflows/secrets-scan.yml)
+#
+# Extends Gitleaks' built-in ruleset (AWS/GCP keys, GitHub/Slack tokens, private
+# keys, generic high-entropy API keys, …) and adds an allowlist so the scan flags
+# only REAL leaked secrets — not template placeholders, generated demo data, or the
+# committed binary DBs. Tune false positives here (add a path/regex) rather than
+# disabling the gate.
+# ─────────────────────────────────────────────────────────────────────────────
+title = "netwitness-soc-assistant secrets scan"
+
+[extend]
+useDefault = true   # keep all of Gitleaks' default detection rules
+
+[allowlist]
+description = "Template placeholders, generated demo data, and binary payloads (not secrets)"
+
+# File paths (regex, matched against the repo-relative path) to skip.
+paths = [
+  # Secret TEMPLATES — intentionally contain fake 'sk-xxxx' style placeholders
+  '''\.streamlit/secrets\.toml\.example''',
+  '''\.env\.example''',
+  # On-prem/VPN TLS material — gitignored, but belt-and-suspenders if ever committed
+  '''\.pem$''',
+  '''\.cer$''',
+  '''certs/''',
+  # Binary demo payload (SQLite + Chroma) — high-entropy blobs, not credentials
+  '''\.db$''',
+  '''\.sqlite3$''',
+  '''soc_db/''',
+  '''chroma_db/''',
+  # Generated agent/report artifacts (synthetic incident data)
+  '''incident_reports/''',
+  '''triaged_alerts/''',
+  '''soc_reporting_agent/outputs/''',
+  '''soc_reporting_agent/testdata/''',
+  '''tests/golden_incidents\.json''',
+]
+
+# Finding values (regex) to treat as non-secrets — the doc/template placeholders.
+regexes = [
+  '''(?i)sk-x{4,}''',          # secrets.toml.example: sk-xxxxxxxxxxxxxxxxxxxx
+  '''(?i)your-llm-endpoint''',
+  '''(?i)your-?(token|key|secret)''',
+  '''(?i)<(you|your-[a-z-]+)>''',
+  '''(?i)example\.com''',
+]
