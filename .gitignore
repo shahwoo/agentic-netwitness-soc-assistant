@@ -1,0 +1,51 @@
+# ── Credentials & certificates — NEVER commit these ───────────
+.env
+certs/
+
+# ── Runtime databases & sidecars ───────────────────────────────
+soc_db/
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+# ── Vector stores ──────────────────────────────────────────────
+chroma_db/
+chroma_store/
+soc_investigation_agent/ChromaDatabase/
+
+# ── Agent runtime data (regenerated every run) ─────────────────
+soc_investigation_agent/incident_reports/
+soc_investigation_agent/triaged_alerts/
+soc_reporting_agent/outputs/
+soc_reporting_agent/logs/
+soc_reporting_agent/runtime/
+workflow_last_run.json
+
+# ── Knowledge graph artifacts (rebuild with /graphify) ─────────
+graphify-out/
+
+# ── Python ─────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# ── Editors / notebooks / OS ───────────────────────────────────
+.ipynb_checkpoints/
+.streamlit/cache/
+.DS_Store
+Thumbs.db
+*.bak
+
+# Loose certificates at repo root
+*.pem
+*.cer
+soc_investigation_agent_revised/ChromaDatabase/
+soc_investigation_agent_revised/incident_reports/
+soc_investigation_agent_revised/triaged_alerts/
+soc_investigation_agent_revised/__pycache__/
