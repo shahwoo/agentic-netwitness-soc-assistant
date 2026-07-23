@@ -549,6 +549,29 @@ def build_investigation_alert(triage_result: dict, incident: dict,
                 out.append(str(v).strip())
         return list(dict.fromkeys(out))
 
+    def _process_lineage() -> list:
+        """Parent→child process edges. Prefer an explicit lineage/chain field
+        ("a > b > c"); else pair same-length process/parent lists (flagged
+        inferred); else []. Deterministic, evidence-based — never fabricates an
+        edge it can't source."""
+        edges: list = []
+        chains = (_mklist("process.lineage", "process.chain", "process.tree")
+                  + _amlist("ProcessTree", "ProcessLineage"))
+        for c in chains:
+            norm = str(c).replace("→", "|").replace("->", "|").replace(">", "|")
+            parts = [p.strip() for p in norm.split("|") if p.strip()]
+            for i in range(len(parts) - 1):
+                edges.append({"parent": parts[i], "child": parts[i + 1],
+                              "source": "explicit chain"})
+        if edges:
+            return edges
+        children = _mklist("process.name")
+        parents = _mklist("process.parent", "parent.process", "parent.name")
+        if children and parents and len(children) == len(parents):
+            return [{"parent": parents[i], "child": children[i],
+                     "source": "paired (inferred)"} for i in range(len(children))]
+        return []
+
     return {
         "incident_id": payload.get("incident_id") or ticket.get("incident_id"),
         "incident_details": {
@@ -642,6 +665,22 @@ def build_investigation_alert(triage_result: dict, incident: dict,
                 "names": _mklist("process.name"),
                 "paths": _mklist("process.path"),
                 "pids":  _mklist("process.pid"),
+            },
+            # ── Handoff round 3: parent→child process lineage + command lines.
+            # The highest-signal endpoint context for the investigation LLM (an HTA
+            # spawning cmd→powershell reaching a C2 host IS the attack chain).
+            # Populated from live ECAT endpoint data; when explicit lineage isn't
+            # present the flat process/parent/command-line lists still forward the
+            # evidence without inventing edges.
+            "process_tree": {
+                "processes":        _mklist("process.name"),
+                "process_paths":    _mklist("process.path", "directory", "filename.path"),
+                "pids":             _mklist("process.pid"),
+                "parent_processes": _mklist("process.parent", "parent.process",
+                                            "parent.name", "parent.path", "parent.pid"),
+                "command_lines":    _mklist("process.cmdline", "cmdline", "os.cmdline",
+                                            "param.dst", "param.src"),
+                "lineage":          _process_lineage(),
             },
             "network_activity": {
                 "source_ips":      _amlist("SourceIp") or ctx["source_ips"],
