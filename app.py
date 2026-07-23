@@ -605,13 +605,21 @@ st.markdown("""
   --sans:    'Inter', sans-serif;
 }
 
+/* Anchor the rem scale to the visitor's browser/OS default font size
+   (typically 16px) rather than a hard 14px. 87.5% × 16px == the original 14px
+   baseline, so default users see no change — but anyone who raises their
+   browser/OS default font size now gets a proportionally larger UI, since
+   virtually all our type & spacing is already expressed in rem. (Browser zoom
+   already scaled the px bits; this adds OS/browser font-size preference too.) */
+html { font-size: 87.5%; }
 html, body, [class*="css"] {
   font-family: var(--sans);
   background: var(--bg);
   color: var(--text);
-  font-size: 14px;
   line-height: 1.6;
 }
+/* was 14px — now 1rem so it tracks the html anchor above and scales with prefs */
+body, [class*="css"] { font-size: 1rem; }
 .main, .stApp {
   background:
     radial-gradient(circle at 64% -20%, #17233b 0, transparent 33%),
