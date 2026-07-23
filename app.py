@@ -2133,6 +2133,11 @@ maybe_auto_fetch()
 # ══════════════════════════════════════════════════════════════════════════════
 # SIDEBAR
 # ══════════════════════════════════════════════════════════════════════════════
+# ── RBAC role — determined HERE (before the sidebar) so the sidebar can render a
+# slimmed view for guests. The developer sign-in + KB-tab gate live after the tabs.
+st.session_state.setdefault("user_role", "guest")
+_is_dev = st.session_state.user_role == "developer"
+
 with st.sidebar:
 
     st.markdown(
@@ -2153,214 +2158,241 @@ with st.sidebar:
             unsafe_allow_html=True)
     except Exception:
         pass
+    st.caption("Developer mode" if _is_dev else "Guest · read-only view")
     st.markdown("---")
 
-    # ── Connection status card ─────────────────────────────────
-    if st.session_state.nw_verified:
-        last      = st.session_state.last_fetch
-        last_str  = last.strftime("%H:%M:%S") if last else "—"
-        elapsed   = int((datetime.now() - last).total_seconds()) if last else 0
-        remaining = max(REFRESH_INTERVAL - elapsed, 0)
-        pct       = min(elapsed / REFRESH_INTERVAL, 1.0)
-        bar_color = "var(--accent)" if pct < 0.8 else "var(--warn)"
+    if _is_dev:
+        # ── Connection status card ─────────────────────────────────
+        if st.session_state.nw_verified:
+            last      = st.session_state.last_fetch
+            last_str  = last.strftime("%H:%M:%S") if last else "—"
+            elapsed   = int((datetime.now() - last).total_seconds()) if last else 0
+            remaining = max(REFRESH_INTERVAL - elapsed, 0)
+            pct       = min(elapsed / REFRESH_INTERVAL, 1.0)
+            bar_color = "var(--accent)" if pct < 0.8 else "var(--warn)"
 
-        # Check GP status via the existing connection state
-        _gp_status = (
-            '<span class="dot dot-green"></span>'
-            '<span style="color:var(--green);font-size:0.58rem">GP VPN ACTIVE</span>'
-            if st.session_state.nw_verified else
-            '<span class="dot dot-yellow"></span>'
-            '<span style="color:var(--warn);font-size:0.58rem">GP VPN STATUS UNKNOWN</span>'
-        )
+            # Check GP status via the existing connection state
+            _gp_status = (
+                '<span class="dot dot-green"></span>'
+                '<span style="color:var(--green);font-size:0.58rem">GP VPN ACTIVE</span>'
+                if st.session_state.nw_verified else
+                '<span class="dot dot-yellow"></span>'
+                '<span style="color:var(--warn);font-size:0.58rem">GP VPN STATUS UNKNOWN</span>'
+            )
 
-        # Aegis shift-card look (mockup .shift): card bg + line border + r12
-        st.markdown(
-            f'<div style="background:#0e182a;border:1px solid #223149;'
-            f'border-radius:12px;padding:13px">'
-            f'<div style="font-family:var(--mono);font-size:0.68rem">'
-            f'<span class="dot dot-green"></span>Connected ✓</div>'
-            f'<div style="margin-top:4px">{_gp_status}</div>'
-            f'<div style="font-family:var(--mono);font-size:0.58rem;'
-            f'color:var(--muted);margin-top:3px">{st.session_state.nw_msg}</div>'
-            f'<div style="font-family:var(--mono);font-size:0.56rem;'
-            f'color:#1A4A62;margin-top:6px">'
-            f'Synced {last_str} &nbsp;·&nbsp; refresh in {remaining}s</div>'
-            f'<div style="font-family:var(--mono);font-size:0.55rem;'
-            f'color:#2A5A78;margin-top:4px">'
-            f'📡 {st.session_state.nw_incidents_path} · {st.session_state.nw_auth_style}</div>'
-            f'<div style="background:#060E1A;border-radius:2px;height:3px;'
-            f'width:100%;margin-top:7px;overflow:hidden">'
-            f'<div style="width:{pct*100:.0f}%;height:100%;border-radius:2px;'
-            f'background:{bar_color};transition:width 1s linear"></div>'
-            f'</div></div>',
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            '<div style="background:#0A0608;border:1px solid #2A1010;'
-            'border-radius:7px;padding:11px 13px;font-family:var(--mono);font-size:0.68rem">'
-            '<span class="dot dot-red"></span>Not Connected<br>'
-            '<span style="font-size:0.57rem;color:var(--muted)">'
-            'Please enter your login details below</span></div>',
-            unsafe_allow_html=True,
-        )
-
-    # ── NetWitness credentials ─────────────────────────────────
-    st.markdown('<div class="sec-label">🔌  Connection</div>', unsafe_allow_html=True)
-
-    # If already auto-connected from .env, show a clean status + update option
-    if st.session_state.nw_verified and _env["username"]:
-        st.markdown(
-            '<div style="background:#10231c;border:1px solid #2a6146;border-radius:10px;'
-            'padding:9px 12px;font-family:var(--mono);font-size:0.62rem;margin-bottom:8px">'
-            '<span class="dot dot-green"></span>'
-            '<strong style="color:var(--green)">AUTO-CONNECTED FROM .ENV</strong><br>'
-            '<span style="color:var(--muted);font-size:0.58rem">'
-            f'Logged in as <strong>{st.session_state.nw_username}</strong> · '
-            'token refreshed on startup.</span>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-        with st.expander("🔑 Update credentials"):
-            host_in = st.text_input("Host URL", value=st.session_state.nw_host, key="sb_host")
-            user_in = st.text_input("Username", value=st.session_state.nw_username, key="sb_user")
-            pass_in = st.text_input("Password", value="", type="password",
-                                     placeholder="Enter password…", key="sb_pass")
+            # Aegis shift-card look (mockup .shift): card bg + line border + r12
             st.markdown(
-                '<div style="font-family:var(--mono);font-size:0.6rem;'
-                'color:var(--muted);margin:6px 0 2px">— or paste token directly —</div>',
+                f'<div style="background:#0e182a;border:1px solid #223149;'
+                f'border-radius:12px;padding:13px">'
+                f'<div style="font-family:var(--mono);font-size:0.68rem">'
+                f'<span class="dot dot-green"></span>Connected ✓</div>'
+                f'<div style="margin-top:4px">{_gp_status}</div>'
+                f'<div style="font-family:var(--mono);font-size:0.58rem;'
+                f'color:var(--muted);margin-top:3px">{st.session_state.nw_msg}</div>'
+                f'<div style="font-family:var(--mono);font-size:0.56rem;'
+                f'color:#1A4A62;margin-top:6px">'
+                f'Synced {last_str} &nbsp;·&nbsp; refresh in {remaining}s</div>'
+                f'<div style="font-family:var(--mono);font-size:0.55rem;'
+                f'color:#2A5A78;margin-top:4px">'
+                f'📡 {st.session_state.nw_incidents_path} · {st.session_state.nw_auth_style}</div>'
+                f'<div style="background:#060E1A;border-radius:2px;height:3px;'
+                f'width:100%;margin-top:7px;overflow:hidden">'
+                f'<div style="width:{pct*100:.0f}%;height:100%;border-radius:2px;'
+                f'background:{bar_color};transition:width 1s linear"></div>'
+                f'</div></div>',
                 unsafe_allow_html=True,
             )
-            token_paste_in = st.text_area(
-                "Paste Token",
-                value="",
-                placeholder="Paste a fresh accessToken (eyJ…) to skip re-login",
-                height=80,
-                key="sb_token_paste",
+        else:
+            st.markdown(
+                '<div style="background:#0A0608;border:1px solid #2A1010;'
+                'border-radius:7px;padding:11px 13px;font-family:var(--mono);font-size:0.68rem">'
+                '<span class="dot dot-red"></span>Not Connected<br>'
+                '<span style="font-size:0.57rem;color:var(--muted)">'
+                'Please enter your login details below</span></div>',
+                unsafe_allow_html=True,
+            )
+
+        # ── NetWitness credentials ─────────────────────────────────
+        st.markdown('<div class="sec-label">🔌  Connection</div>', unsafe_allow_html=True)
+
+        # If already auto-connected from .env, show a clean status + update option
+        if st.session_state.nw_verified and _env["username"]:
+            st.markdown(
+                '<div style="background:#10231c;border:1px solid #2a6146;border-radius:10px;'
+                'padding:9px 12px;font-family:var(--mono);font-size:0.62rem;margin-bottom:8px">'
+                '<span class="dot dot-green"></span>'
+                '<strong style="color:var(--green)">AUTO-CONNECTED FROM .ENV</strong><br>'
+                '<span style="color:var(--muted);font-size:0.58rem">'
+                f'Logged in as <strong>{st.session_state.nw_username}</strong> · '
+                'token refreshed on startup.</span>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+            with st.expander("🔑 Update credentials"):
+                host_in = st.text_input("Host URL", value=st.session_state.nw_host, key="sb_host")
+                user_in = st.text_input("Username", value=st.session_state.nw_username, key="sb_user")
+                pass_in = st.text_input("Password", value="", type="password",
+                                         placeholder="Enter password…", key="sb_pass")
+                st.markdown(
+                    '<div style="font-family:var(--mono);font-size:0.6rem;'
+                    'color:var(--muted);margin:6px 0 2px">— or paste token directly —</div>',
+                    unsafe_allow_html=True,
+                )
+                token_paste_in = st.text_area(
+                    "Paste Token",
+                    value="",
+                    placeholder="Paste a fresh accessToken (eyJ…) to skip re-login",
+                    height=80,
+                    key="sb_token_paste",
+                    label_visibility="collapsed",
+                )
+                cv, cs, cd = st.columns(3)
+                if cv.button("🔌 Login", use_container_width=True, key="sb_verify"):
+                    st.session_state.nw_host     = host_in
+                    st.session_state.nw_username = user_in
+                    st.session_state.nw_password = pass_in
+
+                    raw_paste = token_paste_in.strip()
+                    if raw_paste:
+                        # Use pasted token directly
+                        st.session_state.nw_token = raw_paste
+                        with st.spinner("Verifying token…"):
+                            ok, msg = nw_verify_token()
+                        st.session_state.nw_verified = ok
+                        st.session_state.nw_msg      = msg
+                        if not ok:
+                            st.session_state.nw_token = ""
+                    else:
+                        # Fall back to username/password
+                        with st.spinner("Logging in…"):
+                            ok, msg, token = nw_login(host_in, user_in, pass_in)
+                        st.session_state.nw_verified = ok
+                        st.session_state.nw_msg      = msg
+                        if ok:
+                            st.session_state.nw_token = token
+
+                    if st.session_state.nw_verified:
+                        ok2, items, _diag = nw_fetch_incidents()
+                        if ok2:
+                            st.session_state.incidents  = items
+                            st.session_state.last_fetch = datetime.now()
+                            db_upsert_incidents(items)
+                    st.rerun()
+                if cs.button("💾 Save", use_container_width=True, key="sb_save"):
+                    if pass_in:
+                        env_save(host_in, user_in, pass_in)
+                        st.success("Saved to .env")
+                    else:
+                        st.warning("Enter password to save.")
+                if cd.button("✕ Clear", use_container_width=True, key="sb_clear"):
+                    env_clear()
+                    st.session_state.update(
+                        nw_token="", nw_username="", nw_password="",
+                        nw_host="", nw_verified=False, nw_msg="",
+                        incidents=[], last_fetch=None, _startup_done=False,
+                    )
+                    st.rerun()
+        else:
+            # Show last login error if there is one
+            _last_err = st.session_state.get("nw_msg", "")
+            if _last_err and not st.session_state.nw_verified:
+                st.markdown(
+                    f'<div style="background:#1A0505;border:1px solid #5A1010;border-radius:5px;'
+                    f'padding:8px 11px;font-family:var(--mono);font-size:0.6rem;'
+                    f'color:#FF6B6B;margin-bottom:8px">'
+                    f'❌ Last error: {_last_err}</div>',
+                    unsafe_allow_html=True,
+                )
+            if DOTENV_OK and not _env["username"]:
+                st.markdown(
+                    '<div style="background:#0A0800;border:1px solid #3A3000;border-radius:5px;'
+                    'padding:8px 11px;font-family:var(--mono);font-size:0.6rem;'
+                    'color:#FFB700;margin-bottom:8px">'
+                    '⚠ No credentials in .env<br>'
+                    '<span style="color:var(--muted)">Enter below & click 💾 Save</span></div>',
+                    unsafe_allow_html=True,
+                )
+            host_in = st.text_input("Host URL", value=st.session_state.nw_host,
+                                     placeholder="https://192.168.x.x")
+            if host_in != st.session_state.nw_host:
+                st.session_state.nw_host     = host_in
+                st.session_state.nw_verified = False
+
+            # ── Login method toggle ────────────────────────────────
+            login_method = st.radio(
+                "Login method",
+                ["Username / Password", "Paste Token"],
+                horizontal=True,
                 label_visibility="collapsed",
             )
+
+            if login_method == "Username / Password":
+                user_in = st.text_input("Username", value=st.session_state.nw_username,
+                                         placeholder="admin")
+                pass_in = st.text_input("Password", value="", type="password",
+                                         placeholder="Enter password…")
+                token_in = ""
+            else:
+                user_in  = st.session_state.nw_username
+                pass_in  = ""
+                token_in = st.text_area(
+                    "NetWitness Token",
+                    value="",
+                    placeholder="Paste your accessToken (eyJ…) here",
+                    height=100,
+                    label_visibility="collapsed",
+                )
+                st.markdown(
+                    '<div style="font-family:var(--mono);font-size:0.58rem;'
+                    'color:var(--muted);margin-top:-8px;margin-bottom:6px">'
+                    '⚡ Tokens expire — re-paste when you get a 401</div>',
+                    unsafe_allow_html=True,
+                )
+
             cv, cs, cd = st.columns(3)
-            if cv.button("🔌 Login", use_container_width=True, key="sb_verify"):
-                st.session_state.nw_host     = host_in
+            if cv.button("🔌 Login", use_container_width=True):
                 st.session_state.nw_username = user_in
                 st.session_state.nw_password = pass_in
 
-                raw_paste = token_paste_in.strip()
-                if raw_paste:
-                    # Use pasted token directly
-                    st.session_state.nw_token = raw_paste
-                    with st.spinner("Verifying token…"):
-                        ok, msg = nw_verify_token()
-                    st.session_state.nw_verified = ok
-                    st.session_state.nw_msg      = msg
-                    if not ok:
-                        st.session_state.nw_token = ""
+                # ── Token-paste path ──────────────────────────────
+                if login_method == "Paste Token":
+                    raw_token = token_in.strip()
+                    if not raw_token:
+                        st.error("❌ Paste a token first.")
+                    elif not host_in.strip():
+                        st.error("❌ Enter the Host URL.")
+                    else:
+                        st.session_state.nw_token = raw_token
+                        with st.spinner("Verifying token…"):
+                            ok, msg = nw_verify_token()
+                        st.session_state.nw_verified = ok
+                        st.session_state.nw_msg      = msg
+                        if ok:
+                            st.success(f"✅ {msg}")
+                            ok2, items, _diag = nw_fetch_incidents()
+                            if ok2:
+                                st.session_state.incidents  = items
+                                st.session_state.last_fetch = datetime.now()
+                                db_upsert_incidents(items)
+                                st.success(f"Fetched {len(items)} incidents")
+                            else:
+                                st.warning("Token accepted but no incidents fetched yet.")
+                        else:
+                            st.session_state.nw_token = ""
+                            st.error(f"❌ {msg}")
+                    st.rerun()
+
+                # ── Username / Password path ───────────────────────
                 else:
-                    # Fall back to username/password
                     with st.spinner("Logging in…"):
-                        ok, msg, token = nw_login(host_in, user_in, pass_in)
+                        try:
+                            ok, msg, token = nw_login(host_in, user_in, pass_in)
+                        except Exception as _ve:
+                            ok, msg, token = False, f"Exception: {_ve}", ""
                     st.session_state.nw_verified = ok
                     st.session_state.nw_msg      = msg
                     if ok:
                         st.session_state.nw_token = token
-
-                if st.session_state.nw_verified:
-                    ok2, items, _diag = nw_fetch_incidents()
-                    if ok2:
-                        st.session_state.incidents  = items
-                        st.session_state.last_fetch = datetime.now()
-                        db_upsert_incidents(items)
-                st.rerun()
-            if cs.button("💾 Save", use_container_width=True, key="sb_save"):
-                if pass_in:
-                    env_save(host_in, user_in, pass_in)
-                    st.success("Saved to .env")
-                else:
-                    st.warning("Enter password to save.")
-            if cd.button("✕ Clear", use_container_width=True, key="sb_clear"):
-                env_clear()
-                st.session_state.update(
-                    nw_token="", nw_username="", nw_password="",
-                    nw_host="", nw_verified=False, nw_msg="",
-                    incidents=[], last_fetch=None, _startup_done=False,
-                )
-                st.rerun()
-    else:
-        # Show last login error if there is one
-        _last_err = st.session_state.get("nw_msg", "")
-        if _last_err and not st.session_state.nw_verified:
-            st.markdown(
-                f'<div style="background:#1A0505;border:1px solid #5A1010;border-radius:5px;'
-                f'padding:8px 11px;font-family:var(--mono);font-size:0.6rem;'
-                f'color:#FF6B6B;margin-bottom:8px">'
-                f'❌ Last error: {_last_err}</div>',
-                unsafe_allow_html=True,
-            )
-        if DOTENV_OK and not _env["username"]:
-            st.markdown(
-                '<div style="background:#0A0800;border:1px solid #3A3000;border-radius:5px;'
-                'padding:8px 11px;font-family:var(--mono);font-size:0.6rem;'
-                'color:#FFB700;margin-bottom:8px">'
-                '⚠ No credentials in .env<br>'
-                '<span style="color:var(--muted)">Enter below & click 💾 Save</span></div>',
-                unsafe_allow_html=True,
-            )
-        host_in = st.text_input("Host URL", value=st.session_state.nw_host,
-                                 placeholder="https://192.168.x.x")
-        if host_in != st.session_state.nw_host:
-            st.session_state.nw_host     = host_in
-            st.session_state.nw_verified = False
-
-        # ── Login method toggle ────────────────────────────────
-        login_method = st.radio(
-            "Login method",
-            ["Username / Password", "Paste Token"],
-            horizontal=True,
-            label_visibility="collapsed",
-        )
-
-        if login_method == "Username / Password":
-            user_in = st.text_input("Username", value=st.session_state.nw_username,
-                                     placeholder="admin")
-            pass_in = st.text_input("Password", value="", type="password",
-                                     placeholder="Enter password…")
-            token_in = ""
-        else:
-            user_in  = st.session_state.nw_username
-            pass_in  = ""
-            token_in = st.text_area(
-                "NetWitness Token",
-                value="",
-                placeholder="Paste your accessToken (eyJ…) here",
-                height=100,
-                label_visibility="collapsed",
-            )
-            st.markdown(
-                '<div style="font-family:var(--mono);font-size:0.58rem;'
-                'color:var(--muted);margin-top:-8px;margin-bottom:6px">'
-                '⚡ Tokens expire — re-paste when you get a 401</div>',
-                unsafe_allow_html=True,
-            )
-
-        cv, cs, cd = st.columns(3)
-        if cv.button("🔌 Login", use_container_width=True):
-            st.session_state.nw_username = user_in
-            st.session_state.nw_password = pass_in
-
-            # ── Token-paste path ──────────────────────────────
-            if login_method == "Paste Token":
-                raw_token = token_in.strip()
-                if not raw_token:
-                    st.error("❌ Paste a token first.")
-                elif not host_in.strip():
-                    st.error("❌ Enter the Host URL.")
-                else:
-                    st.session_state.nw_token = raw_token
-                    with st.spinner("Verifying token…"):
-                        ok, msg = nw_verify_token()
-                    st.session_state.nw_verified = ok
-                    st.session_state.nw_msg      = msg
-                    if ok:
                         st.success(f"✅ {msg}")
                         ok2, items, _diag = nw_fetch_incidents()
                         if ok2:
@@ -2369,244 +2401,219 @@ with st.sidebar:
                             db_upsert_incidents(items)
                             st.success(f"Fetched {len(items)} incidents")
                         else:
-                            st.warning("Token accepted but no incidents fetched yet.")
+                            st.warning("Connected but no incidents fetched yet.")
                     else:
-                        st.session_state.nw_token = ""
                         st.error(f"❌ {msg}")
-                st.rerun()
+                    st.rerun()
 
-            # ── Username / Password path ───────────────────────
-            else:
-                with st.spinner("Logging in…"):
-                    try:
-                        ok, msg, token = nw_login(host_in, user_in, pass_in)
-                    except Exception as _ve:
-                        ok, msg, token = False, f"Exception: {_ve}", ""
-                st.session_state.nw_verified = ok
-                st.session_state.nw_msg      = msg
-                if ok:
-                    st.session_state.nw_token = token
-                    st.success(f"✅ {msg}")
-                    ok2, items, _diag = nw_fetch_incidents()
-                    if ok2:
-                        st.session_state.incidents  = items
-                        st.session_state.last_fetch = datetime.now()
-                        db_upsert_incidents(items)
-                        st.success(f"Fetched {len(items)} incidents")
-                    else:
-                        st.warning("Connected but no incidents fetched yet.")
+            if cs.button("💾 Save", use_container_width=True,
+                         help="Save to .env — auto-connects on next startup"):
+                if host_in and user_in and pass_in:
+                    env_save(host_in, user_in, pass_in)
+                    st.success("Saved — will auto-connect on next startup", icon="💾")
                 else:
-                    st.error(f"❌ {msg}")
+                    st.warning("Enter host, username and password first.")
+
+            if cd.button("✕ Clear", use_container_width=True):
+                env_clear()
+                st.session_state.update(
+                    nw_token="", nw_username="", nw_password="",
+                    nw_host="", nw_verified=False, nw_msg="",
+                    incidents=[], last_fetch=None, _startup_done=False,
+                )
                 st.rerun()
 
-        if cs.button("💾 Save", use_container_width=True,
-                     help="Save to .env — auto-connects on next startup"):
-            if host_in and user_in and pass_in:
-                env_save(host_in, user_in, pass_in)
-                st.success("Saved — will auto-connect on next startup", icon="💾")
+        # ── TLS Certificate (Option B — verified HTTPS) ─────────────
+        st.markdown('<div class="sec-label">🔒  Security Certificate</div>', unsafe_allow_html=True)
+
+        # Auto-clear bad cert if last message was an SSL error
+        _last_msg = st.session_state.get("nw_msg", "")
+        if "SSL error" in _last_msg and st.session_state.get("nw_cert_path", ""):
+            st.warning(
+                f"⚠️ The uploaded cert caused an SSL error — it has been removed. "
+                f"Revert to browser export or try again.\n\n`{_last_msg}`"
+            )
+            st.session_state.nw_cert_path = ""
+
+        _cert_active = st.session_state.get("nw_cert_path", "").strip()
+        _cert_valid  = bool(_cert_active) and Path(_cert_active).is_file()
+
+        if _cert_valid:
+            st.markdown(
+                f'<div style="font-family:var(--mono);font-size:0.62rem;color:var(--green);'
+                f'margin-bottom:6px"><span class="dot dot-green"></span>'
+                f'Verifying against: {Path(_cert_active).name}</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                '<div style="font-family:var(--mono);font-size:0.62rem;color:var(--warn);'
+                'margin-bottom:6px"><span class="dot dot-yellow"></span>'
+                'No cert configured — TLS verification skipped (insecure)</div>',
+                unsafe_allow_html=True,
+            )
+
+        cert_upload = st.file_uploader(
+            "Upload server/CA certificate (.pem / .crt)",
+            type=["pem", "crt", "cer"],
+            key="cert_uploader",
+            label_visibility="collapsed",
+        )
+        if cert_upload is not None:
+            certs_dir = Path(__file__).parent / "certs"
+            certs_dir.mkdir(exist_ok=True)
+            cert_dest = certs_dir / cert_upload.name
+            cert_dest.write_bytes(cert_upload.getvalue())
+            st.session_state.nw_cert_path = str(cert_dest)
+            nw_cert_env_save(str(cert_dest))
+            st.success(f"✅ Saved {cert_upload.name} — re-login to apply verified TLS")
+            st.rerun()
+
+        cert_path_in = st.text_input(
+            "…or enter an existing cert path",
+            value=st.session_state.get("nw_cert_path", ""),
+            placeholder="/path/to/netwitness-ca.pem",
+            key="cert_path_text",
+        )
+        ccert1, ccert2 = st.columns(2)
+        if ccert1.button("💾 Use this path", use_container_width=True):
+            if cert_path_in.strip() and Path(cert_path_in.strip()).is_file():
+                st.session_state.nw_cert_path = cert_path_in.strip()
+                nw_cert_env_save(cert_path_in.strip())
+                st.success("✅ Cert path set — re-login to apply")
             else:
-                st.warning("Enter host, username and password first.")
-
-        if cd.button("✕ Clear", use_container_width=True):
-            env_clear()
-            st.session_state.update(
-                nw_token="", nw_username="", nw_password="",
-                nw_host="", nw_verified=False, nw_msg="",
-                incidents=[], last_fetch=None, _startup_done=False,
-            )
+                st.error("File not found at that path.")
+            st.rerun()
+        if ccert2.button("✕ Remove cert", use_container_width=True):
+            st.session_state.nw_cert_path = ""
+            nw_cert_env_clear()
+            st.info("Reverted to verify=False (insecure)")
             st.rerun()
 
-    # ── TLS Certificate (Option B — verified HTTPS) ─────────────
-    st.markdown('<div class="sec-label">🔒  Security Certificate</div>', unsafe_allow_html=True)
+        # ── Foundation LLM (HuggingFace) ──────────────────────────
+        st.markdown('<div class="sec-label">🤖  AI Settings</div>', unsafe_allow_html=True)
 
-    # Auto-clear bad cert if last message was an SSL error
-    _last_msg = st.session_state.get("nw_msg", "")
-    if "SSL error" in _last_msg and st.session_state.get("nw_cert_path", ""):
-        st.warning(
-            f"⚠️ The uploaded cert caused an SSL error — it has been removed. "
-            f"Revert to browser export or try again.\n\n`{_last_msg}`"
-        )
-        st.session_state.nw_cert_path = ""
-
-    _cert_active = st.session_state.get("nw_cert_path", "").strip()
-    _cert_valid  = bool(_cert_active) and Path(_cert_active).is_file()
-
-    if _cert_valid:
-        st.markdown(
-            f'<div style="font-family:var(--mono);font-size:0.62rem;color:var(--green);'
-            f'margin-bottom:6px"><span class="dot dot-green"></span>'
-            f'Verifying against: {Path(_cert_active).name}</div>',
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            '<div style="font-family:var(--mono);font-size:0.62rem;color:var(--warn);'
-            'margin-bottom:6px"><span class="dot dot-yellow"></span>'
-            'No cert configured — TLS verification skipped (insecure)</div>',
-            unsafe_allow_html=True,
-        )
-
-    cert_upload = st.file_uploader(
-        "Upload server/CA certificate (.pem / .crt)",
-        type=["pem", "crt", "cer"],
-        key="cert_uploader",
-        label_visibility="collapsed",
-    )
-    if cert_upload is not None:
-        certs_dir = Path(__file__).parent / "certs"
-        certs_dir.mkdir(exist_ok=True)
-        cert_dest = certs_dir / cert_upload.name
-        cert_dest.write_bytes(cert_upload.getvalue())
-        st.session_state.nw_cert_path = str(cert_dest)
-        nw_cert_env_save(str(cert_dest))
-        st.success(f"✅ Saved {cert_upload.name} — re-login to apply verified TLS")
-        st.rerun()
-
-    cert_path_in = st.text_input(
-        "…or enter an existing cert path",
-        value=st.session_state.get("nw_cert_path", ""),
-        placeholder="/path/to/netwitness-ca.pem",
-        key="cert_path_text",
-    )
-    ccert1, ccert2 = st.columns(2)
-    if ccert1.button("💾 Use this path", use_container_width=True):
-        if cert_path_in.strip() and Path(cert_path_in.strip()).is_file():
-            st.session_state.nw_cert_path = cert_path_in.strip()
-            nw_cert_env_save(cert_path_in.strip())
-            st.success("✅ Cert path set — re-login to apply")
-        else:
-            st.error("File not found at that path.")
-        st.rerun()
-    if ccert2.button("✕ Remove cert", use_container_width=True):
-        st.session_state.nw_cert_path = ""
-        nw_cert_env_clear()
-        st.info("Reverted to verify=False (insecure)")
-        st.rerun()
-
-    # ── Foundation LLM (HuggingFace) ──────────────────────────
-    st.markdown('<div class="sec-label">🤖  AI Settings</div>', unsafe_allow_html=True)
-
-    # Connection status indicator
-    if st.session_state.cisco_connected:
-        st.markdown(
-            '<div style="background:#041208;border:1px solid #0A3020;border-radius:5px;'
-            'padding:8px 11px;font-family:var(--mono);font-size:0.62rem;margin-bottom:8px">'
-            '<span class="dot dot-green"></span>'
-            '<strong style="color:var(--green)">LLM CONFIGURED</strong><br>'
-            f'<span style="color:var(--muted);font-size:0.58rem">'
-            f'Model: {st.session_state.cisco_model or "—"}</span>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            '<div style="background:#0A0608;border:1px solid #2A1010;border-radius:5px;'
-            'padding:8px 11px;font-family:var(--mono);font-size:0.62rem;margin-bottom:8px">'
-            '<span class="dot dot-red"></span>'
-            '<span style="color:var(--danger)">NOT CONFIGURED</span><br>'
-            '<span style="font-size:0.57rem;color:var(--muted)">Enter your HF token below</span>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-
-    cisco_url_in = st.text_input(
-        "Endpoint URL",
-        value=st.session_state.cisco_url,
-        placeholder="https://api-inference.huggingface.co/v1",
-        key="sb_cisco_url",
-    )
-    cisco_key_in = st.text_input(
-        "HuggingFace Token",
-        value="",
-        type="password",
-        placeholder="hf_xxxxxxxxxxxxxxxxxxxx",
-        key="sb_cisco_key",
-    )
-    cisco_model_in = st.text_input(
-        "Model name",
-        value=st.session_state.cisco_model,
-        placeholder="fdtn-ai/Foundation-Sec-8B-Reasoning",
-        key="sb_cisco_model",
-    )
-
-    cl1, cl2, cl3 = st.columns(3)
-
-    if cl1.button("✅ Apply", use_container_width=True, key="cisco_apply"):
-        if not cisco_url_in.strip():
-            st.error("❌ Enter the endpoint URL.")
-        elif not cisco_key_in.strip():
-            st.error("❌ Enter your HF token.")
-        else:
-            st.session_state.cisco_url       = cisco_url_in.strip()
-            st.session_state.cisco_key       = cisco_key_in.strip()
-            st.session_state.cisco_model     = (
-                cisco_model_in.strip() or "fdtn-ai/Foundation-Sec-8B-Reasoning"
+        # Connection status indicator
+        if st.session_state.cisco_connected:
+            st.markdown(
+                '<div style="background:#041208;border:1px solid #0A3020;border-radius:5px;'
+                'padding:8px 11px;font-family:var(--mono);font-size:0.62rem;margin-bottom:8px">'
+                '<span class="dot dot-green"></span>'
+                '<strong style="color:var(--green)">LLM CONFIGURED</strong><br>'
+                f'<span style="color:var(--muted);font-size:0.58rem">'
+                f'Model: {st.session_state.cisco_model or "—"}</span>'
+                '</div>',
+                unsafe_allow_html=True,
             )
-            st.session_state.cisco_connected = True
-            st.success("✅ LLM configured!")
-            st.rerun()
-
-    if cl2.button("💾 Save", use_container_width=True, key="cisco_save"):
-        if cisco_url_in.strip() and cisco_key_in.strip():
-            st.session_state.cisco_url       = cisco_url_in.strip()
-            st.session_state.cisco_key       = cisco_key_in.strip()
-            st.session_state.cisco_model     = (
-                cisco_model_in.strip() or "fdtn-ai/Foundation-Sec-8B-Reasoning"
-            )
-            st.session_state.cisco_connected = True
-            cisco_env_save(
-                cisco_url_in.strip(),
-                cisco_key_in.strip(),
-                st.session_state.cisco_model,
-            )
-            st.success("💾 Saved to .env")
-            st.rerun()
         else:
-            st.warning("Enter URL and HF token first.")
+            st.markdown(
+                '<div style="background:#0A0608;border:1px solid #2A1010;border-radius:5px;'
+                'padding:8px 11px;font-family:var(--mono);font-size:0.62rem;margin-bottom:8px">'
+                '<span class="dot dot-red"></span>'
+                '<span style="color:var(--danger)">NOT CONFIGURED</span><br>'
+                '<span style="font-size:0.57rem;color:var(--muted)">Enter your HF token below</span>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
 
-    if cl3.button("✕ Clear", use_container_width=True, key="cisco_clear"):
-        st.session_state.cisco_url       = ""
-        st.session_state.cisco_key       = ""
-        st.session_state.cisco_model     = ""
-        st.session_state.cisco_connected = False
-        cisco_env_clear()
-        st.rerun()
-
-    # ── ChromaDB ───────────────────────────────────────────────
-    st.markdown('<div class="sec-label">🧠  Knowledge Base</div>', unsafe_allow_html=True)
-
-    chroma_path = st.text_input("Persist path", value="./chroma_db")
-    cc1, cc2 = st.columns(2)
-
-    if cc1.button("🗄️ Connect", use_container_width=True):
-        ok, msg = chroma_connect(chroma_path)
-        if ok: st.success(msg, icon="✅")
-        else:  st.error(msg)
-        st.rerun()
-
-    if st.session_state.chroma_col is not None:
-        count = st.session_state.chroma_col.count()
-        st.markdown(
-            f'<div style="font-family:var(--mono);font-size:0.64rem;'
-            f'color:var(--green);margin-top:4px">'
-            f'<span class="dot dot-green"></span>{count} vectors stored</div>',
-            unsafe_allow_html=True,
+        cisco_url_in = st.text_input(
+            "Endpoint URL",
+            value=st.session_state.cisco_url,
+            placeholder="https://api-inference.huggingface.co/v1",
+            key="sb_cisco_url",
         )
-        if cc2.button("⬆️ Sync", use_container_width=True):
-            if st.session_state.incidents:
-                n, msg = chroma_sync(st.session_state.incidents)
-                st.success(msg) if n else st.error(msg)
+        cisco_key_in = st.text_input(
+            "HuggingFace Token",
+            value="",
+            type="password",
+            placeholder="hf_xxxxxxxxxxxxxxxxxxxx",
+            key="sb_cisco_key",
+        )
+        cisco_model_in = st.text_input(
+            "Model name",
+            value=st.session_state.cisco_model,
+            placeholder="fdtn-ai/Foundation-Sec-8B-Reasoning",
+            key="sb_cisco_model",
+        )
+
+        cl1, cl2, cl3 = st.columns(3)
+
+        if cl1.button("✅ Apply", use_container_width=True, key="cisco_apply"):
+            if not cisco_url_in.strip():
+                st.error("❌ Enter the endpoint URL.")
+            elif not cisco_key_in.strip():
+                st.error("❌ Enter your HF token.")
             else:
-                st.warning("No incidents loaded yet.")
+                st.session_state.cisco_url       = cisco_url_in.strip()
+                st.session_state.cisco_key       = cisco_key_in.strip()
+                st.session_state.cisco_model     = (
+                    cisco_model_in.strip() or "fdtn-ai/Foundation-Sec-8B-Reasoning"
+                )
+                st.session_state.cisco_connected = True
+                st.success("✅ LLM configured!")
+                st.rerun()
 
-    st.markdown("---")
-    st.markdown(
-        f'<div style="font-family:var(--mono);font-size:0.54rem;'
-        f'color:#1A3A52;text-align:center;line-height:1.9">'
-        f'v4 · AUTO-REFRESH {REFRESH_INTERVAL}s<br>'
-        f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</div>',
-        unsafe_allow_html=True,
-    )
+        if cl2.button("💾 Save", use_container_width=True, key="cisco_save"):
+            if cisco_url_in.strip() and cisco_key_in.strip():
+                st.session_state.cisco_url       = cisco_url_in.strip()
+                st.session_state.cisco_key       = cisco_key_in.strip()
+                st.session_state.cisco_model     = (
+                    cisco_model_in.strip() or "fdtn-ai/Foundation-Sec-8B-Reasoning"
+                )
+                st.session_state.cisco_connected = True
+                cisco_env_save(
+                    cisco_url_in.strip(),
+                    cisco_key_in.strip(),
+                    st.session_state.cisco_model,
+                )
+                st.success("💾 Saved to .env")
+                st.rerun()
+            else:
+                st.warning("Enter URL and HF token first.")
+
+        if cl3.button("✕ Clear", use_container_width=True, key="cisco_clear"):
+            st.session_state.cisco_url       = ""
+            st.session_state.cisco_key       = ""
+            st.session_state.cisco_model     = ""
+            st.session_state.cisco_connected = False
+            cisco_env_clear()
+            st.rerun()
+
+        # ── ChromaDB ───────────────────────────────────────────────
+        st.markdown('<div class="sec-label">🧠  Knowledge Base</div>', unsafe_allow_html=True)
+
+        chroma_path = st.text_input("Persist path", value="./chroma_db")
+        cc1, cc2 = st.columns(2)
+
+        if cc1.button("🗄️ Connect", use_container_width=True):
+            ok, msg = chroma_connect(chroma_path)
+            if ok: st.success(msg, icon="✅")
+            else:  st.error(msg)
+            st.rerun()
+
+        if st.session_state.chroma_col is not None:
+            count = st.session_state.chroma_col.count()
+            st.markdown(
+                f'<div style="font-family:var(--mono);font-size:0.64rem;'
+                f'color:var(--green);margin-top:4px">'
+                f'<span class="dot dot-green"></span>{count} vectors stored</div>',
+                unsafe_allow_html=True,
+            )
+            if cc2.button("⬆️ Sync", use_container_width=True):
+                if st.session_state.incidents:
+                    n, msg = chroma_sync(st.session_state.incidents)
+                    st.success(msg) if n else st.error(msg)
+                else:
+                    st.warning("No incidents loaded yet.")
+
+        st.markdown("---")
+        st.markdown(
+            f'<div style="font-family:var(--mono);font-size:0.54rem;'
+            f'color:#1A3A52;text-align:center;line-height:1.9">'
+            f'v4 · AUTO-REFRESH {REFRESH_INTERVAL}s<br>'
+            f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</div>',
+            unsafe_allow_html=True,
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
