@@ -1,51 +1,57 @@
-# ── Credentials & certificates — NEVER commit these ───────────
+# ─────────────────────────────────────────────────────────────────────
+# .gitignore for the Streamlit Community Cloud deployment copy.
+#
+# UNLIKE a normal repo, this one MUST commit its demo data (soc_db/,
+# chroma_db/, *.db) — the cloud app has NO NetWitness/VPN access and
+# serves those stored incidents instead. So the databases are intentionally
+# TRACKED here. Only secrets and throwaway cruft are ignored.
+#
+# ⚠️  The stored incidents may contain internal hostnames/users/IPs. If that
+#     data is sensitive, deploy from a PRIVATE GitHub repo (Streamlit Cloud
+#     supports private repos) or scrub the DB first. See DEPLOY.md.
+# ─────────────────────────────────────────────────────────────────────
+
+# ── SECRETS — never commit (LLM key etc. go in Streamlit Cloud → Secrets) ──
 .env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# ── NetWitness TLS material (on-prem/VPN only; sensitive, unused in cloud) ──
+*.pem
+*.cer
 certs/
 
-# ── Runtime databases & sidecars ───────────────────────────────
-soc_db/
-*.db
+# ── Transient SQLite sidecars (commit the .db, not its WAL/journal) ────────
 *.db-wal
 *.db-shm
 *.db-journal
 
-# ── Vector stores ──────────────────────────────────────────────
-chroma_db/
-chroma_store/
-soc_investigation_agent/ChromaDatabase/
-
-# ── Agent runtime data (regenerated every run) ─────────────────
-soc_investigation_agent/incident_reports/
-soc_investigation_agent/triaged_alerts/
-soc_reporting_agent/outputs/
-soc_reporting_agent/logs/
-soc_reporting_agent/runtime/
-workflow_last_run.json
-
-# ── Knowledge graph artifacts (rebuild with /graphify) ─────────
-graphify-out/
-
-# ── Python ─────────────────────────────────────────────────────
+# ── Python / editor / OS cruft ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.ipynb_checkpoints/
 .venv/
 venv/
 env/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-
-# ── Editors / notebooks / OS ───────────────────────────────────
-.ipynb_checkpoints/
-.streamlit/cache/
 .DS_Store
 Thumbs.db
 *.bak
 
-# Loose certificates at repo root
-*.pem
-*.cer
+# ── Redundant packaged agent copies ────────────────────────────────────────
+*.zip
+
+# ── Knowledge-graph artifacts (rebuild with /graphify) ─────────────────────
+graphify-out/
+
+# ── Regenerated at runtime (not needed in the repo) ────────────────────────
+soc_reporting_agent/outputs/
+soc_reporting_agent/logs/
+soc_reporting_agent/runtime/
 soc_investigation_agent_revised/ChromaDatabase/
-soc_investigation_agent_revised/incident_reports/
-soc_investigation_agent_revised/triaged_alerts/
-soc_investigation_agent_revised/__pycache__/
+
+# NOTE: soc_db/, chroma_db/, *.db, incident_reports/, triaged_alerts/ are
+# intentionally TRACKED — they are the offline demo payload the cloud app
+# reads. Do not add them here.

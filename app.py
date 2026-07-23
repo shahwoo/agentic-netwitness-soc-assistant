@@ -9,6 +9,19 @@ SOC Platform v4
 • ChromaDB semantic search & sync
 """
 
+# ── Streamlit Community Cloud: ChromaDB needs sqlite3 >= 3.35 ──────────────────
+# Debian images on Streamlit Cloud ship a system sqlite3 older than 3.35, which
+# chromadb rejects ("unsupported version of sqlite3"). pysqlite3-binary bundles a
+# newer sqlite; swap it in for the stdlib module BEFORE anything imports chromadb.
+# No-op locally (pysqlite3-binary isn't installed on the Windows venv, and that
+# platform's own sqlite3 is already new enough) — this block is deploy-only.
+try:
+    __import__("pysqlite3")
+    import sys as _sys
+    _sys.modules["sqlite3"] = _sys.modules.pop("pysqlite3")
+except Exception:
+    pass
+
 import re
 import streamlit as st
 import streamlit.components.v1 as components
@@ -35,6 +48,22 @@ try:
     CHROMA_OK = True
 except ImportError:
     CHROMA_OK = False
+
+# ── Streamlit Community Cloud: secrets → environment ──────────────────────────
+# Locally the app reads credentials from .env (via python-dotenv). On Streamlit
+# Cloud there is no .env; secrets are entered in the dashboard and exposed as
+# st.secrets. Copy any scalar secrets into os.environ (without clobbering a value
+# already set) so every existing os.environ.get(...) call site keeps working
+# unchanged. Guarded: a silent no-op locally when no secrets are configured.
+def _bridge_cloud_secrets() -> None:
+    try:
+        for _k, _v in st.secrets.items():
+            if isinstance(_v, (str, int, float, bool)) and _k not in os.environ:
+                os.environ[_k] = str(_v)
+    except Exception:
+        pass
+
+_bridge_cloud_secrets()
 
 # ── SOC Triage Agent (LangChain) ──────────────────────────────────────────────
 # Streamlit re-executes this script on every rerun but NEVER re-imports

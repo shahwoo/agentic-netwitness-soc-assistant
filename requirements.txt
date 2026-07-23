@@ -23,3 +23,10 @@ pydantic>=2.0.0
 jinja2>=3.1.0
 python-docx>=1.1.2
 reportlab>=4.2.0
+
+# ── Deploy-only: Streamlit Community Cloud (Linux) ────────────────
+# chromadb needs sqlite3 >= 3.35; Streamlit Cloud's Debian image ships an
+# older one. pysqlite3-binary supplies a newer bundled sqlite that app.py
+# swaps in at startup. Linux-only marker so a local Windows/macOS
+# `pip install -r requirements.txt` skips it (no Windows wheel exists).
+pysqlite3-binary>=0.5.0; platform_system == "Linux"
