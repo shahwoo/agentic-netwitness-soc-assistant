@@ -2865,13 +2865,27 @@ st.markdown("---")
 # ══════════════════════════════════════════════════════════════════════════════
 _connected = st.session_state.nw_verified
 _inc_count = len(incidents)
+# Status subtitle — honest across all three deployments:
+#   • live NetWitness connected             → "Connected"
+#   • offline/demo (cloud) with stored data → "Offline demo — N alerts" (no
+#     "log in" prompt: the data IS loaded, and guests have no sidebar panel)
+#   • no data + developer                   → point them at the sidebar config
+#   • no data + guest                       → plain offline note (no phantom panel)
+if _connected:
+    _status_msg = "✅ Connected — " + str(_inc_count) + " alerts loaded"
+elif _inc_count:
+    _status_msg = "Offline demo — " + str(_inc_count) + " stored alerts loaded"
+elif _is_dev:
+    _status_msg = "⚠️ Not connected — configure NetWitness in the left panel"
+else:
+    _status_msg = "Offline demo — no stored alerts available"
 st.markdown(
     f'<div style="display:flex;align-items:center;justify-content:space-between;'
     f'padding:10px 0 16px">'
     f'<div>'
     f'<div style="font-size:1.3rem;font-weight:700;color:var(--accent)">🛡️ Security Dashboard</div>'
     f'<div style="font-size:0.8rem;color:var(--muted);margin-top:2px">'
-    f'{"✅ Connected — " + str(_inc_count) + " alerts loaded" if _connected else "⚠️ Not connected — please log in using the left panel"}'
+    f'{_status_msg}'
     f'</div></div>'
     f'<div style="font-size:0.72rem;color:var(--muted);text-align:right">'
     f'{datetime.now().strftime("%A, %d %B %Y")}</div>'
