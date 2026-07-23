@@ -55,7 +55,7 @@ COMPONENT_CSS = """
 
 /* stat cards */
 .ag-stats{display:flex;gap:12px;margin:6px 0;}
-.ag-stat{flex:1;border:1px solid var(--line);border-radius:14px;padding:15px 16px;
+.ag-stat{flex:1;border:0;border-radius:14px;padding:15px 16px;
   background:linear-gradient(145deg,#111c2d,#0c1523);position:relative;overflow:hidden;}
 .ag-stat .lbl{color:#a6b2c4;font-size:.72rem;font-weight:600;}
 .ag-stat .val{display:block;font-size:1.9rem;font-weight:800;letter-spacing:-.5px;margin:6px 0 2px;color:var(--text);}

@@ -2881,6 +2881,43 @@ tab_dash, tab_inc, tab_chat, tab_chroma, tab_log, tab_pipeline = st.tabs([
     "🔁  Data Pipeline",
 ])
 
+# ── RBAC: guest by default; developers unlock the Knowledge Base (ChromaDB)
+# inspector tab via a password held in Streamlit Secrets (DEV_PASSWORD) or the
+# APP_DEV_PASSWORD env var. Additive + guarded: if no password is configured the
+# developer sign-in simply doesn't appear and everyone stays a read-only guest.
+def _dev_password() -> str:
+    try:
+        _p = st.secrets.get("DEV_PASSWORD", "")
+    except Exception:
+        _p = ""
+    return str(_p or os.environ.get("APP_DEV_PASSWORD", "")).strip()
+
+st.session_state.setdefault("user_role", "guest")
+_is_dev = st.session_state.user_role == "developer"
+
+with st.sidebar:
+    _devpw = _dev_password()
+    if _is_dev:
+        if st.button("Exit developer mode", use_container_width=True, key="_dev_exit"):
+            st.session_state.user_role = "guest"
+            st.rerun()
+    elif _devpw:
+        with st.expander("Developer access"):
+            _pw = st.text_input("Developer password", type="password", key="_dev_pw")
+            if st.button("Unlock", use_container_width=True, key="_dev_unlock"):
+                if _pw and _pw == _devpw:
+                    st.session_state.user_role = "developer"
+                    st.rerun()
+                elif _pw:
+                    st.error("Incorrect password")
+
+# Guests must not SEE the developer Knowledge Base tab (the 4th tab). Hide its
+# button via CSS (the password gate above governs who can flip to developer).
+if not _is_dev:
+    st.markdown(
+        '<style>[data-baseweb="tab-list"] button:nth-of-type(4){display:none !important;}</style>',
+        unsafe_allow_html=True)
+
 # Streamlit's st.tabs has no server-side "set active tab" API — the click
 # from the "🩺 Triage" button is simulated client-side by finding the tab
 # button whose label contains "Ask a Question" and clicking it. One-shot:
