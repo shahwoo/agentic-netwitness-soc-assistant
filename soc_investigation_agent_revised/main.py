@@ -13,6 +13,7 @@ import ingest_pipeline
 import vector_engine
 import orchestrator
 import policy_engine
+import mitre_mapper
 from correlation_engine import CorrelationEngine
 from sync_engine import (
     RealtimeSyncService,
@@ -66,7 +67,7 @@ def write_markdown_report(dest_folder: str, incident_num_id: str, report: orches
     """Writes a beautifully formatted markdown incident report to the target folder."""
     report_path = os.path.join(dest_folder, "final_analysis_report.md")
     with open(report_path, "w", encoding="utf-8") as f:
-        f.write(f"# EXECUTIVE INCIDENT OUTCOME REPORT: {report.incident_id} ({incident_num_id})\n\n")
+        f.write(f"# INVESTIGATION SUMMARY: {report.incident_id} ({incident_num_id})\n\n")
         f.write(f"**Final Severity:** {report.severity}\n")
         if getattr(report, "severity_justification", None):
             f.write(f"*{report.severity_justification}*\n")
@@ -76,33 +77,21 @@ def write_markdown_report(dest_folder: str, incident_num_id: str, report: orches
         else:
             f.write("\n")
             
-        f.write("## Business Impact Assessment (Appendix C)\n")
-        checklist_data = getattr(report, "business_impact_checklist", None)
-        if checklist_data:
-            if hasattr(checklist_data, "model_dump"):
-                checklist_dict = checklist_data.model_dump()
-            else:
-                checklist_dict = dict(checklist_data)
-            for factor, answer in checklist_dict.items():
-                factor_name = factor.replace("_", " ").title()
-                f.write(f"- **{factor_name}**: {answer}\n")
-        else:
-            f.write("No business impact checklist compiled.\n")
+        f.write("## Investigative Workflow\n")
+        for action in report.actions_taken:
+            f.write(f"- {action}\n")
         f.write("\n")
         
-        f.write("## Technical Chronology Summary\n")
+        f.write("## Technical Chronology & MITRE ATT&CK TTP Mapping\n\n")
         f.write(f"{report.incident_summary}\n\n")
-        
+        if getattr(report, "mitre_attack_table", None):
+            f.write(f"{report.mitre_attack_table}\n\n")
+
         f.write("## Playbook Execution Trace\n")
         f.write("| Step ID | Instruction | Status | Findings |\n")
         f.write("| --- | --- | --- | --- |\n")
         for step in report.execution_trace:
             f.write(f"| `{step.step_id}` | {step.instruction} | **{step.status}** | {step.findings} |\n")
-        f.write("\n")
-        
-        f.write("## Actions Taken\n")
-        for action in report.actions_taken:
-            f.write(f"- {action}\n")
         f.write("\n")
         
         f.write("## Recommended Containment Actions\n")
@@ -129,42 +118,33 @@ def write_markdown_report(dest_folder: str, incident_num_id: str, report: orches
 def select_playbook_automatically(seed_file_path: str) -> str:
     """Automatically selects the best playbook based on the seed alert's classification.
 
-    Routing fix: the phishing playbook (email sender/receiver/URL/subject steps)
-    only fits actual phishing/email incidents. Every OTHER tactic here is an
-    endpoint/host case (lateral movement, execution, persistence, C2, exfil,
-    privilege escalation…) whose questions — user/host/process/process-tree —
-    are answered by the endpoint (privilegeEscalation) playbook. Previously
-    anything non-privilege defaulted to phishing, so endpoint incidents got the
-    wrong, unanswerable email steps. Now: phishing ONLY when it's phishing; the
-    endpoint playbook is the default for host-based tactics.
-    """
-    phishing_pb  = os.path.join(PLAYBOOKS_FOLDER, "phishing.yaml")
-    endpoint_pb  = os.path.join(PLAYBOOKS_FOLDER, "privilegeEscalation.yaml")
-    _PHISH = ("phish", "spearphish", "email", "malicious attachment",
-              "malicious link", "initial access")
+    APP-COMPAT (soc_workflow): the endpoint / privilege-escalation playbook is the
+    DEFAULT for host-based tactics; phishing is chosen ONLY when the alert is
+    actually phishing/email. The upstream default-to-phishing mis-routes
+    lateral-movement / C2 / ransomware incidents (every playbook step comes back
+    NOT_MET). Same return contract (a playbook path)."""
     try:
         with open(seed_file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        alert_type = data.get("classification", {}).get("alert_type", "").lower()
-        tactic = data.get("incident_details", {}).get("mitre_att&ck", {}).get("tactic", "").lower()
-        # behavioural alert titles (from the enriched handoff) also signal phishing
-        titles = " ".join(str(t).lower() for t in
-                          (data.get("enrichment", {})
-                               .get("behavioural_alerts", {})
-                               .get("alert_titles", []) or []))
-        hay = f"{alert_type} {tactic} {titles}"
+        alert_type = str(data.get("classification", {}).get("alert_type", "")).lower()
+        tactic = str(data.get("incident_details", {}).get("mitre_att&ck", {}).get("tactic", "")).lower()
+        hay = f"{alert_type} {tactic}"
 
-        if any(k in hay for k in _PHISH) and os.path.exists(phishing_pb):
-            orchestrator.log_info(f"Auto-selected Phishing playbook (alert type: '{alert_type}', tactic: '{tactic}')")
-            return phishing_pb
-        if os.path.exists(endpoint_pb):
-            orchestrator.log_info(f"Auto-selected Endpoint/Privilege-Escalation playbook (alert type: '{alert_type}', tactic: '{tactic}')")
-            return endpoint_pb
-        # last resort: whichever playbook exists
-        return phishing_pb if os.path.exists(phishing_pb) else endpoint_pb
+        phishing_kw = ("phish", "email", "spam", "malicious link",
+                       "credential harvest", "business email", "bec")
+        if any(k in hay for k in phishing_kw):
+            orchestrator.log_info(f"Auto-selected Phishing playbook for alert type: '{alert_type}'")
+            return os.path.join(PLAYBOOKS_FOLDER, "phishing.yaml")
+
+        # Default: endpoint / privilege-escalation playbook for host-based tactics
+        path = os.path.join(PLAYBOOKS_FOLDER, "privilegeEscalation.yaml")
+        if os.path.exists(path):
+            orchestrator.log_info(f"Auto-selected Privilege Escalation (endpoint) playbook for: '{alert_type}' / '{tactic}'")
+            return path
+        return os.path.join(PLAYBOOKS_FOLDER, "phishing.yaml")
     except Exception as e:
         orchestrator.log_warning(f"Error auto-detecting playbook: {e}. Defaulting to endpoint playbook.")
-        return endpoint_pb if os.path.exists(endpoint_pb) else phishing_pb
+        return os.path.join(PLAYBOOKS_FOLDER, "privilegeEscalation.yaml")
 
 def extract_indicators_locally(doc: str) -> List[str]:
     import re
@@ -364,6 +344,12 @@ def generate_local_standalone_report(alert: dict, playbook_path: str, inst_id: s
         policy_audit_logs=compliance["audit_records"]
     )
     
+    try:
+        _, mitre_table = mitre_mapper.map_incident_mitre_ttps([alert], llm=None)
+        report.mitre_attack_table = mitre_table
+    except Exception:
+        pass
+
     return {
         "report": report,
         "suggested_pivots": []
@@ -464,53 +450,13 @@ async def main_async():
             if not incident:
                 incident = await engine.repo.get(inst_id)
                 
-            _single_mode = os.environ.get(
-                "INVESTIGATION_SINGLE_INCIDENT", "").lower() in ("1", "true", "yes")
             if not incident:
                 is_new = True
                 _, inst_id = get_or_create_incident_folder()
                 current_alerts = [alert_log]
-            elif _single_mode and alert_log["id"] not in {
-                    a.get("id") for a in incident.raw_alerts}:
-                # Single-incident mode (set by the SOC workflow): one
-                # investigation covers exactly ONE incident. A correlation
-                # match against a DIFFERENT incident becomes a recorded
-                # relationship (similar_to), never a merge.
-                similar_to = inst_id
-                _own = None
-                for _cid, _cand in engine.active_incidents.items():
-                    if alert_log["id"] in {a.get("id") for a in _cand.raw_alerts}:
-                        _own = (_cid, _cand)
-                        break
-                if _own:
-                    # Re-run of an alert that already owns an incident —
-                    # update ITS folder, don't fragment into a new one.
-                    inst_id, incident = _own
-                    is_new = False
-                    orchestrator.log_info(
-                        f"Single-incident mode: routing re-run of "
-                        f"{alert_log['id']} to its own incident {inst_id} "
-                        f"(related: {similar_to}).")
-                    incident.raw_alerts = [a for a in incident.raw_alerts
-                                           if a.get("id") != alert_log["id"]]
-                    incident.raw_alerts.append(alert_log)
-                    current_alerts = list(incident.raw_alerts)
-                else:
-                    orchestrator.log_info(
-                        f"Single-incident mode: {alert_log['id']} correlates "
-                        f"with {inst_id} (recorded as related) but forms its "
-                        f"own incident.")
-                    is_new = True
-                    dest_dir, inst_id = get_or_create_incident_folder()
-                    current_alerts = [alert_log]
             else:
                 is_new = False
                 orchestrator.log_success(f"Confirmed Match. Merging alert {alert_log['id']} into Incident {inst_id}")
-                # Re-running the same alert must REPLACE its previous copy,
-                # not append a duplicate (duplicates broke the vector-store
-                # delete and inflated the incident timeline on every re-run).
-                incident.raw_alerts = [a for a in incident.raw_alerts
-                                       if a.get("id") != alert_log["id"]]
                 incident.raw_alerts.append(alert_log)
                 current_alerts = list(incident.raw_alerts)
         else:
@@ -626,11 +572,11 @@ async def main_async():
                             has_externals = True
                             break
                         
-            # Check if this incident should bypass LLM call for report generation
-            # The SOC workflow sets INVESTIGATION_FORCE_LLM=1: never fall back
-            # to the zero-LLM heuristic report for single-alert incidents.
-            _force_llm = os.environ.get(
-                "INVESTIGATION_FORCE_LLM", "").lower() in ("1", "true", "yes")
+            # Check if this incident should bypass LLM call for report generation.
+            # APP-COMPAT (soc_workflow): when INVESTIGATION_FORCE_LLM is set the app
+            # wants a full LLM investigation for the single queued incident, so skip
+            # the standalone-local shortcut. Default behaviour is unchanged offline.
+            _force_llm = os.getenv("INVESTIGATION_FORCE_LLM", "").strip().lower() in ("1", "true", "yes", "on")
             if len(current_alerts) == 1 and not has_externals and not _force_llm:
                 orchestrator.log_info(f"Incident {inst_id}: Standalone alert with no DB relations. Generating report locally (0 LLM calls)...")
                 local_res = generate_local_standalone_report(current_alerts[0], playbook_path, inst_id)
