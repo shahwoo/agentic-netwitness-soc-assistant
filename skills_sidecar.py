@@ -131,6 +131,20 @@ def _collect_sop(incident: dict, triage_result: dict | None,
     return s
 
 
+def _collect_compliance(incident: dict, triage_result: dict | None,
+                        investigation_result: dict | None,
+                        ti_result: dict | None) -> dict | None:
+    try:
+        from compliance_evidence import build_compliance_evidence
+    except Exception:
+        return None
+    e = _safe(build_compliance_evidence, incident, triage_result,
+              investigation_result, ti_result)
+    if not isinstance(e, dict) or not e.get("available"):
+        return None
+    return e
+
+
 # ── field builders (skill output -> reporting-agent input shapes) ────────────
 
 def _mitre_from_diamond(diamond: dict | None) -> list[str]:
@@ -343,7 +357,7 @@ def _mitigation_lines(m: dict, limit: int = 4) -> list[str]:
     return lines
 
 
-def _build_narrative(diamond, verdict, corr, mitigation, sop=None) -> str:
+def _build_narrative(diamond, verdict, corr, mitigation, sop=None, compliance=None) -> str:
     blocks: list[list[str]] = []
     if verdict:
         blocks.append(_verdict_lines(verdict))
@@ -353,7 +367,7 @@ def _build_narrative(diamond, verdict, corr, mitigation, sop=None) -> str:
         blocks.append(_correlation_lines(corr))
     if mitigation:
         blocks.append(_mitigation_lines(mitigation))
-    if not blocks and not sop:
+    if not blocks and not sop and not compliance:
         return ""
     header = ("## Automated Analytical Intelligence\n"
               "_Deterministic skill analysis (read-only, no LLM) supplementing the "
@@ -366,6 +380,16 @@ def _build_narrative(diamond, verdict, corr, mitigation, sop=None) -> str:
         try:
             from reporting_sop import format_sop
             out += "\n\n" + format_sop(sop, compact=True)
+        except Exception:
+            pass
+    # SOC 2 compliance-evidence appendix — the report doubles as an audit record
+    # (which Trust Services Criteria controls this incident's response satisfies).
+    if compliance:
+        try:
+            from compliance_evidence import format_compliance_evidence
+            block = format_compliance_evidence(compliance, compact=True)
+            if block:
+                out += "\n\n" + block
         except Exception:
             pass
     return out
@@ -389,20 +413,22 @@ def build_skills_context(incident: dict, triage_result: dict | None = None,
     asset = _collect_asset(incident, triage_result)
     mitigation = _collect_mitigation(incident, triage_result, ti_result, asset)
     sop = _collect_sop(incident, triage_result, investigation_result, ti_result)
+    compliance = _collect_compliance(incident, triage_result, investigation_result, ti_result)
 
     mitre_mapping = _mitre_from_diamond(diamond)
     iocs = _iocs_from_correlation(corr)
     affected_assets = _assets_from_skills(asset, diamond)
     affected_users = _users_from_diamond(diamond)
     recommended_actions = _recs_from_skills(mitigation, verdict)
-    narrative = _build_narrative(diamond, verdict, corr, mitigation, sop)
+    narrative = _build_narrative(diamond, verdict, corr, mitigation, sop, compliance)
 
     ran = [name for name, obj in (("diamond_model", diamond),
                                   ("triage_verdict", verdict),
                                   ("ioc_correlation", corr),
                                   ("asset_criticality", asset),
                                   ("mitigation_mapping", mitigation),
-                                  ("reporting_sop", sop)) if obj]
+                                  ("reporting_sop", sop),
+                                  ("compliance_evidence", compliance)) if obj]
 
     available = bool(mitre_mapping or iocs or affected_assets or
                      affected_users or recommended_actions or narrative)
@@ -424,6 +450,7 @@ def build_skills_context(incident: dict, triage_result: dict | None = None,
             "asset_criticality": asset,
             "mitigation_coverage": mitigation,
             "response_sop": sop,
+            "compliance_evidence": compliance,
         },
     }
 
