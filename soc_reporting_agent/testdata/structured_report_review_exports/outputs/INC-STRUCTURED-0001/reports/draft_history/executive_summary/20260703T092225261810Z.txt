@@ -1,0 +1,4 @@
+Executive Summary
+Incident ID: INC-STRUCTURED-0001
+Analyst Decision: Reviewed and approved
+SOC analyst edited this report inside dashboard tables.

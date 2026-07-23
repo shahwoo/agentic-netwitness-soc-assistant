@@ -1,0 +1,507 @@
+[
+  {
+    "type": "heading",
+    "level": 1,
+    "text": "SOC Analyst Review"
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "1. Review Metadata"
+  },
+  {
+    "type": "table",
+    "columns": [
+      "Field",
+      "Value"
+    ],
+    "rows": [
+      [
+        "Incident ID",
+        "INC-WANNACRY-TEST"
+      ],
+      [
+        "Alert ID",
+        "NW-WCRY-445-0001"
+      ],
+      [
+        "Report Status",
+        "Generated for analyst review"
+      ],
+      [
+        "Final Analyst Review Status",
+        "Requires final analyst review"
+      ],
+      [
+        "Report Generation Approval Status",
+        "approved"
+      ],
+      [
+        "Report Generation Approved By",
+        "Soong Yang"
+      ],
+      [
+        "Containment Approval Status",
+        "Pending analyst approval"
+      ],
+      [
+        "Containment Execution Status",
+        "not contained"
+      ]
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "2. Validation Checklist"
+  },
+  {
+    "type": "table",
+    "columns": [
+      "Check",
+      "Status"
+    ],
+    "rows": [
+      [
+        "Incident ID present",
+        "Pass"
+      ],
+      [
+        "Alert ID present",
+        "Pass"
+      ],
+      [
+        "Severity present",
+        "Pass"
+      ],
+      [
+        "Confidence present",
+        "Pass"
+      ],
+      [
+        "Classification present",
+        "Pass"
+      ],
+      [
+        "Evidence present",
+        "Pass"
+      ],
+      [
+        "IOCs present",
+        "Pass"
+      ],
+      [
+        "LLM output quality acceptable",
+        "Pass"
+      ],
+      [
+        "IOC evidence links reviewed or summarised as gaps",
+        "Pass"
+      ],
+      [
+        "Containment approval status recorded",
+        "Pass"
+      ]
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "3. LLM Analyst Review Guidance"
+  },
+  {
+    "type": "paragraph",
+    "text": "The SOC analyst should review this case by validating the evidence that supports the Critical severity, High confidence, and Likely True Positive classification. The most important review areas are the affected scope (FINANCE-WKS-017 (Pending analyst validation, Pending analyst validation criticality, Endpoint)), the affected user context (ACME\\lim.huiwen (Pending analyst validation, Pending analyst validation, MFA: Pending analyst validation)), suspicious indicators (No malicious or suspicious IOCs provided), and the timeline sequence (Alert first observed by monitoring source. Triage completed and severity/confidence assigned. Investigation completed or completed with limitations. SOC analyst approval decision recorded. Report generated for SOC analyst review.). The analyst should confirm whether the evidence supports containment, escalation, closure, or further investigation, especially because these validation items remain open: Medium: No additional host telemetry was supplied. If containment is disruptive, the analyst should confirm the approval status (approved) and containment status (not_contained) before action is taken. Formal chain-of-custody metadata was not supplied in the current source context. Evidence IDs in this report are reporting references only and should be validated against the source case folder or SIEM export before legal or forensic use. Any finding that cannot be verified from the provided evidence should remain marked as not confirmed rather than being treated as a confirmed compromise."
+  },
+  {
+    "type": "heading",
+    "level": 3,
+    "text": "3.1 LLM-Generated SOC Analyst Review Checklist"
+  },
+  {
+    "type": "paragraph",
+    "text": "1. Confirm that the incident ID, alert ID, severity (Critical), confidence (High), and classification (Likely True Positive) match the latest triage and investigation records. 2. Validate the affected scope by checking whether FINANCE-WKS-017 (Pending analyst validation, Pending analyst validation criticality, Endpoint) and ACME\\lim.huiwen (Pending analyst validation, Pending analyst validation, MFA: Pending analyst validation) are present in the original alert, endpoint telemetry, identity logs, or NetWitness evidence. 3. Review the listed IOCs and supporting evidence references, especially No malicious or suspicious IOCs provided, before blocking, isolating, or escalating based on indicator reputation. 4. Reconstruct the timeline using the available events (Alert first observed by monitoring source. Triage completed and severity/confidence assigned. Investigation completed or completed with limitations. SOC analyst approval decision recorded. Report generated for SOC analyst review.) and confirm whether payload execution, persistence, credential exposure, lateral movement, data access, or exfiltration is not confirmed in the provided evidence. 5. Compare the technical evidence against the mapped MITRE ATT&CK context (Impact: T1486 Data Encrypted for Impact) and record whether each mapped behaviour is observed, suggested, or still pending validation. 6. Review unresolved evidence gaps (Medium: No additional host telemetry was supplied.) and collect the required endpoint, identity, network, email, or application logs before closure. 7. Decide whether containment or approval should proceed by checking the current approval status (approved) and containment status (not_contained). 8. Record the final analyst decision, including whether the case should be escalated, contained, closed as false positive, or kept open for further investigation."
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "4. Evidence Quality Checks"
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "Confirm that each major finding has evidence references.",
+      "Confirm that missing facts are listed as evidence gaps.",
+      "Confirm that no unsupported IOCs, users, hosts, or timelines were created by the Reporting Agent.",
+      "Confirm that RAG context is used only for policy/procedure guidance, not incident facts.",
+      "Validate whether suspicious PowerShell execution completed successfully.",
+      "Validate whether credential exposure, mailbox rule abuse, OAuth abuse, or session misuse occurred.",
+      "Validate whether similar phishing emails were delivered to other recipients.",
+      "Validate whether any IOC without a displayed evidence reference requires additional NetWitness evidence.",
+      "Confirm whether the LLM narrative was accepted, partially replaced by fallback, or requires analyst correction."
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "5. Missing Information"
+  },
+  {
+    "type": "paragraph",
+    "text": "Missing Field"
+  },
+  {
+    "type": "paragraph",
+    "text": "No additional host telemetry was supplied."
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "6. Analyst Corrections"
+  },
+  {
+    "type": "table",
+    "columns": [
+      "Field",
+      "Analyst Update"
+    ],
+    "rows": [
+      [
+        "Severity",
+        ""
+      ],
+      [
+        "Confidence",
+        ""
+      ],
+      [
+        "Classification",
+        ""
+      ],
+      [
+        "Executive Summary",
+        ""
+      ],
+      [
+        "Recommended Actions",
+        ""
+      ],
+      [
+        "Evidence Gaps",
+        ""
+      ]
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "7. Approval Decision"
+  },
+  {
+    "type": "paragraph",
+    "text": "Report generation approval status: Approved by Soong Yang."
+  },
+  {
+    "type": "paragraph",
+    "text": "Containment approval status: Pending Analyst Approval."
+  },
+  {
+    "type": "paragraph",
+    "text": "Recommended containment action: Isolate FINANCE-WKS-017 from the network pending SOC Analyst Approval."
+  },
+  {
+    "type": "paragraph",
+    "text": "Containment execution status: Not Contained."
+  },
+  {
+    "type": "paragraph",
+    "text": "Final analyst review status: Requires Final Analyst Review."
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "8. Learning Loop Feedback"
+  },
+  {
+    "type": "paragraph",
+    "text": "Learning updates should not be stored in ChromaDB unless a SOC analyst approves them."
+  },
+  {
+    "type": "table",
+    "columns": [
+      "Learning Item",
+      "Analyst Decision"
+    ],
+    "rows": [
+      [
+        "Update report writing SOP",
+        "Requires analyst decision"
+      ],
+      [
+        "Update phishing playbook",
+        "Requires analyst decision"
+      ],
+      [
+        "Store prior case summary",
+        "Requires analyst decision"
+      ],
+      [
+        "Store false positive pattern",
+        "Requires analyst decision"
+      ]
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "9. Sign-Off"
+  },
+  {
+    "type": "table",
+    "columns": [
+      "Field",
+      "Value"
+    ],
+    "rows": [
+      [
+        "Reviewed By",
+        ""
+      ],
+      [
+        "Review Completed At",
+        ""
+      ],
+      [
+        "Final Decision",
+        ""
+      ],
+      [
+        "Digital Sign-Off",
+        ""
+      ]
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "Supporting SOC Triage Review"
+  },
+  {
+    "type": "heading",
+    "level": 1,
+    "text": "SOC Triage Review"
+  },
+  {
+    "type": "table",
+    "columns": [
+      "Field",
+      "Value"
+    ],
+    "rows": [
+      [
+        "Incident ID",
+        "INC-WANNACRY-TEST"
+      ],
+      [
+        "Alert ID",
+        "NW-WCRY-445-0001"
+      ],
+      [
+        "Report Status",
+        "Generated for analyst review"
+      ],
+      [
+        "Data Consistency",
+        ""
+      ],
+      [
+        "Severity",
+        "Critical"
+      ],
+      [
+        "Confidence",
+        "High"
+      ],
+      [
+        "Classification",
+        "Likely True Positive"
+      ],
+      [
+        "Likely Scenario",
+        "WannaCry ransomware activity"
+      ]
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "1. Case Summary"
+  },
+  {
+    "type": "paragraph",
+    "text": "This incident is assessed as a Critical-severity, High-confidence Likely True Positive involving WannaCry ransomware activity. The known affected scope is FINANCE-WKS-017 (Pending analyst validation, Pending analyst validation criticality, Endpoint) and ACME\\lim.huiwen (Pending analyst validation, Pending analyst validation, MFA: Pending analyst validation). The case is supported by EV-001: severity: Critical. EV-002: risk_score: 98.0. EV-003: host: FINANCE-WKS-017. EV-004: ip: 10.20.14.117. EV-005: username: ACME\\\\lim.huiwen. Malicious or suspicious indicators include No malicious or suspicious IOCs provided. Containment is currently not_contained. Report generation approval status: Approved by Soong Yang. Containment approval status: Pending Analyst Approval. Recommended containment action: Isolate FINANCE-WKS-017 from the network pending SOC Analyst Approval. Containment execution status: Not Contained. Final analyst review status: Requires Final Analyst Review. Data impact assessment: No evidence of data access, data exfiltration, encryption impact, or personal data exposure was provided in the current telemetry. These items remain unresolved and require analyst validation before closure or notification decisions."
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "Data access: No evidence provided, requires validation",
+      "Data exfiltration: No evidence provided, requires validation",
+      "Encryption / modification / deletion: Not confirmed by supplied host telemetry",
+      "Personal data involvement: Cannot determine from current evidence",
+      "Notification requirement: Legal / Compliance decision only if data impact is confirmed",
+      "Business impact context: Current business impact depends on validated affected assets, users, data access, and service disruption evidence.",
+      "Security risk context: Security risk is tied to the WannaCry ransomware activity scenario and should be validated using the listed evidence and gaps. The report is not finalised because these validation items remain open: Medium: No additional host telemetry was supplied."
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "2. Evidence Summary"
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "The incident classification is Likely True Positive.: Evidence strength:. Limitation:"
+    ]
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "Affected scope has available context.: Evidence strength:. Limitation:"
+    ]
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "Approval status is approved.: Evidence strength:. Limitation:"
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "3. Affected Scope"
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "Asset: FINANCE-WKS-017 | IP: 10.20.14.117 | Criticality: Pending analyst validation | Function: Pending analyst validation"
+    ]
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "User: ACME\\lim.huiwen | Role: Pending analyst validation | Privilege: Pending analyst validation | MFA: Pending analyst validation"
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "4. IOCs and Threat Intelligence"
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "104.17.244.81 (ip) | Reputation: -113 | Source: VirusTotal"
+    ]
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "ed01ebfbc9eb5bbea545af4d01bf5f1071661840480439c6e5babe8e080e41aa (sha256) | Reputation: -2986 | Source: VirusTotal"
+    ]
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "www.iuqerfsodp9ifjaposdfjhgosurijfaewrwergwea.com (domain) | Reputation: -165 | Source: VirusTotal"
+    ]
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "http://www.iuqerfsodp9ifjaposdfjhgosurijfaewrwergwea.com/ (url) | Reputation: No external reputation supplied | Source: Reporting Context"
+    ]
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "mssecsvc.exe (file_name) | Reputation: No external reputation supplied | Source: Reporting Context"
+    ]
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "10.20.14.117 (ip) | Reputation: No external reputation supplied | Source: NetWitness Alert"
+    ]
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "C:\\Windows\\mssecsvc.exe (process_path) | Reputation: No external reputation supplied | Source: enriched_alert"
+    ]
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "lsass.exe (file_name) | Reputation: No external reputation supplied | Source: Reporting Context"
+    ]
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "C:\\Windows\\mssecsvc.exe -m security (command_line) | Reputation: No external reputation supplied | Source: Reporting Context"
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "5. Analyst Review Checklist"
+  },
+  {
+    "type": "paragraph",
+    "text": "1. Confirm that the incident ID, alert ID, severity (Critical), confidence (High), and classification (Likely True Positive) match the latest triage and investigation records. 2. Validate the affected scope by checking whether FINANCE-WKS-017 (Pending analyst validation, Pending analyst validation criticality, Endpoint) and ACME\\lim.huiwen (Pending analyst validation, Pending analyst validation, MFA: Pending analyst validation) are present in the original alert, endpoint telemetry, identity logs, or NetWitness evidence. 3. Review the listed IOCs and supporting evidence references, especially No malicious or suspicious IOCs provided, before blocking, isolating, or escalating based on indicator reputation. 4. Reconstruct the timeline using the available events (Alert first observed by monitoring source. Triage completed and severity/confidence assigned. Investigation completed or completed with limitations. SOC analyst approval decision recorded. Report generated for SOC analyst review.) and confirm whether payload execution, persistence, credential exposure, lateral movement, data access, or exfiltration is not confirmed in the provided evidence. 5. Compare the technical evidence against the mapped MITRE ATT&CK context (Impact: T1486 Data Encrypted for Impact) and record whether each mapped behaviour is observed, suggested, or still pending validation. 6. Review unresolved evidence gaps (Medium: No additional host telemetry was supplied.) and collect the required endpoint, identity, network, email, or application logs before closure. 7. Decide whether containment or approval should proceed by checking the current approval status (approved) and containment status (not_contained). 8. Record the final analyst decision, including whether the case should be escalated, contained, closed as false positive, or kept open for further investigation."
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "6. Evidence Gaps"
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "Medium: No additional host telemetry was supplied."
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "7. Recommended Actions"
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "P1: Isolate FINANCE-WKS-017 from the network pending SOC Analyst Approval. | Owner: Endpoint Response Team | Approval Required: Yes"
+    ]
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "P2: Validate whether mssecsvc.exe is present and running on the host. | Owner: Endpoint Response Team | Approval Required: No"
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "8. Decision Required"
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "Approval status: approved",
+      "Containment recommended: Not Provided",
+      "Containment action: Isolate FINANCE-WKS-017 from the network pending SOC Analyst Approval.",
+      "Containment execution status: not_contained",
+      "Blocking reason: Not Provided"
+    ]
+  }
+]

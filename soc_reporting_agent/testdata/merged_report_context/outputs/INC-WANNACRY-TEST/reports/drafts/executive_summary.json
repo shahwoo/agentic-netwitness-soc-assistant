@@ -1,0 +1,250 @@
+[
+  {
+    "type": "heading",
+    "level": 1,
+    "text": "Executive Summary"
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "1. Executive Snapshot"
+  },
+  {
+    "type": "table",
+    "columns": [
+      "Field",
+      "Value"
+    ],
+    "rows": [
+      [
+        "Incident ID",
+        "INC-WANNACRY-TEST"
+      ],
+      [
+        "Alert ID",
+        "NW-WCRY-445-0001"
+      ],
+      [
+        "Case Title",
+        "WannaCry Ransomware Activity - mssecsvc.exe"
+      ],
+      [
+        "Severity",
+        "Critical"
+      ],
+      [
+        "Confidence",
+        "High"
+      ],
+      [
+        "Classification",
+        "Likely True Positive"
+      ],
+      [
+        "Likely Scenario",
+        "WannaCry ransomware activity"
+      ],
+      [
+        "Report Status",
+        "Generated for analyst review"
+      ],
+      [
+        "Validation Status",
+        "Requires analyst validation"
+      ],
+      [
+        "Containment Status",
+        "not_contained"
+      ],
+      [
+        "Report Generation Approval Status",
+        "approved"
+      ],
+      [
+        "Containment Approval Status",
+        "Pending analyst approval"
+      ],
+      [
+        "Containment Execution Status",
+        "not contained"
+      ],
+      [
+        "Final Analyst Review Status",
+        "Requires final analyst review"
+      ]
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "2. What Happened"
+  },
+  {
+    "type": "paragraph",
+    "text": "This incident is assessed as a Critical-severity, High-confidence Likely True Positive involving WannaCry ransomware activity. The known affected scope is FINANCE-WKS-017 (Pending analyst validation, Pending analyst validation criticality, Endpoint) and ACME\\lim.huiwen (Pending analyst validation, Pending analyst validation, MFA: Pending analyst validation). The case is supported by EV-001: severity: Critical. EV-002: risk_score: 98.0. EV-003: host: FINANCE-WKS-017. EV-004: ip: 10.20.14.117. EV-005: username: ACME\\\\lim.huiwen. Malicious or suspicious indicators include No malicious or suspicious IOCs provided. Containment is currently not_contained. Report generation approval status: Approved by Soong Yang. Containment approval status: Pending Analyst Approval. Recommended containment action: Isolate FINANCE-WKS-017 from the network pending SOC Analyst Approval. Containment execution status: Not Contained. Final analyst review status: Requires Final Analyst Review. Data impact assessment: No evidence of data access, data exfiltration, encryption impact, or personal data exposure was provided in the current telemetry. These items remain unresolved and require analyst validation before closure or notification decisions."
+  },
+  {
+    "type": "bullet_list",
+    "items": [
+      "Data access: No evidence provided, requires validation",
+      "Data exfiltration: No evidence provided, requires validation",
+      "Encryption / modification / deletion: Not confirmed by supplied host telemetry",
+      "Personal data involvement: Cannot determine from current evidence",
+      "Notification requirement: Legal / Compliance decision only if data impact is confirmed",
+      "Business impact context: Current business impact depends on validated affected assets, users, data access, and service disruption evidence.",
+      "Security risk context: Security risk is tied to the WannaCry ransomware activity scenario and should be validated using the listed evidence and gaps. The report is not finalised because these validation items remain open: Medium: No additional host telemetry was supplied."
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "3. Executive Impact View"
+  },
+  {
+    "type": "table",
+    "columns": [
+      "Area",
+      "Assessment"
+    ],
+    "rows": [
+      [
+        "Business Impact",
+        "Current business impact depends on validated affected assets, users, data access, and service disruption evidence."
+      ],
+      [
+        "Security Risk",
+        "Security risk is tied to the WannaCry ransomware activity scenario and should be validated using the listed evidence and gaps."
+      ],
+      [
+        "Not Yet Confirmed",
+        "Further compromise, spread, persistence, and data exposure remain subject to analyst validation."
+      ],
+      [
+        "Affected Assets",
+        "1"
+      ],
+      [
+        "Affected Users",
+        "1"
+      ],
+      [
+        "IOCs",
+        "9"
+      ],
+      [
+        "Evidence Items",
+        "16"
+      ],
+      [
+        "Timeline Events",
+        "5"
+      ]
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "4. Key Findings"
+  },
+  {
+    "type": "paragraph",
+    "text": "Finding | Status | Confidence | Evidence"
+  },
+  {
+    "type": "paragraph",
+    "text": "The incident classification is Likely True Positive. | Fact | High | investigation_result.json"
+  },
+  {
+    "type": "paragraph",
+    "text": "Affected scope has available context. | Fact | High | EV-003, EV-004"
+  },
+  {
+    "type": "paragraph",
+    "text": "Approval status is approved. | Fact | High | approval_result.json"
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "5. Decisions Required"
+  },
+  {
+    "type": "table",
+    "columns": [
+      "Decision Area",
+      "Required Decision"
+    ],
+    "rows": [
+      [
+        "Containment",
+        "Confirm whether the recommended containment action should proceed."
+      ],
+      [
+        "Evidence Gaps",
+        "Confirm whether high-priority evidence gaps have been closed or accepted as limitations."
+      ],
+      [
+        "Business Impact",
+        "Confirm whether any business service, customer, financial, or regulatory impact exists."
+      ],
+      [
+        "Incident Closure",
+        "Confirm whether the incident can be closed after analyst validation."
+      ]
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "6. Priority Recommendations"
+  },
+  {
+    "type": "paragraph",
+    "text": "Priority | Action | Owner | Approval Required | Rationale"
+  },
+  {
+    "type": "paragraph",
+    "text": "P1 | Isolate FINANCE-WKS-017 from the network pending SOC Analyst Approval. | Endpoint Response Team | Yes | Based on Critical severity, Likely True Positive classification, FINANCE-WKS-017 scope, and 9 technical indicator(s) linked to evidence (EV-003)."
+  },
+  {
+    "type": "paragraph",
+    "text": "P2 | Validate whether mssecsvc.exe is present and running on the host. | Endpoint Response Team | No | Based on Critical severity, Likely True Positive classification, FINANCE-WKS-017 scope, and 9 technical indicator(s) linked to evidence (EV-006)."
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "text": "7. Current Status and Report Quality"
+  },
+  {
+    "type": "table",
+    "columns": [
+      "Field",
+      "Value"
+    ],
+    "rows": [
+      [
+        "Missing Fields",
+        "No additional host telemetry was supplied."
+      ],
+      [
+        "RAG Status",
+        "Local template export context built"
+      ],
+      [
+        "LLM Enhancement Status",
+        "llm_disabled_deterministic_generation"
+      ],
+      [
+        "LLM Quality Status / Enhancement Quality",
+        "not_used"
+      ],
+      [
+        "LLM Explanation",
+        "LLM disabled or unavailable; deterministic fallback narrative was used."
+      ],
+      [
+        "Report Ready for Management Review",
+        "No, missing information required"
+      ]
+    ]
+  }
+]

@@ -1,0 +1,10 @@
+# Streamlit theme — matches the app's Aegis dark palette so the native
+# widgets/chrome line up with the injected CSS. Cosmetic only; Streamlit
+# Community Cloud manages the server/port itself, so nothing here changes
+# how the app runs locally beyond appearance.
+[theme]
+base = "dark"
+primaryColor = "#6f7cff"
+backgroundColor = "#060b13"
+secondaryBackgroundColor = "#0e1929"
+textColor = "#e6ecf5"

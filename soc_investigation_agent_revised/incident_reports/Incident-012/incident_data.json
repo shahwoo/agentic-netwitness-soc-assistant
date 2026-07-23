@@ -1,0 +1,66 @@
+{
+  "id": "Incident-012",
+  "metadata": {
+    "severity": "CRITICAL",
+    "status": "TRIAGED",
+    "assigned_analyst": "Automated Agent",
+    "created_at": 1784705972.1413324,
+    "updated_at": 1784705995.0170074,
+    "source_type": "LogIndicators",
+    "similar_to_incident": "Incident-011"
+  },
+  "raw_alerts": [
+    {
+      "id": "INC-52826",
+      "document": "Incident INC-52826 details are as follows: The classification alert type is Internal Hacking (inactive). The classification soc classification is HIGH. The incident details description is Host 192.168.10.201 generated 31 'Lateral Move Detected' alerts within minutes, communicating with multiple internal and external IPs including known malicious IPs (111.223.64.11, 149.154.167.99). This indicates a compromised host performing lateral movement and potential data exfiltration.. The incident details mitre att&ck tactic is Lateral Movement. The incident details mitre att&ck technique is T1021 Remote Services. The incident details timestamp is 2025-07-14T11:23:30+00:00. The incident id is INC-52826. The log indicators computer name is Unknown. The log indicators operating system is Unknown. The log indicators target user is Unknown. The network indicators destination ip is 8.8.8.8. The network indicators source ip is 192.168.10.201. The observed indicators destination ips lists: 8.8.8.8, 149.154.167.99, 52.123.128.14, 192.168.10.255, 51.104.15.252, 8.8.4.4, 4.145.79.80, 224.0.0.252. The observed indicators hostnames lists: . The observed indicators ip addresses lists: 8.8.8.8, 149.154.167.99, 52.123.128.14, 192.168.10.255, 51.104.15.252, 8.8.4.4, 4.145.79.80, 224.0.0.252. The observed indicators source ips lists: 192.168.10.201. The observed indicators usernames lists: . The source incident summary is . The source incident title is High Risk Alerts: ESA for 192.168.10.201. The triage ioc summary is [AVAILABILITY] Saturated interface input/output buffers — High traffic volumes to multiple destinations (31 alerts) suggest saturated interface buffers.\n[CONFIDENTIALITY] Changes in network traffic telemetry (known bad IPs/domains), Unknown traffic originating from/terminating on the device — Traffic to known malicious IPs (111.223.64.11, 149.154.167.99) and unusual destinations (e.g., 4.145.79.80) indicate data exfiltration and unknown traffic.\n[INTEGRITY] Odd device/platform behaviour — Lateral movement detection indicates odd device/platform behavior deviating from normal operation.. The triage matched ioc count is 4. The triage matched metakeys lists: AlertTitles, DestinationIp, alert.type, alertCount, bytes.in, bytes.out, device.type, domain, event.type, host.name, ip.dst, ip.src, network.interface, network.service, packets.in, packets.out, port.dst, protocol. The triage metakey values event.type is Network. The triage metakey values ip.dst lists: 8.8.8.8, 149.154.167.99, 52.123.128.14, 192.168.10.255, 51.104.15.252. The triage metakey values ip.src is 192.168.10.201. The triage risk rating likelihood adverse impact is High. The triage risk rating likelihood initiation is High. The triage risk rating likelihood occurrence is High. The triage risk rating overall risk is High. The triage risk rating rationale is 31 alerts of lateral movement from a single source IP to multiple destinations including known malicious IPs indicate a highly likely ongoing attack with high potential for adverse impact.. The triage ticket unc is #00038A.",
+      "metadata": {
+        "incident_id": "INC-52826",
+        "source_type": "LogIndicators",
+        "username": "Unknown",
+        "hostname": "Unknown",
+        "timestamp_str": "2025-07-14T11:23:30+00:00",
+        "timestamp_epoch": 1752492210,
+        "tactic": "Lateral Movement",
+        "technique": "T1021 Remote Services",
+        "ips": "224.0.0.252,149.154.167.99,8.8.4.4,8.8.8.8,192.168.10.255,4.145.79.80,111.223.64.11,52.123.128.14,51.104.15.252,192.168.10.201",
+        "sha256s": "",
+        "md5s": "",
+        "emails": "",
+        "domains": "ip.dst,bytes.in,alert.type,event.type,device.type,port.dst,ip.src,host.name,packets.in,bytes.out,packets.out"
+      }
+    }
+  ],
+  "summary_text": "Host at IP 192.168.10.201 generated 31 'Lateral Move Detected' alerts within minutes, communicating with multiple internal and external IPs. The host communicated with known malicious IPs (111.223.64.11, 149.154.167.99) and other unusual external destinations (4.145.79.80, 51.104.15.252, 52.123.128.14), as well as internal IPs (192.168.10.255) and DNS servers (8.8.8.8, 8.8.4.4). The high volume of lateral movement alerts and traffic to known malicious IPs indicates the host is compromised and actively performing lateral movement within the network and potential data exfiltration to external command-and-control or exfiltration destinations.",
+  "indicators": [
+    "224.0.0.252",
+    "device.type",
+    "8.8.4.",
+    "packets.in",
+    "52.123.128.",
+    "packets.out",
+    "8.8.8.",
+    "149.154.167.99",
+    "8.8.8.8",
+    "event.type",
+    "4.145.79.80",
+    "port.dst",
+    "ip.src",
+    "192.168.10.",
+    "224.0.0.",
+    "4.145.79.",
+    "51.104.15.252",
+    "51.104.15.",
+    "111.223.64.",
+    "192.168.10.255",
+    "52.123.128.14",
+    "149.154.167.",
+    "ip.dst",
+    "bytes.in",
+    "alert.type",
+    "8.8.4.4",
+    "host.name",
+    "111.223.64.11",
+    "bytes.out",
+    "192.168.10.201"
+  ]
+}

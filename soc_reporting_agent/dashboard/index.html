@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agentic SOC Assistant</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="soc-shell">
+    <aside class="soc-sidebar">
+      <div class="soc-brand" aria-label="Aegis product branding">
+        <img src="/assets/aegis-logo-sidebar.png" alt="Aegis" class="soc-logo-full">
+        <img src="/assets/aegis-icon.png" alt="" class="soc-logo-icon" aria-hidden="true">
+      </div>
+      <nav id="nav"></nav>
+      <button id="collapse-btn" class="soc-collapse"><i class="ti ti-chevrons-left"></i> <span>Collapse</span></button>
+    </aside>
+
+    <main class="soc-main">
+      <header class="soc-header">
+        <div id="header-left"></div>
+        <div class="status-strip">
+          <span><span class="dot ok"></span>NetWitness Connected</span>
+          <span><span class="dot ok"></span>Threat Intel Active</span>
+          <span><span class="dot ok"></span>LLM Available</span>
+          <span>Last Sync: <strong id="last-sync">--</strong></span>
+        </div>
+        <button class="profile-menu" data-route="profile">
+          <span class="avatar">SY</span>
+          <span><strong>Soong Yang</strong><small>SOC Analyst</small></span>
+          <i class="ti ti-chevron-down"></i>
+        </button>
+      </header>
+
+      <section id="content" class="soc-content"></section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="modal-backdrop" class="modal-backdrop">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <div>
+          <h3 id="modal-title"></h3>
+          <p id="modal-sub"></p>
+        </div>
+        <button class="icon-only" data-close-modal title="Close"><i class="ti ti-x"></i></button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

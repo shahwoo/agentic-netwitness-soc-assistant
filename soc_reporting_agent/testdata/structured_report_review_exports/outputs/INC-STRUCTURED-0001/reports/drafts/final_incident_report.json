@@ -1,0 +1,40 @@
+[
+  {
+    "type": "paragraph",
+    "text": "# Final Incident Report"
+  },
+  {
+    "type": "table",
+    "columns": [
+      "Field",
+      "Value"
+    ],
+    "rows": [
+      [
+        "Incident ID",
+        "INC-STRUCTURED-0001"
+      ],
+      [
+        "Status",
+        "Generated for analyst review"
+      ]
+    ]
+  },
+  {
+    "type": "table",
+    "columns": [
+      "Timeline Field",
+      "Timeline Value"
+    ],
+    "rows": [
+      [
+        "First Seen",
+        "2026-07-03T00:00:00Z"
+      ]
+    ]
+  },
+  {
+    "type": "paragraph",
+    "text": "This is generated draft content."
+  }
+]

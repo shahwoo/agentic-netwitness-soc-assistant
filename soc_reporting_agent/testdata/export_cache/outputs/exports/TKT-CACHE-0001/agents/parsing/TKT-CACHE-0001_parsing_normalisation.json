@@ -1,0 +1,1263 @@
+{
+  "success": true,
+  "ticket_id": "TKT-CACHE-0001",
+  "agent_key": "parsing",
+  "title": "Parsing and Normalisation Report",
+  "template_used": "agent_summary_templates/parsing_normalisation_report_template.md.j2",
+  "generated_at": "2026-06-18T15:08:37.356692+00:00",
+  "cache_status": "ready",
+  "source_hash": "a7b9bf4f422cdba664e38112356535b49bd609def8e5ce47c8c50577efca6d07",
+  "context": {
+    "generated_at": "2026-06-18T15:08:37.346110+00:00",
+    "created_at": "2026-06-18T15:08:37.344750+00:00",
+    "incident_id": "TKT-CACHE-0001",
+    "alert_id": "ALERT-CACHE-V1",
+    "case_title": "Export Cache Test",
+    "ticket_id": "TKT-CACHE-0001",
+    "severity": {
+      "label": "High",
+      "value": "High",
+      "reason": "Not Provided"
+    },
+    "confidence": {
+      "label": "High",
+      "value": "High",
+      "reason": "Not Provided"
+    },
+    "classification": "Not Provided",
+    "likely_scenario": "Not Provided",
+    "scenario_type": "Not Provided",
+    "report_status": "Generated for analyst review",
+    "report_status_display": "Generated for analyst review",
+    "validation_status": "Requires analyst validation",
+    "validation_status_display": "Requires analyst validation",
+    "current_stage": "Not Provided",
+    "current_lifecycle_stage": "Reporting and analyst review",
+    "containment_status": "approved_pending_execution",
+    "approval_status": "approved",
+    "analyst_decision": "approved",
+    "approval": {
+      "approval_required": "Not Provided",
+      "approval_status": "approved",
+      "analyst_decision": "approved",
+      "analyst_comments": "Not Provided",
+      "approved_by": "Test Analyst",
+      "approved_action": "Not Provided"
+    },
+    "containment": {
+      "status": "approved_pending_execution",
+      "recommended": "Not Provided",
+      "recommended_action": "Not Provided",
+      "execution_status": "pending_execution",
+      "blocking_reason": "Not Provided",
+      "decision_source": "SOC analyst approval context"
+    },
+    "alert": {
+      "source": "RSA NetWitness SIEM",
+      "name": "Export Cache Parser Test",
+      "timestamp": "Not Provided"
+    },
+    "triage": {
+      "status": "completed",
+      "severity": "High",
+      "confidence": "High",
+      "summary": "Triage completed."
+    },
+    "investigation": {
+      "status": "completed_limited",
+      "summary": "Investigation completed with evidence gaps.",
+      "findings": [
+        "Usable finding"
+      ]
+    },
+    "investigation_status": "completed_limited",
+    "investigation_completeness_status": "Completed with evidence gaps",
+    "investigation_completeness_note": "Investigation completed with evidence gaps. The selected playbook could not be fully answered because required telemetry was missing. Reporting proceeds with limitations documented for SOC analyst validation.",
+    "investigation_limitations": [],
+    "reporting_mode": "with_limitations",
+    "reporting_allowed_with_limitations": true,
+    "approval_result": {
+      "decision": "approved",
+      "analyst": "Test Analyst"
+    },
+    "reporting": {},
+    "affected_assets": [
+      {
+        "hostname": "wkstn-cache-001",
+        "asset": "wkstn-cache-001",
+        "host": "wkstn-cache-001",
+        "name": "wkstn-cache-001",
+        "ip_address": "Not Provided",
+        "ip": "Not Provided",
+        "asset_type": "Endpoint",
+        "criticality": "To Be Validated",
+        "role": "To Be Validated",
+        "owner": "Not Provided",
+        "business_function": "To Be Validated",
+        "isolation_status": "To Be Validated",
+        "status": "To Be Validated",
+        "source": "Derived from ticket context",
+        "confidence": "High"
+      }
+    ],
+    "affected_users": [],
+    "iocs": [
+      {
+        "type": "file_hash",
+        "value": "44d88612fea8a8f36de82e1278abb02f",
+        "ioc": "44d88612fea8a8f36de82e1278abb02f",
+        "source": "Not Provided",
+        "confidence": "To Be Validated",
+        "reputation": "To Be Validated",
+        "evidence": "Not linked",
+        "evidence_refs": []
+      }
+    ],
+    "evidence": [],
+    "timeline": [
+      {
+        "time": "Not Provided",
+        "timestamp": "Not Provided",
+        "event": "Alert first observed by monitoring source",
+        "description": "Alert first observed by monitoring source",
+        "source": "RSA NetWitness SIEM",
+        "evidence_refs": [
+          "enriched_alert"
+        ],
+        "significance": "Supports analyst timeline reconstruction."
+      },
+      {
+        "time": "Not Provided",
+        "timestamp": "Not Provided",
+        "event": "Triage completed and severity/confidence assigned",
+        "description": "Triage completed and severity/confidence assigned",
+        "source": "Triage Agent",
+        "evidence_refs": [
+          "triage_result.json"
+        ],
+        "significance": "Supports analyst timeline reconstruction."
+      },
+      {
+        "time": "Not Provided",
+        "timestamp": "Not Provided",
+        "event": "Investigation completed or completed with limitations",
+        "description": "Investigation completed or completed with limitations",
+        "source": "Investigation Agent",
+        "evidence_refs": [
+          "investigation_result.json"
+        ],
+        "significance": "Supports analyst timeline reconstruction."
+      },
+      {
+        "time": "Not Provided",
+        "timestamp": "Not Provided",
+        "event": "SOC analyst approval decision recorded",
+        "description": "SOC analyst approval decision recorded",
+        "source": "SOC Analyst",
+        "evidence_refs": [
+          "approval_result.json"
+        ],
+        "significance": "Supports analyst timeline reconstruction."
+      },
+      {
+        "time": "2026-06-18T15:08:37.344750+00:00",
+        "timestamp": "2026-06-18T15:08:37.344750+00:00",
+        "event": "Report generated for SOC analyst review",
+        "description": "Report generated for SOC analyst review",
+        "source": "Reporting Agent",
+        "evidence_refs": [
+          "final_report"
+        ],
+        "significance": "Supports analyst timeline reconstruction."
+      }
+    ],
+    "mitre_mapping": [],
+    "mitre_attack_mapping": [],
+    "missing_evidence": [],
+    "evidence_gaps": [],
+    "missing_fields": [],
+    "missing_required_fields": [],
+    "recommendations": [
+      {
+        "priority": "P1",
+        "recommendation": "Review available alert context, logs, and telemetry to determine the activity source and scope.",
+        "action": "Review available alert context, logs, and telemetry to determine the activity source and scope.",
+        "owner": "Not Provided",
+        "status": "Pending",
+        "rationale": "Not Provided",
+        "approval_required": "Not Provided",
+        "risk_addressed": "Not Provided",
+        "target_date": "To Be Assigned"
+      },
+      {
+        "priority": "P2",
+        "recommendation": "Validate whether the event represents true malicious activity, a policy violation, or a false positive.",
+        "action": "Validate whether the event represents true malicious activity, a policy violation, or a false positive.",
+        "owner": "Not Provided",
+        "status": "Pending",
+        "rationale": "Not Provided",
+        "approval_required": "Not Provided",
+        "risk_addressed": "Not Provided",
+        "target_date": "To Be Assigned"
+      },
+      {
+        "priority": "P3",
+        "recommendation": "Document findings and escalate if evidence of compromise, active attack, or critical asset impact is discovered.",
+        "action": "Document findings and escalate if evidence of compromise, active attack, or critical asset impact is discovered.",
+        "owner": "Not Provided",
+        "status": "Pending",
+        "rationale": "Not Provided",
+        "approval_required": "Not Provided",
+        "risk_addressed": "Not Provided",
+        "target_date": "To Be Assigned"
+      }
+    ],
+    "recommended_actions": [
+      {
+        "priority": "P1",
+        "recommendation": "Review available alert context, logs, and telemetry to determine the activity source and scope.",
+        "action": "Review available alert context, logs, and telemetry to determine the activity source and scope.",
+        "owner": "Not Provided",
+        "status": "Pending",
+        "rationale": "Not Provided",
+        "approval_required": "Not Provided",
+        "risk_addressed": "Not Provided",
+        "target_date": "To Be Assigned"
+      },
+      {
+        "priority": "P2",
+        "recommendation": "Validate whether the event represents true malicious activity, a policy violation, or a false positive.",
+        "action": "Validate whether the event represents true malicious activity, a policy violation, or a false positive.",
+        "owner": "Not Provided",
+        "status": "Pending",
+        "rationale": "Not Provided",
+        "approval_required": "Not Provided",
+        "risk_addressed": "Not Provided",
+        "target_date": "To Be Assigned"
+      },
+      {
+        "priority": "P3",
+        "recommendation": "Document findings and escalate if evidence of compromise, active attack, or critical asset impact is discovered.",
+        "action": "Document findings and escalate if evidence of compromise, active attack, or critical asset impact is discovered.",
+        "owner": "Not Provided",
+        "status": "Pending",
+        "rationale": "Not Provided",
+        "approval_required": "Not Provided",
+        "risk_addressed": "Not Provided",
+        "target_date": "To Be Assigned"
+      }
+    ],
+    "management_action_plan": [
+      {
+        "priority": "P1",
+        "recommendation": "Review available alert context, logs, and telemetry to determine the activity source and scope.",
+        "action": "Review available alert context, logs, and telemetry to determine the activity source and scope.",
+        "owner": "Not Provided",
+        "status": "Pending",
+        "rationale": "Not Provided",
+        "approval_required": "Not Provided",
+        "risk_addressed": "Not Provided",
+        "target_date": "To Be Assigned"
+      },
+      {
+        "priority": "P2",
+        "recommendation": "Validate whether the event represents true malicious activity, a policy violation, or a false positive.",
+        "action": "Validate whether the event represents true malicious activity, a policy violation, or a false positive.",
+        "owner": "Not Provided",
+        "status": "Pending",
+        "rationale": "Not Provided",
+        "approval_required": "Not Provided",
+        "risk_addressed": "Not Provided",
+        "target_date": "To Be Assigned"
+      },
+      {
+        "priority": "P3",
+        "recommendation": "Document findings and escalate if evidence of compromise, active attack, or critical asset impact is discovered.",
+        "action": "Document findings and escalate if evidence of compromise, active attack, or critical asset impact is discovered.",
+        "owner": "Not Provided",
+        "status": "Pending",
+        "rationale": "Not Provided",
+        "approval_required": "Not Provided",
+        "risk_addressed": "Not Provided",
+        "target_date": "To Be Assigned"
+      }
+    ],
+    "key_findings": [
+      {
+        "finding_id": "KF-001",
+        "statement": "The incident classification is Not Provided.",
+        "finding": "The incident classification is Not Provided.",
+        "status": "Fact",
+        "confidence": "High",
+        "evidence_refs": [
+          "investigation_result.json"
+        ],
+        "evidence": "investigation_result.json",
+        "interpretation": "Classification is taken from investigation output first, with triage as fallback."
+      },
+      {
+        "finding_id": "KF-002",
+        "statement": "Affected scope has available context.",
+        "finding": "Affected scope has available context.",
+        "status": "Fact",
+        "confidence": "High",
+        "evidence_refs": [
+          "enriched_alert",
+          "investigation_result.json"
+        ],
+        "evidence": "enriched_alert, investigation_result.json",
+        "interpretation": "Assets and users are derived only from supplied ticket, alert, triage, and investigation context."
+      },
+      {
+        "finding_id": "KF-003",
+        "statement": "Approval status is approved.",
+        "finding": "Approval status is approved.",
+        "status": "Fact",
+        "confidence": "High",
+        "evidence_refs": [
+          "approval_result.json"
+        ],
+        "evidence": "approval_result.json",
+        "interpretation": "Approval data is recorded only from analyst approval context."
+      }
+    ],
+    "evidence_backed_findings": [
+      {
+        "finding_id": "KF-001",
+        "statement": "The incident classification is Not Provided.",
+        "finding": "The incident classification is Not Provided.",
+        "status": "Fact",
+        "confidence": "High",
+        "evidence_refs": [
+          "investigation_result.json"
+        ],
+        "evidence": "investigation_result.json",
+        "interpretation": "Classification is taken from investigation output first, with triage as fallback."
+      },
+      {
+        "finding_id": "KF-002",
+        "statement": "Affected scope has available context.",
+        "finding": "Affected scope has available context.",
+        "status": "Fact",
+        "confidence": "High",
+        "evidence_refs": [
+          "enriched_alert",
+          "investigation_result.json"
+        ],
+        "evidence": "enriched_alert, investigation_result.json",
+        "interpretation": "Assets and users are derived only from supplied ticket, alert, triage, and investigation context."
+      },
+      {
+        "finding_id": "KF-003",
+        "statement": "Approval status is approved.",
+        "finding": "Approval status is approved.",
+        "status": "Fact",
+        "confidence": "High",
+        "evidence_refs": [
+          "approval_result.json"
+        ],
+        "evidence": "approval_result.json",
+        "interpretation": "Approval data is recorded only from analyst approval context."
+      }
+    ],
+    "active_narrative": {
+      "executive_summary": "This incident is assessed as a High-severity, High-confidence Not Provided involving Not Provided. The known affected scope is wkstn-cache-001 (To Be Validated, To Be Validated criticality, Endpoint) and no confirmed affected user. The case is supported by No evidence descriptions provided. Malicious or suspicious indicators include No malicious or suspicious IOCs provided. Containment is currently approved_pending_execution, and analyst approval is approved. The report is not finalised because these validation items remain open: No evidence gaps recorded.",
+      "technical_analysis": "From a SOC investigation perspective, the available evidence shows alert first observed by monitoring source, followed by triage completed and severity/confidence assigned, followed by investigation completed or completed with limitations. This activity is consistent with Not Provided, supported by No evidence descriptions provided. MITRE ATT&CK context includes No MITRE ATT&CK mapping provided..\n\nThe current evidence supports a High-severity, High-confidence Not Provided, but it does not fully confirm whether payload execution completed, whether credentials or sessions were exposed, or whether follow-on access occurred. The analyst should validate script block logs, process completion status, identity logs, mailbox audit logs, and outbound network telemetry before closure.",
+      "business_impact_explanation": "Current business impact depends on validated affected assets, users, data access, and service disruption evidence. Security risk: Security risk is tied to the Not Provided scenario and should be validated using the listed evidence and gaps. Not yet confirmed: Further compromise, spread, persistence, and data exposure remain subject to analyst validation.",
+      "attack_narrative": "The likely attack sequence began with alert first observed by monitoring source, followed by triage completed and severity/confidence assigned, followed by investigation completed or completed with limitations. This sequence is consistent with Not Provided, with observed evidence including No evidence descriptions provided. The activity has been mapped to No MITRE ATT&CK mapping provided..\n\nHowever, the current evidence does not fully confirm payload completion, persistence, credential or session exposure, lateral movement, data access, or exfiltration. These items should remain open until the SOC analyst validates the relevant endpoint, identity, network, and application logs.",
+      "analyst_friendly_explanation": "The SOC analyst should review this case by validating the evidence that supports the High severity, High confidence, and Not Provided classification. The most important review areas are the affected scope (wkstn-cache-001 (To Be Validated, To Be Validated criticality, Endpoint)), the affected user context (no confirmed affected user), suspicious indicators (No malicious or suspicious IOCs provided), and the timeline sequence (Alert first observed by monitoring source. Triage completed and severity/confidence assigned. Investigation completed or completed with limitations. SOC analyst approval decision recorded. Report generated for SOC analyst review.). The analyst should confirm whether the evidence supports containment, escalation, closure, or further investigation, especially because these validation items remain open: No evidence gaps recorded. If containment is disruptive, the analyst should confirm the approval status (approved) and containment status (approved_pending_execution) before action is taken. Any finding that cannot be verified from the provided evidence should remain marked as not confirmed rather than being treated as a confirmed compromise.",
+      "soc_analyst_review_checklist": "1. Confirm that the incident ID, alert ID, severity (High), confidence (High), and classification (Not Provided) match the latest triage and investigation records.\n2. Validate the affected scope by checking whether wkstn-cache-001 (To Be Validated, To Be Validated criticality, Endpoint) and no confirmed affected user are present in the original alert, endpoint telemetry, identity logs, or NetWitness evidence.\n3. Review the listed IOCs and supporting evidence references, especially No malicious or suspicious IOCs provided, before blocking, isolating, or escalating based on indicator reputation.\n4. Reconstruct the timeline using the available events (Alert first observed by monitoring source. Triage completed and severity/confidence assigned. Investigation completed or completed with limitations. SOC analyst approval decision recorded. Report generated for SOC analyst review.) and confirm whether payload execution, persistence, credential exposure, lateral movement, data access, or exfiltration is not confirmed in the provided evidence.\n5. Compare the technical evidence against the mapped MITRE ATT&CK context (No MITRE ATT&CK mapping provided.) and record whether each mapped behaviour is observed, suggested, or still pending validation.\n6. Review unresolved evidence gaps (No evidence gaps recorded.) and collect the required endpoint, identity, network, email, or application logs before closure.\n7. Decide whether containment or approval should proceed by checking the current approval status (approved) and containment status (approved_pending_execution).\n8. Record the final analyst decision, including whether the case should be escalated, contained, closed as false positive, or kept open for further investigation.",
+      "conclusion": "The report is suitable for SOC analyst review with status Generated for analyst review. Before closure, the analyst should validate unresolved evidence gaps, confirm containment or approval decisions, and determine whether any business, data, regulatory, or recovery impact exists. Any disruptive action, such as endpoint isolation or credential revocation, should follow the recorded approval workflow."
+    },
+    "impact_assessment": {
+      "business": "Current business impact depends on validated affected assets, users, data access, and service disruption evidence.",
+      "security": "Security risk is tied to the Not Provided scenario and should be validated using the listed evidence and gaps.",
+      "unconfirmed": "Further compromise, spread, persistence, and data exposure remain subject to analyst validation."
+    },
+    "executive_overview": "This incident is assessed as High severity with High confidence. The current classification is Not Provided, and the likely scenario is Not Provided. Any missing assets, users, IOCs, or timestamps should remain marked as not confirmed until validated by a SOC analyst. Investigation completed with evidence gaps, so this report proceeds with limitations and requires SOC analyst validation of missing telemetry.",
+    "executive_summary": "This incident is assessed as a High-severity, High-confidence Not Provided involving Not Provided. The known affected scope is wkstn-cache-001 (To Be Validated, To Be Validated criticality, Endpoint) and no confirmed affected user. The case is supported by No evidence descriptions provided. Malicious or suspicious indicators include No malicious or suspicious IOCs provided. Containment is currently approved_pending_execution, and analyst approval is approved. The report is not finalised because these validation items remain open: No evidence gaps recorded.",
+    "technical_analysis": "From a SOC investigation perspective, the available evidence shows alert first observed by monitoring source, followed by triage completed and severity/confidence assigned, followed by investigation completed or completed with limitations. This activity is consistent with Not Provided, supported by No evidence descriptions provided. MITRE ATT&CK context includes No MITRE ATT&CK mapping provided..\n\nThe current evidence supports a High-severity, High-confidence Not Provided, but it does not fully confirm whether payload execution completed, whether credentials or sessions were exposed, or whether follow-on access occurred. The analyst should validate script block logs, process completion status, identity logs, mailbox audit logs, and outbound network telemetry before closure.",
+    "business_impact_explanation": "Current business impact depends on validated affected assets, users, data access, and service disruption evidence. Security risk: Security risk is tied to the Not Provided scenario and should be validated using the listed evidence and gaps. Not yet confirmed: Further compromise, spread, persistence, and data exposure remain subject to analyst validation.",
+    "attack_narrative": "The likely attack sequence began with alert first observed by monitoring source, followed by triage completed and severity/confidence assigned, followed by investigation completed or completed with limitations. This sequence is consistent with Not Provided, with observed evidence including No evidence descriptions provided. The activity has been mapped to No MITRE ATT&CK mapping provided..\n\nHowever, the current evidence does not fully confirm payload completion, persistence, credential or session exposure, lateral movement, data access, or exfiltration. These items should remain open until the SOC analyst validates the relevant endpoint, identity, network, and application logs.",
+    "analyst_review_guidance": "Validate the evidence supporting High severity, High confidence, and Not Provided classification. Review affected scope, suspicious indicators, timeline sequence, approval status, and unresolved evidence gaps before closure.",
+    "final_assessment": "The case should remain under SOC analyst review until missing evidence gaps are validated. Current assessment: High severity, High confidence.",
+    "triage_summary": "Triage completed.",
+    "investigation_summary": "Investigation completed with evidence gaps.",
+    "raw_inputs": {
+      "processed_alert": {
+        "incident_id": "TKT-CACHE-0001",
+        "alert_id": "ALERT-CACHE-V1",
+        "alert_name": "Export Cache Parser Test",
+        "severity": "High",
+        "confidence": "High",
+        "hostname": "wkstn-cache-001",
+        "destination_ip": "8.8.8.8",
+        "file_hash": "44d88612fea8a8f36de82e1278abb02f",
+        "iocs": [
+          {
+            "type": "file_hash",
+            "value": "44d88612fea8a8f36de82e1278abb02f"
+          }
+        ]
+      },
+      "parser_result": {
+        "parser_status": "completed",
+        "input_shape": "incident_with_alerts",
+        "normalised_alert_count": 1,
+        "selected_alert_id": "ALERT-CACHE-V2",
+        "parser_confidence": "High",
+        "parser_confidence_score": 95,
+        "important_extracted_fields": {
+          "alert_id": "ALERT-CACHE-V2",
+          "incident_id": "TKT-CACHE-0001",
+          "alert_name": "Export Cache Parser Test",
+          "severity": "High",
+          "risk_score": 82,
+          "alert_time": "2026-06-18T10:00:00Z",
+          "source_ips": [
+            "10.0.0.5"
+          ],
+          "destination_ips": [
+            "8.8.8.8"
+          ],
+          "hosts": [
+            "wkstn-cache-001"
+          ],
+          "users": [
+            "alice"
+          ],
+          "file_hashes": [
+            "44d88612fea8a8f36de82e1278abb02f"
+          ],
+          "process_names": [
+            "powershell.exe"
+          ]
+        },
+        "missing_important_fields": [],
+        "warnings": []
+      },
+      "enriched_alert": {
+        "incident_id": "TKT-CACHE-0001",
+        "alert_id": "ALERT-CACHE-V1",
+        "alert_name": "Export Cache Parser Test",
+        "severity": "High",
+        "confidence": "High",
+        "hostname": "wkstn-cache-001",
+        "destination_ip": "8.8.8.8",
+        "file_hash": "44d88612fea8a8f36de82e1278abb02f",
+        "iocs": [
+          {
+            "type": "file_hash",
+            "value": "44d88612fea8a8f36de82e1278abb02f"
+          }
+        ],
+        "threat_intelligence": {
+          "notes": []
+        },
+        "enrichment_risk_level": "Low",
+        "enrichment_risk_score": 0
+      },
+      "triage_result": {
+        "status": "completed",
+        "severity": "High",
+        "confidence": "High",
+        "summary": "Triage completed."
+      },
+      "threat_intel_result": {},
+      "investigation_result": {
+        "status": "completed_limited",
+        "summary": "Investigation completed with evidence gaps.",
+        "findings": [
+          "Usable finding"
+        ]
+      },
+      "approval_result": {
+        "decision": "approved",
+        "analyst": "Test Analyst"
+      },
+      "investigation_approval_result": {
+        "decision": "approved",
+        "evidence_gap_decision": "continue_to_reporting",
+        "reporting_mode": "with_limitations"
+      },
+      "soc_review_result": {}
+    },
+    "appendix_summaries": {
+      "raw_alert": {
+        "Alert ID": "ALERT-CACHE-V1",
+        "Source": "RSA NetWitness SIEM",
+        "Alert Name": "Export Cache Parser Test",
+        "First Seen": "Not Provided",
+        "Host": "wkstn-cache-001",
+        "Severity": "High",
+        "Confidence": "High",
+        "Risk Score": 0,
+        "Primary IOC": "44d88612fea8a8f36de82e1278abb02f"
+      },
+      "triage": {
+        "Classification": "Not Provided",
+        "Severity": "High",
+        "Confidence": "High",
+        "Next Action": "Not Provided",
+        "Containment Status": "approved_pending_execution",
+        "Recommended Action Count": 3
+      },
+      "investigation": {
+        "Classification": "Not Provided",
+        "Likely Scenario": "Not Provided",
+        "Status": "completed_limited",
+        "Finding Count": 1,
+        "Missing Evidence": "None recorded",
+        "Recommended Next Action": "Not Provided"
+      },
+      "approval": {
+        "Approval Status": "approved",
+        "Analyst Decision": "approved",
+        "Reviewed By": "Test Analyst",
+        "Comments": "Not Provided"
+      }
+    },
+    "warnings": [],
+    "rag_used": true,
+    "rag_status": "Local template export context built",
+    "rag_status_display": "Local template export context built",
+    "llm_used": false,
+    "llm_status": "llm_disabled_deterministic_generation",
+    "llm_status_display": "llm_disabled_deterministic_generation",
+    "llm_quality_status": "not_used",
+    "llm_quality_issues": [],
+    "llm_attempt_count": 0,
+    "llm_cache_status": "not_used",
+    "llm_cache_status_display": "not_used",
+    "llm_status_explanation": "LLM disabled or unavailable; deterministic fallback narrative was used.",
+    "llm_section_results": {
+      "executive_summary": {
+        "status": "not_used",
+        "hard_fail_issues": [],
+        "soft_warnings": [],
+        "repair_actions": [],
+        "retry_attempted": false,
+        "issues": []
+      },
+      "technical_analysis": {
+        "status": "not_used",
+        "hard_fail_issues": [],
+        "soft_warnings": [],
+        "repair_actions": [],
+        "retry_attempted": false,
+        "issues": []
+      },
+      "business_impact_explanation": {
+        "status": "not_used",
+        "hard_fail_issues": [],
+        "soft_warnings": [],
+        "repair_actions": [],
+        "retry_attempted": false,
+        "issues": []
+      },
+      "attack_narrative": {
+        "status": "not_used",
+        "hard_fail_issues": [],
+        "soft_warnings": [],
+        "repair_actions": [],
+        "retry_attempted": false,
+        "issues": []
+      },
+      "conclusion": {
+        "status": "not_used",
+        "hard_fail_issues": [],
+        "soft_warnings": [],
+        "repair_actions": [],
+        "retry_attempted": false,
+        "issues": []
+      },
+      "analyst_friendly_explanation": {
+        "status": "not_used",
+        "hard_fail_issues": [],
+        "soft_warnings": [],
+        "repair_actions": [],
+        "retry_attempted": false,
+        "issues": []
+      },
+      "soc_analyst_review_checklist": {
+        "status": "not_used",
+        "hard_fail_issues": [],
+        "soft_warnings": [],
+        "repair_actions": [],
+        "retry_attempted": false,
+        "issues": []
+      }
+    },
+    "report_generation_mode": "deterministic_facts_plus_template_export",
+    "report_completeness_score": 90,
+    "report_completeness_status": "Complete enough for analyst review",
+    "report_completeness_status_display": "Complete enough for analyst review",
+    "report_classification": "Internal / Restricted",
+    "prepared_by": "Reporting Agent",
+    "review_limitations": {
+      "log_availability": "Dependent on submitted input files and available SOC telemetry.",
+      "endpoint_visibility": "Dependent on endpoint evidence included in investigation_result.json.",
+      "network_visibility": "Dependent on available SIEM, NetWitness, proxy, DNS, and firewall logs.",
+      "threat_intelligence": "Threat intelligence reputation may be incomplete and must be interpreted with local telemetry.",
+      "timestamp_accuracy": "Timeline accuracy depends on source clock synchronisation.",
+      "evidence_completeness": "Missing evidence is documented as evidence gaps for analyst follow-up."
+    },
+    "overall_report_confidence": "High",
+    "environment_type": "SOC-monitored environment",
+    "asset_criticality": "See affected assets table",
+    "business_owner": "Not Provided",
+    "technical_owner": "Not Provided",
+    "rule_id": "Not Provided",
+    "initial_risk_score": "Not Provided",
+    "enrichment_risk_score": 0,
+    "malware_family": "Not Provided",
+    "threat_actor": "Not Provided",
+    "escalation_level": "SOC analyst review",
+    "root_cause": {
+      "likely_root_cause": "Pending further analyst validation",
+      "category": "Not Provided",
+      "confidence": "High",
+      "evidence_basis": "Based on classification, likely scenario, timeline, IOCs, and available investigation evidence."
+    },
+    "contributing_factors": [
+      {
+        "factor": "Evidence completeness gap",
+        "description": "One or more required reporting or investigation fields are missing or require validation.",
+        "impact": "Limits confidence in scope, root cause, and final disposition."
+      }
+    ],
+    "framework_mappings": [],
+    "policy_application_summary": [
+      {
+        "source": "incident_severity_policy.md",
+        "relevant_guidance": "Severity should reflect evidence, impact, and confidence.",
+        "application": "Current severity is High and should be analyst validated."
+      },
+      {
+        "source": "report_writing_sop.md",
+        "relevant_guidance": "Reports must separate evidence-backed facts from gaps.",
+        "application": "The export keeps missing facts as evidence gaps rather than inventing details."
+      }
+    ],
+    "loaded_knowledge_files": [
+      "policies/incident_severity_policy.md",
+      "procedures/report_writing_sop.md",
+      "procedures/investigation_sop.md"
+    ],
+    "excluded_playbooks": [
+      "malware_response_playbook.md",
+      "ransomware_response_playbook.md"
+    ],
+    "quality_checks": {
+      "conflicting_severity_values_detected": "Not Detected",
+      "conflicting_confidence_values_detected": "Not Detected",
+      "stale_context_detected": "Not Detected",
+      "triage_result_available": "Yes",
+      "investigation_result_available": "Yes",
+      "threat_intelligence_result_available": "Yes",
+      "fallback_logic_used": "Yes"
+    },
+    "report_validation_checks": [
+      {
+        "check": "Incident ID present",
+        "status": "Pass"
+      },
+      {
+        "check": "Alert ID present",
+        "status": "Pass"
+      },
+      {
+        "check": "Severity present",
+        "status": "Pass"
+      },
+      {
+        "check": "Confidence present",
+        "status": "Pass"
+      },
+      {
+        "check": "Affected asset context present",
+        "status": "Pass"
+      },
+      {
+        "check": "Timeline reconstructed",
+        "status": "Pass"
+      },
+      {
+        "check": "Evidence present",
+        "status": "Review Required"
+      }
+    ],
+    "recovered_fields": [],
+    "ticket": {
+      "ticket_id": "TKT-CACHE-0001",
+      "title": "Export Cache Test",
+      "parser_result": {
+        "parser_status": "completed",
+        "input_shape": "incident_with_alerts",
+        "normalised_alert_count": 1,
+        "selected_alert_id": "ALERT-CACHE-V1",
+        "parser_confidence": "High",
+        "parser_confidence_score": 95,
+        "important_extracted_fields": {
+          "alert_id": "ALERT-CACHE-V1",
+          "incident_id": "TKT-CACHE-0001",
+          "alert_name": "Export Cache Parser Test",
+          "severity": "High",
+          "risk_score": 82,
+          "alert_time": "2026-06-18T10:00:00Z",
+          "source_ips": [
+            "10.0.0.5"
+          ],
+          "destination_ips": [
+            "8.8.8.8"
+          ],
+          "hosts": [
+            "wkstn-cache-001"
+          ],
+          "users": [
+            "alice"
+          ],
+          "file_hashes": [
+            "44d88612fea8a8f36de82e1278abb02f"
+          ],
+          "process_names": [
+            "powershell.exe"
+          ]
+        },
+        "missing_important_fields": [],
+        "warnings": []
+      }
+    },
+    "owner": "Not Provided",
+    "conclusion": "The report is suitable for SOC analyst review with status Generated for analyst review. Before closure, the analyst should validate unresolved evidence gaps, confirm containment or approval decisions, and determine whether any business, data, regulatory, or recovery impact exists. Any disruptive action, such as endpoint isolation or credential revocation, should follow the recorded approval workflow.",
+    "analyst_friendly_explanation": "The SOC analyst should review this case by validating the evidence that supports the High severity, High confidence, and Not Provided classification. The most important review areas are the affected scope (wkstn-cache-001 (To Be Validated, To Be Validated criticality, Endpoint)), the affected user context (no confirmed affected user), suspicious indicators (No malicious or suspicious IOCs provided), and the timeline sequence (Alert first observed by monitoring source. Triage completed and severity/confidence assigned. Investigation completed or completed with limitations. SOC analyst approval decision recorded. Report generated for SOC analyst review.). The analyst should confirm whether the evidence supports containment, escalation, closure, or further investigation, especially because these validation items remain open: No evidence gaps recorded. If containment is disruptive, the analyst should confirm the approval status (approved) and containment status (approved_pending_execution) before action is taken. Any finding that cannot be verified from the provided evidence should remain marked as not confirmed rather than being treated as a confirmed compromise.",
+    "soc_analyst_review_checklist": "1. Confirm that the incident ID, alert ID, severity (High), confidence (High), and classification (Not Provided) match the latest triage and investigation records.\n2. Validate the affected scope by checking whether wkstn-cache-001 (To Be Validated, To Be Validated criticality, Endpoint) and no confirmed affected user are present in the original alert, endpoint telemetry, identity logs, or NetWitness evidence.\n3. Review the listed IOCs and supporting evidence references, especially No malicious or suspicious IOCs provided, before blocking, isolating, or escalating based on indicator reputation.\n4. Reconstruct the timeline using the available events (Alert first observed by monitoring source. Triage completed and severity/confidence assigned. Investigation completed or completed with limitations. SOC analyst approval decision recorded. Report generated for SOC analyst review.) and confirm whether payload execution, persistence, credential exposure, lateral movement, data access, or exfiltration is not confirmed in the provided evidence.\n5. Compare the technical evidence against the mapped MITRE ATT&CK context (No MITRE ATT&CK mapping provided.) and record whether each mapped behaviour is observed, suggested, or still pending validation.\n6. Review unresolved evidence gaps (No evidence gaps recorded.) and collect the required endpoint, identity, network, email, or application logs before closure.\n7. Decide whether containment or approval should proceed by checking the current approval status (approved) and containment status (approved_pending_execution).\n8. Record the final analyst decision, including whether the case should be escalated, contained, closed as false positive, or kept open for further investigation.",
+    "llm": {
+      "executive_summary": "This incident is assessed as a High-severity, High-confidence Not Provided involving Not Provided. The known affected scope is wkstn-cache-001 (To Be Validated, To Be Validated criticality, Endpoint) and no confirmed affected user. The case is supported by No evidence descriptions provided. Malicious or suspicious indicators include No malicious or suspicious IOCs provided. Containment is currently approved_pending_execution, and analyst approval is approved. The report is not finalised because these validation items remain open: No evidence gaps recorded.",
+      "technical_analysis": "From a SOC investigation perspective, the available evidence shows alert first observed by monitoring source, followed by triage completed and severity/confidence assigned, followed by investigation completed or completed with limitations. This activity is consistent with Not Provided, supported by No evidence descriptions provided. MITRE ATT&CK context includes No MITRE ATT&CK mapping provided..\n\nThe current evidence supports a High-severity, High-confidence Not Provided, but it does not fully confirm whether payload execution completed, whether credentials or sessions were exposed, or whether follow-on access occurred. The analyst should validate script block logs, process completion status, identity logs, mailbox audit logs, and outbound network telemetry before closure.",
+      "business_impact_explanation": "Current business impact depends on validated affected assets, users, data access, and service disruption evidence. Security risk: Security risk is tied to the Not Provided scenario and should be validated using the listed evidence and gaps. Not yet confirmed: Further compromise, spread, persistence, and data exposure remain subject to analyst validation.",
+      "attack_narrative": "The likely attack sequence began with alert first observed by monitoring source, followed by triage completed and severity/confidence assigned, followed by investigation completed or completed with limitations. This sequence is consistent with Not Provided, with observed evidence including No evidence descriptions provided. The activity has been mapped to No MITRE ATT&CK mapping provided..\n\nHowever, the current evidence does not fully confirm payload completion, persistence, credential or session exposure, lateral movement, data access, or exfiltration. These items should remain open until the SOC analyst validates the relevant endpoint, identity, network, and application logs.",
+      "conclusion": "The report is suitable for SOC analyst review with status Generated for analyst review. Before closure, the analyst should validate unresolved evidence gaps, confirm containment or approval decisions, and determine whether any business, data, regulatory, or recovery impact exists. Any disruptive action, such as endpoint isolation or credential revocation, should follow the recorded approval workflow.",
+      "analyst_friendly_explanation": "The SOC analyst should review this case by validating the evidence that supports the High severity, High confidence, and Not Provided classification. The most important review areas are the affected scope (wkstn-cache-001 (To Be Validated, To Be Validated criticality, Endpoint)), the affected user context (no confirmed affected user), suspicious indicators (No malicious or suspicious IOCs provided), and the timeline sequence (Alert first observed by monitoring source. Triage completed and severity/confidence assigned. Investigation completed or completed with limitations. SOC analyst approval decision recorded. Report generated for SOC analyst review.). The analyst should confirm whether the evidence supports containment, escalation, closure, or further investigation, especially because these validation items remain open: No evidence gaps recorded. If containment is disruptive, the analyst should confirm the approval status (approved) and containment status (approved_pending_execution) before action is taken. Any finding that cannot be verified from the provided evidence should remain marked as not confirmed rather than being treated as a confirmed compromise.",
+      "soc_analyst_review_checklist": "1. Confirm that the incident ID, alert ID, severity (High), confidence (High), and classification (Not Provided) match the latest triage and investigation records.\n2. Validate the affected scope by checking whether wkstn-cache-001 (To Be Validated, To Be Validated criticality, Endpoint) and no confirmed affected user are present in the original alert, endpoint telemetry, identity logs, or NetWitness evidence.\n3. Review the listed IOCs and supporting evidence references, especially No malicious or suspicious IOCs provided, before blocking, isolating, or escalating based on indicator reputation.\n4. Reconstruct the timeline using the available events (Alert first observed by monitoring source. Triage completed and severity/confidence assigned. Investigation completed or completed with limitations. SOC analyst approval decision recorded. Report generated for SOC analyst review.) and confirm whether payload execution, persistence, credential exposure, lateral movement, data access, or exfiltration is not confirmed in the provided evidence.\n5. Compare the technical evidence against the mapped MITRE ATT&CK context (No MITRE ATT&CK mapping provided.) and record whether each mapped behaviour is observed, suggested, or still pending validation.\n6. Review unresolved evidence gaps (No evidence gaps recorded.) and collect the required endpoint, identity, network, email, or application logs before closure.\n7. Decide whether containment or approval should proceed by checking the current approval status (approved) and containment status (approved_pending_execution).\n8. Record the final analyst decision, including whether the case should be escalated, contained, closed as false positive, or kept open for further investigation."
+    },
+    "llm_provider": "not_used",
+    "llm_model": "not_used",
+    "agent_key": "parsing",
+    "agent_title": "Parsing and Normalisation Report",
+    "agent_output": {
+      "parser_status": "completed",
+      "input_shape": "incident_with_alerts",
+      "normalised_alert_count": 1,
+      "selected_alert_id": "ALERT-CACHE-V2",
+      "parser_confidence": "High",
+      "parser_confidence_score": 95,
+      "important_extracted_fields": {
+        "alert_id": "ALERT-CACHE-V2",
+        "incident_id": "TKT-CACHE-0001",
+        "alert_name": "Export Cache Parser Test",
+        "severity": "High",
+        "risk_score": 82,
+        "alert_time": "2026-06-18T10:00:00Z",
+        "source_ips": [
+          "10.0.0.5"
+        ],
+        "destination_ips": [
+          "8.8.8.8"
+        ],
+        "hosts": [
+          "wkstn-cache-001"
+        ],
+        "users": [
+          "alice"
+        ],
+        "file_hashes": [
+          "44d88612fea8a8f36de82e1278abb02f"
+        ],
+        "process_names": [
+          "powershell.exe"
+        ]
+      },
+      "missing_important_fields": [],
+      "warnings": []
+    },
+    "approval_raw": {
+      "decision": "approved",
+      "analyst": "Test Analyst"
+    },
+    "llm_agent": {
+      "provider": "deterministic_fallback",
+      "model": "local_grounded_template_fill",
+      "llm_input": {
+        "stage": "Parsing and Normalisation",
+        "ticket_id": "TKT-CACHE-0001",
+        "parser_status": "completed",
+        "input_shape": "incident_with_alerts",
+        "normalised_alert_count": 1,
+        "selected_alert": {
+          "alert_id": "ALERT-CACHE-V2",
+          "incident_id": "TKT-CACHE-0001",
+          "alert_name": "Export Cache Parser Test",
+          "severity": "High",
+          "risk_score": 82,
+          "alert_time": "2026-06-18T10:00:00Z",
+          "detection_source": "NetWitness"
+        },
+        "important_extracted_fields": {
+          "source_ips": [
+            "10.0.0.5"
+          ],
+          "destination_ips": [
+            "8.8.8.8"
+          ],
+          "internal_ips": [],
+          "external_ips": [],
+          "hosts": [
+            "wkstn-cache-001"
+          ],
+          "users": [
+            "alice"
+          ],
+          "emails": [],
+          "file_names": [],
+          "file_hashes": [
+            "44d88612fea8a8f36de82e1278abb02f"
+          ],
+          "process_names": [
+            "powershell.exe"
+          ],
+          "mitre_technique_ids": []
+        },
+        "data_quality": {
+          "parser_confidence": "High",
+          "parser_confidence_score": 95,
+          "missing_important_fields": [],
+          "warnings": []
+        },
+        "downstream_target": "Triage Agent"
+      },
+      "parser_executive_summary": "The parser completed with status completed and selected alert ALERT-CACHE-V2. It extracted SOC-ready fields for downstream triage.",
+      "normalisation_quality_assessment": "Parser confidence is High with score 95. No major missing parser fields were recorded.",
+      "analyst_interpretation": "Severity is High. Hosts: wkstn-cache-001. File hashes: 44d88612fea8a8f36de82e1278abb02f.",
+      "downstream_readiness": "Parser JSON output is ready for the Triage Agent once processed_alert.json has been written.",
+      "triage_handoff_note": "Use processed_alert.json as the source-of-truth input for the Triage Agent. Do not rely on PDF/Word exports for machine handoff.",
+      "summary": "The parser completed with status completed and selected alert ALERT-CACHE-V2. It extracted SOC-ready fields for downstream triage.",
+      "evidence_interpretation": "Severity is High. Hosts: wkstn-cache-001. File hashes: 44d88612fea8a8f36de82e1278abb02f.",
+      "rationale": "Parser confidence is High with score 95. No major missing parser fields were recorded.",
+      "limitations": "No major export limitations were recorded.",
+      "analyst_actions": "Use processed_alert.json as the source-of-truth input for the Triage Agent. Do not rely on PDF/Word exports for machine handoff."
+    }
+  },
+  "agent_output": {
+    "parser_status": "completed",
+    "input_shape": "incident_with_alerts",
+    "normalised_alert_count": 1,
+    "selected_alert_id": "ALERT-CACHE-V2",
+    "parser_confidence": "High",
+    "parser_confidence_score": 95,
+    "important_extracted_fields": {
+      "alert_id": "ALERT-CACHE-V2",
+      "incident_id": "TKT-CACHE-0001",
+      "alert_name": "Export Cache Parser Test",
+      "severity": "High",
+      "risk_score": 82,
+      "alert_time": "2026-06-18T10:00:00Z",
+      "source_ips": [
+        "10.0.0.5"
+      ],
+      "destination_ips": [
+        "8.8.8.8"
+      ],
+      "hosts": [
+        "wkstn-cache-001"
+      ],
+      "users": [
+        "alice"
+      ],
+      "file_hashes": [
+        "44d88612fea8a8f36de82e1278abb02f"
+      ],
+      "process_names": [
+        "powershell.exe"
+      ]
+    },
+    "missing_important_fields": [],
+    "warnings": []
+  },
+  "llm_agent": {
+    "provider": "deterministic_fallback",
+    "model": "local_grounded_template_fill",
+    "llm_input": {
+      "stage": "Parsing and Normalisation",
+      "ticket_id": "TKT-CACHE-0001",
+      "parser_status": "completed",
+      "input_shape": "incident_with_alerts",
+      "normalised_alert_count": 1,
+      "selected_alert": {
+        "alert_id": "ALERT-CACHE-V2",
+        "incident_id": "TKT-CACHE-0001",
+        "alert_name": "Export Cache Parser Test",
+        "severity": "High",
+        "risk_score": 82,
+        "alert_time": "2026-06-18T10:00:00Z",
+        "detection_source": "NetWitness"
+      },
+      "important_extracted_fields": {
+        "source_ips": [
+          "10.0.0.5"
+        ],
+        "destination_ips": [
+          "8.8.8.8"
+        ],
+        "internal_ips": [],
+        "external_ips": [],
+        "hosts": [
+          "wkstn-cache-001"
+        ],
+        "users": [
+          "alice"
+        ],
+        "emails": [],
+        "file_names": [],
+        "file_hashes": [
+          "44d88612fea8a8f36de82e1278abb02f"
+        ],
+        "process_names": [
+          "powershell.exe"
+        ],
+        "mitre_technique_ids": []
+      },
+      "data_quality": {
+        "parser_confidence": "High",
+        "parser_confidence_score": 95,
+        "missing_important_fields": [],
+        "warnings": []
+      },
+      "downstream_target": "Triage Agent"
+    },
+    "parser_executive_summary": "The parser completed with status completed and selected alert ALERT-CACHE-V2. It extracted SOC-ready fields for downstream triage.",
+    "normalisation_quality_assessment": "Parser confidence is High with score 95. No major missing parser fields were recorded.",
+    "analyst_interpretation": "Severity is High. Hosts: wkstn-cache-001. File hashes: 44d88612fea8a8f36de82e1278abb02f.",
+    "downstream_readiness": "Parser JSON output is ready for the Triage Agent once processed_alert.json has been written.",
+    "triage_handoff_note": "Use processed_alert.json as the source-of-truth input for the Triage Agent. Do not rely on PDF/Word exports for machine handoff.",
+    "summary": "The parser completed with status completed and selected alert ALERT-CACHE-V2. It extracted SOC-ready fields for downstream triage.",
+    "evidence_interpretation": "Severity is High. Hosts: wkstn-cache-001. File hashes: 44d88612fea8a8f36de82e1278abb02f.",
+    "rationale": "Parser confidence is High with score 95. No major missing parser fields were recorded.",
+    "limitations": "No major export limitations were recorded.",
+    "analyst_actions": "Use processed_alert.json as the source-of-truth input for the Triage Agent. Do not rely on PDF/Word exports for machine handoff."
+  },
+  "rendered_markdown": "# Parsing and Normalisation Report\n\n> **LLM Parser Executive Summary:** The parser completed with status completed and selected alert ALERT-CACHE-V2. It extracted SOC-ready fields for downstream triage.\n\n## 1. Document Control\n\n| Field | Value |\n|---|---|\n| Ticket ID | TKT-CACHE-0001 |\n| Incident ID | TKT-CACHE-0001 |\n| Alert ID | ALERT-CACHE-V2 |\n| Stage | Parsing and Normalisation |\n| Stage Status | **Not Provided** |\n| Report Export Mode | Word/PDF generated on demand |\n| Generated At | 2026-06-18T15:08:37.346110+00:00 |\n\n## 2. Parser Metadata\n\n| Field | Value |\n|---|---|\n| Parser Status | **completed** |\n| Parser Confidence | **High** |\n| Parser Confidence Score | 95 |\n| Normalised Alert Count | 1 |\n| Output Handoff | processed_alert.json is used for the Triage Agent |\n\n## 3. Selected Alert Summary\n\n| Field | Value |\n|---|---|\n| Alert ID | ALERT-CACHE-V2 |\n| Incident ID | TKT-CACHE-0001 |\n| Alert Name | Export Cache Parser Test |\n| Alert Time | 2026-06-18T10:00:00Z |\n| Severity | High |\n| Risk Score | 82 |\n| Hosts | wkstn-cache-001 |\n| Users | alice |\n\n## 4. Normalised SOC Fields\n\n| Field | Extracted Value |\n|---|---|\n| Source IPs | 10.0.0.5 |\n| Destination IPs | 8.8.8.8 |\n| Internal IPs | Not Provided |\n| External IPs | Not Provided |\n| Source Ports | Not Provided |\n| Destination Ports | Not Provided |\n| Services | Not Provided |\n| Emails | Not Provided |\n| File Names | Not Provided |\n| File Hashes | 44d88612fea8a8f36de82e1278abb02f |\n| Process Names | powershell.exe |\n| MITRE Technique IDs | Not Provided |\n\n## 5. LLM Normalisation Quality Assessment\n\nParser confidence is High with score 95. No major missing parser fields were recorded.\n\n## 6. LLM Analyst Interpretation\n\nSeverity is High. Hosts: wkstn-cache-001. File hashes: 44d88612fea8a8f36de82e1278abb02f.\n\n## 7. Parser Quality and Missing Fields\n\nNo important parser fields were recorded as missing.\n\n## 8. Parser Warnings\n\nNo parser warnings were recorded.\n\n## 9. Downstream Handoff to Triage Agent\n\nParser JSON output is ready for the Triage Agent once processed_alert.json has been written.\n\nUse processed_alert.json as the source-of-truth input for the Triage Agent. Do not rely on PDF/Word exports for machine handoff.\n\n## 10. Output File References\n\n| Output | Status |\n|---|---|\n| processed_alert.json | Machine-readable handoff to Triage |\n| soc_context_normalised_alert.json | Clean normalised SOC context |\n| soc_context_parser_summary.json | Parser confidence and missing-field summary |\n| Word Export | Generated only when Download Word is clicked |\n| PDF Export | Generated only when Download PDF is clicked |\n\n## 11. Analyst Review Notes\n\n| Field | Analyst Update |\n|---|---|\n| Parser Output Accepted |  |\n| Important Fields Validated |  |\n| Missing Fields Accepted |  |\n| Reviewed By |  |\n| Review Completed At |  |\n",
+  "structured_blocks": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "Parsing and Normalisation Report"
+    },
+    {
+      "type": "callout",
+      "kind": "info",
+      "text": "**LLM Parser Executive Summary:** The parser completed with status completed and selected alert ALERT-CACHE-V2. It extracted SOC-ready fields for downstream triage."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "1. Document Control"
+    },
+    {
+      "type": "table",
+      "columns": [
+        "Field",
+        "Value"
+      ],
+      "rows": [
+        [
+          "Ticket ID",
+          "TKT-CACHE-0001"
+        ],
+        [
+          "Incident ID",
+          "TKT-CACHE-0001"
+        ],
+        [
+          "Alert ID",
+          "ALERT-CACHE-V2"
+        ],
+        [
+          "Stage",
+          "Parsing and Normalisation"
+        ],
+        [
+          "Stage Status",
+          "**Not Provided**"
+        ],
+        [
+          "Report Export Mode",
+          "Word/PDF generated on demand"
+        ],
+        [
+          "Generated At",
+          "2026-06-18T15:08:37.346110+00:00"
+        ]
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "2. Parser Metadata"
+    },
+    {
+      "type": "table",
+      "columns": [
+        "Field",
+        "Value"
+      ],
+      "rows": [
+        [
+          "Parser Status",
+          "**completed**"
+        ],
+        [
+          "Parser Confidence",
+          "**High**"
+        ],
+        [
+          "Parser Confidence Score",
+          "95"
+        ],
+        [
+          "Normalised Alert Count",
+          "1"
+        ],
+        [
+          "Output Handoff",
+          "processed_alert.json is used for the Triage Agent"
+        ]
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "3. Selected Alert Summary"
+    },
+    {
+      "type": "table",
+      "columns": [
+        "Field",
+        "Value"
+      ],
+      "rows": [
+        [
+          "Alert ID",
+          "ALERT-CACHE-V2"
+        ],
+        [
+          "Incident ID",
+          "TKT-CACHE-0001"
+        ],
+        [
+          "Alert Name",
+          "Export Cache Parser Test"
+        ],
+        [
+          "Alert Time",
+          "2026-06-18T10:00:00Z"
+        ],
+        [
+          "Severity",
+          "High"
+        ],
+        [
+          "Risk Score",
+          "82"
+        ],
+        [
+          "Hosts",
+          "wkstn-cache-001"
+        ],
+        [
+          "Users",
+          "alice"
+        ]
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "4. Normalised SOC Fields"
+    },
+    {
+      "type": "table",
+      "columns": [
+        "Field",
+        "Extracted Value"
+      ],
+      "rows": [
+        [
+          "Source IPs",
+          "10.0.0.5"
+        ],
+        [
+          "Destination IPs",
+          "8.8.8.8"
+        ],
+        [
+          "Internal IPs",
+          "Not Provided"
+        ],
+        [
+          "External IPs",
+          "Not Provided"
+        ],
+        [
+          "Source Ports",
+          "Not Provided"
+        ],
+        [
+          "Destination Ports",
+          "Not Provided"
+        ],
+        [
+          "Services",
+          "Not Provided"
+        ],
+        [
+          "Emails",
+          "Not Provided"
+        ],
+        [
+          "File Names",
+          "Not Provided"
+        ],
+        [
+          "File Hashes",
+          "44d88612fea8a8f36de82e1278abb02f"
+        ],
+        [
+          "Process Names",
+          "powershell.exe"
+        ],
+        [
+          "MITRE Technique IDs",
+          "Not Provided"
+        ]
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "5. LLM Normalisation Quality Assessment"
+    },
+    {
+      "type": "paragraph",
+      "text": "Parser confidence is High with score 95. No major missing parser fields were recorded."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "6. LLM Analyst Interpretation"
+    },
+    {
+      "type": "paragraph",
+      "text": "Severity is High. Hosts: wkstn-cache-001. File hashes: 44d88612fea8a8f36de82e1278abb02f."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "7. Parser Quality and Missing Fields"
+    },
+    {
+      "type": "paragraph",
+      "text": "No important parser fields were recorded as missing."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "8. Parser Warnings"
+    },
+    {
+      "type": "paragraph",
+      "text": "No parser warnings were recorded."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "9. Downstream Handoff to Triage Agent"
+    },
+    {
+      "type": "paragraph",
+      "text": "Parser JSON output is ready for the Triage Agent once processed_alert.json has been written."
+    },
+    {
+      "type": "paragraph",
+      "text": "Use processed_alert.json as the source-of-truth input for the Triage Agent. Do not rely on PDF/Word exports for machine handoff."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "10. Output File References"
+    },
+    {
+      "type": "table",
+      "columns": [
+        "Output",
+        "Status"
+      ],
+      "rows": [
+        [
+          "processed_alert.json",
+          "Machine-readable handoff to Triage"
+        ],
+        [
+          "soc_context_normalised_alert.json",
+          "Clean normalised SOC context"
+        ],
+        [
+          "soc_context_parser_summary.json",
+          "Parser confidence and missing-field summary"
+        ],
+        [
+          "Word Export",
+          "Generated only when Download Word is clicked"
+        ],
+        [
+          "PDF Export",
+          "Generated only when Download PDF is clicked"
+        ]
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "11. Analyst Review Notes"
+    },
+    {
+      "type": "table",
+      "columns": [
+        "Field",
+        "Analyst Update"
+      ],
+      "rows": [
+        [
+          "Parser Output Accepted",
+          ""
+        ],
+        [
+          "Important Fields Validated",
+          ""
+        ],
+        [
+          "Missing Fields Accepted",
+          ""
+        ],
+        [
+          "Reviewed By",
+          ""
+        ],
+        [
+          "Review Completed At",
+          ""
+        ]
+      ]
+    }
+  ]
+}

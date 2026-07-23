@@ -1,0 +1,72 @@
+SOC Analyst Review
+
+1. Review Metadata
+Incident ID: INC-WANNACRY-TEST
+Alert ID: NW-WCRY-445-0001
+Report Status: Generated for analyst review
+Final Analyst Review Status: Requires final analyst review
+Report Generation Approval Status: approved
+Report Generation Approved By: Soong Yang
+Containment Approval Status: Pending analyst approval
+Containment Execution Status: not contained
+
+2. Validation Checklist
+Incident ID present: Pass
+Alert ID present: Pass
+Severity present: Pass
+Confidence present: Pass
+Classification present: Pass
+Evidence present: Pass
+IOCs present: Pass
+LLM output quality acceptable: Pass
+IOC evidence links reviewed or summarised as gaps: Pass
+Containment approval status recorded: Pass
+
+3. LLM Analyst Review Guidance
+The SOC analyst should review this case by validating the evidence that supports the Critical severity, High confidence, and Likely True Positive classification. The most important review areas are the affected scope (FINANCE-WKS-017 (Pending analyst validation, Pending analyst validation criticality, Endpoint)), the affected user context (ACME\lim.huiwen (Pending analyst validation, Pending analyst validation, MFA: Pending analyst validation)), suspicious indicators (No malicious or suspicious IOCs provided), and the timeline sequence (Alert first observed by monitoring source. Triage completed and severity/confidence assigned. Investigation completed or completed with limitations. SOC analyst approval decision recorded. Report generated for SOC analyst review.). The analyst should confirm whether the evidence supports containment, escalation, closure, or further investigation, especially because these validation items remain open: Medium: No additional host telemetry was supplied. If containment is disruptive, the analyst should confirm the approval status (approved) and containment status (not_contained) before action is taken. Formal chain-of-custody metadata was not supplied in the current source context. Evidence IDs in this report are reporting references only and should be validated against the source case folder or SIEM export before legal or forensic use. Any finding that cannot be verified from the provided evidence should remain marked as not confirmed rather than being treated as a confirmed compromise.
+
+3.1 LLM-Generated SOC Analyst Review Checklist
+1. Confirm that the incident ID, alert ID, severity (Critical), confidence (High), and classification (Likely True Positive) match the latest triage and investigation records. 2. Validate the affected scope by checking whether FINANCE-WKS-017 (Pending analyst validation, Pending analyst validation criticality, Endpoint) and ACME\lim.huiwen (Pending analyst validation, Pending analyst validation, MFA: Pending analyst validation) are present in the original alert, endpoint telemetry, identity logs, or NetWitness evidence. 3. Review the listed IOCs and supporting evidence references, especially No malicious or suspicious IOCs provided, before blocking, isolating, or escalating based on indicator reputation. 4. Reconstruct the timeline using the available events (Alert first observed by monitoring source. Triage completed and severity/confidence assigned. Investigation completed or completed with limitations. SOC analyst approval decision recorded. Report generated for SOC analyst review.) and confirm whether payload execution, persistence, credential exposure, lateral movement, data access, or exfiltration is not confirmed in the provided evidence. 5. Compare the technical evidence against the mapped MITRE ATT&CK context (Impact: T1486 Data Encrypted for Impact) and record whether each mapped behaviour is observed, suggested, or still pending validation. 6. Review unresolved evidence gaps (Medium: No additional host telemetry was supplied.) and collect the required endpoint, identity, network, email, or application logs before closure. 7. Decide whether containment or approval should proceed by checking the current approval status (approved) and containment status (not_contained). 8. Record the final analyst decision, including whether the case should be escalated, contained, closed as false positive, or kept open for further investigation.
+
+4. Evidence Quality Checks
+- Confirm that each major finding has evidence references.
+- Confirm that missing facts are listed as evidence gaps.
+- Confirm that no unsupported IOCs, users, hosts, or timelines were created by the Reporting Agent.
+- Confirm that RAG context is used only for policy/procedure guidance, not incident facts.
+- Validate whether suspicious PowerShell execution completed successfully.
+- Validate whether credential exposure, mailbox rule abuse, OAuth abuse, or session misuse occurred.
+- Validate whether similar phishing emails were delivered to other recipients.
+- Validate whether any IOC without a displayed evidence reference requires additional NetWitness evidence.
+- Confirm whether the LLM narrative was accepted, partially replaced by fallback, or requires analyst correction.
+
+5. Missing Information
+Missing Field
+No additional host telemetry was supplied.
+
+6. Analyst Corrections
+Severity: 
+Confidence: 
+Classification: 
+Executive Summary: 
+Recommended Actions: 
+Evidence Gaps: 
+
+7. Approval Decision
+Report generation approval status: Approved by Soong Yang.
+Containment approval status: Pending Analyst Approval.
+Recommended containment action: Isolate FINANCE-WKS-017 from the network pending SOC Analyst Approval.
+Containment execution status: Not Contained.
+Final analyst review status: Requires Final Analyst Review.
+
+8. Learning Loop Feedback
+Learning updates should not be stored in ChromaDB unless a SOC analyst approves them.
+Update report writing SOP: Requires analyst decision
+Update phishing playbook: Requires analyst decision
+Store prior case summary: Requires analyst decision
+Store false positive pattern: Requires analyst decision
+
+9. Sign-Off
+Reviewed By: 
+Review Completed At: 
+Final Decision: 
+Digital Sign-Off:

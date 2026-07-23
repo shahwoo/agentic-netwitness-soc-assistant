@@ -1,0 +1,56 @@
+SOC Triage Review
+Incident ID: INC-WANNACRY-TEST
+Alert ID: NW-WCRY-445-0001
+Report Status: Generated for analyst review
+Data Consistency: 
+Severity: Critical
+Confidence: High
+Classification: Likely True Positive
+Likely Scenario: WannaCry ransomware activity
+
+1. Case Summary
+This incident is assessed as a Critical-severity, High-confidence Likely True Positive involving WannaCry ransomware activity. The known affected scope is FINANCE-WKS-017 (Pending analyst validation, Pending analyst validation criticality, Endpoint) and ACME\lim.huiwen (Pending analyst validation, Pending analyst validation, MFA: Pending analyst validation). The case is supported by EV-001: severity: Critical. EV-002: risk_score: 98.0. EV-003: host: FINANCE-WKS-017. EV-004: ip: 10.20.14.117. EV-005: username: ACME\\lim.huiwen. Malicious or suspicious indicators include No malicious or suspicious IOCs provided. Containment is currently not_contained. Report generation approval status: Approved by Soong Yang. Containment approval status: Pending Analyst Approval. Recommended containment action: Isolate FINANCE-WKS-017 from the network pending SOC Analyst Approval. Containment execution status: Not Contained. Final analyst review status: Requires Final Analyst Review. Data impact assessment: No evidence of data access, data exfiltration, encryption impact, or personal data exposure was provided in the current telemetry. These items remain unresolved and require analyst validation before closure or notification decisions.
+- Data access: No evidence provided, requires validation
+- Data exfiltration: No evidence provided, requires validation
+- Encryption / modification / deletion: Not confirmed by supplied host telemetry
+- Personal data involvement: Cannot determine from current evidence
+- Notification requirement: Legal / Compliance decision only if data impact is confirmed
+- Business impact context: Current business impact depends on validated affected assets, users, data access, and service disruption evidence.
+- Security risk context: Security risk is tied to the WannaCry ransomware activity scenario and should be validated using the listed evidence and gaps. The report is not finalised because these validation items remain open: Medium: No additional host telemetry was supplied.
+
+2. Evidence Summary
+- The incident classification is Likely True Positive.: Evidence strength:. Limitation:
+- Affected scope has available context.: Evidence strength:. Limitation:
+- Approval status is approved.: Evidence strength:. Limitation:
+
+3. Affected Scope
+- Asset: FINANCE-WKS-017 | IP: 10.20.14.117 | Criticality: Pending analyst validation | Function: Pending analyst validation
+- User: ACME\lim.huiwen | Role: Pending analyst validation | Privilege: Pending analyst validation | MFA: Pending analyst validation
+
+4. IOCs and Threat Intelligence
+- 104.17.244.81 (ip) | Reputation: -113 | Source: VirusTotal
+- ed01ebfbc9eb5bbea545af4d01bf5f1071661840480439c6e5babe8e080e41aa (sha256) | Reputation: -2986 | Source: VirusTotal
+- www.iuqerfsodp9ifjaposdfjhgosurijfaewrwergwea.com (domain) | Reputation: -165 | Source: VirusTotal
+- http://www.iuqerfsodp9ifjaposdfjhgosurijfaewrwergwea.com/ (url) | Reputation: No external reputation supplied | Source: Reporting Context
+- mssecsvc.exe (file_name) | Reputation: No external reputation supplied | Source: Reporting Context
+- 10.20.14.117 (ip) | Reputation: No external reputation supplied | Source: NetWitness Alert
+- C:\Windows\mssecsvc.exe (process_path) | Reputation: No external reputation supplied | Source: enriched_alert
+- lsass.exe (file_name) | Reputation: No external reputation supplied | Source: Reporting Context
+- C:\Windows\mssecsvc.exe -m security (command_line) | Reputation: No external reputation supplied | Source: Reporting Context
+
+5. Analyst Review Checklist
+1. Confirm that the incident ID, alert ID, severity (Critical), confidence (High), and classification (Likely True Positive) match the latest triage and investigation records. 2. Validate the affected scope by checking whether FINANCE-WKS-017 (Pending analyst validation, Pending analyst validation criticality, Endpoint) and ACME\lim.huiwen (Pending analyst validation, Pending analyst validation, MFA: Pending analyst validation) are present in the original alert, endpoint telemetry, identity logs, or NetWitness evidence. 3. Review the listed IOCs and supporting evidence references, especially No malicious or suspicious IOCs provided, before blocking, isolating, or escalating based on indicator reputation. 4. Reconstruct the timeline using the available events (Alert first observed by monitoring source. Triage completed and severity/confidence assigned. Investigation completed or completed with limitations. SOC analyst approval decision recorded. Report generated for SOC analyst review.) and confirm whether payload execution, persistence, credential exposure, lateral movement, data access, or exfiltration is not confirmed in the provided evidence. 5. Compare the technical evidence against the mapped MITRE ATT&CK context (Impact: T1486 Data Encrypted for Impact) and record whether each mapped behaviour is observed, suggested, or still pending validation. 6. Review unresolved evidence gaps (Medium: No additional host telemetry was supplied.) and collect the required endpoint, identity, network, email, or application logs before closure. 7. Decide whether containment or approval should proceed by checking the current approval status (approved) and containment status (not_contained). 8. Record the final analyst decision, including whether the case should be escalated, contained, closed as false positive, or kept open for further investigation.
+
+6. Evidence Gaps
+- Medium: No additional host telemetry was supplied.
+
+7. Recommended Actions
+- P1: Isolate FINANCE-WKS-017 from the network pending SOC Analyst Approval. | Owner: Endpoint Response Team | Approval Required: Yes
+- P2: Validate whether mssecsvc.exe is present and running on the host. | Owner: Endpoint Response Team | Approval Required: No
+
+8. Decision Required
+- Approval status: approved
+- Containment recommended: Not Provided
+- Containment action: Isolate FINANCE-WKS-017 from the network pending SOC Analyst Approval.
+- Containment execution status: not_contained
+- Blocking reason: Not Provided

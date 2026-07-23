@@ -1,0 +1,115 @@
+Technical Findings
+
+1. Technical Context
+Incident ID: INC-WANNACRY-TEST
+Alert ID: NW-WCRY-445-0001
+Severity: Critical
+Confidence: High
+Classification: Likely True Positive
+Likely Scenario: WannaCry ransomware activity
+Scenario Type: Requires analyst validation
+Report Status: Generated for analyst review
+Investigation Completeness: Completed with evidence gaps
+Reporting Mode: with_limitations
+Investigation completed with evidence gaps. The selected playbook could not be fully answered because required telemetry was missing. Reporting proceeds with limitations documented for SOC analyst validation.
+
+2. Evidence Inventory
+Evidence register summary:
+- EV-001: Reporting Context, Evidence, severity: Critical
+- EV-002: Reporting Context, Evidence, risk_score: 98.0
+- EV-003: Reporting Context, Evidence, host: FINANCE-WKS-017
+- EV-004: Reporting Context, Evidence, ip: 10.20.14.117
+- EV-005: Reporting Context, Evidence, username: ACME\\lim.huiwen
+- EV-006: Reporting Context, Evidence, file_name: mssecsvc.exe
+- EV-007: Reporting Context, Evidence, process_path: C:\Windows\mssecsvc.exe
+- EV-008: Reporting Context, Evidence, parent_process_name: lsass.exe
+- Evidence gap: No additional host telemetry was supplied.
+Evidence ID | Source | Type | Description
+EV-001 | Reporting Context | Evidence | severity: Critical
+EV-002 | Reporting Context | Evidence | risk_score: 98.0
+EV-003 | Reporting Context | Evidence | host: FINANCE-WKS-017
+EV-004 | Reporting Context | Evidence | ip: 10.20.14.117
+EV-005 | Reporting Context | Evidence | username: ACME\\lim.huiwen
+EV-006 | Reporting Context | Evidence | file_name: mssecsvc.exe
+EV-007 | Reporting Context | Evidence | process_path: C:\Windows\mssecsvc.exe
+EV-008 | Reporting Context | Evidence | parent_process_name: lsass.exe
+EV-009 | Reporting Context | Evidence | command_line: C:\Windows\mssecsvc.exe -m security
+EV-010 | Reporting Context | Evidence | destination_ip: 104.17.244.81
+EV-011 | Reporting Context | Evidence | destination_port: 80
+EV-012 | Reporting Context | Evidence | protocol: HTTP
+EV-013 | Reporting Context | Evidence | domain: www.iuqerfsodp9ifjaposdfjhgosurijfaewrwergwea.com
+EV-014 | Reporting Context | Evidence | url: http://www.iuqerfsodp9ifjaposdfjhgosurijfaewrwergwea.com/
+EV-015 | Reporting Context | Evidence | sha256: ed01ebfbc9eb5bbea545af4d01bf5f1071661840480439c6e5babe8e080e41aa
+EV-016 | Reporting Context | Evidence | mitre_technique_id: T1486
+> Timestamps were not supplied with the current export. Evidence IDs are generated from available reporting context for analyst traceability.
+> Confidence values were not supplied with the current export and remain pending analyst validation.
+> Raw event references were not supplied with the current export. Evidence IDs are generated from available reporting context for analyst traceability.
+
+3. Evidence Reliability Guidance
+Evidence Type | Reliability | Analyst Note
+Raw SIEM / NetWitness logs | High | Validate timestamp, parser quality, and source integrity.
+Endpoint telemetry | High | Validate process tree, file artefacts, persistence, and user context.
+Network telemetry | High | Validate direction, destination, protocol, and whether traffic succeeded.
+Threat intelligence | Medium | Treat as context until supported by local telemetry.
+Analyst notes | Medium | Useful for reasoning, but should reference technical evidence.
+
+4. Affected Assets
+Affected assets summary:
+- FINANCE-WKS-017: 10.20.14.117, Endpoint
+- Evidence gap: No additional host telemetry was supplied.
+Hostname | IP Address | Type
+FINANCE-WKS-017 | 10.20.14.117 | Endpoint
+
+5. Affected Users
+Affected users summary:
+- ACME\lim.huiwen (values unavailable)
+- Evidence gap: No additional host telemetry was supplied.
+Username
+ACME\lim.huiwen
+
+6. IOC Analysis
+IOC | Type | Reputation | Confidence | Source | Evidence
+104.17.244.81 | ip | -113 | High | VirusTotal | EV-010
+ed01ebfbc9eb5bbea545af4d01bf5f1071661840480439c6e5babe8e080e41aa | sha256 | -2986 | High | VirusTotal | EV-015
+www.iuqerfsodp9ifjaposdfjhgosurijfaewrwergwea.com | domain | -165 | High | VirusTotal | EV-013
+http://www.iuqerfsodp9ifjaposdfjhgosurijfaewrwergwea.com/ | url | No external reputation supplied | Observed | Reporting Context | EV-014
+mssecsvc.exe | file_name | No external reputation supplied | Observed | Reporting Context | EV-006
+10.20.14.117 | ip | No external reputation supplied | Observed | NetWitness Alert | EV-004
+C:\Windows\mssecsvc.exe | process_path | No external reputation supplied | Observed | enriched_alert | EV-007
+lsass.exe | file_name | No external reputation supplied | Observed | Reporting Context | EV-008
+C:\Windows\mssecsvc.exe -m security | command_line | No external reputation supplied | Observed | Reporting Context | EV-009
+
+7. Evidence-Backed Findings
+Finding | Status | Confidence | Evidence References | Interpretation
+The incident classification is Likely True Positive. | Fact | High | investigation_result.json | Classification is taken from investigation output first, with triage as fallback.
+Affected scope has available context. | Fact | High | EV-003, EV-004 | Assets and users are derived only from supplied ticket, alert, triage, and investigation context.
+Approval status is approved. | Fact | High | approval_result.json | Approval data is recorded only from analyst approval context.
+
+8. Timeline
+Time | Event | Source | Evidence | Significance
+| Alert first observed by monitoring source | RSA NetWitness SIEM | enriched_alert | Supports analyst timeline reconstruction.
+| Triage completed and severity/confidence assigned | Triage Agent | triage_result.json | Supports analyst timeline reconstruction.
+| Investigation completed or completed with limitations | Investigation Agent | investigation_result.json | Supports analyst timeline reconstruction.
+| SOC analyst approval decision recorded | SOC Analyst | approval_result.json | Supports analyst timeline reconstruction.
+2026-07-03T09:22:16.235255+00:00 | Report generated for SOC analyst review | Reporting Agent | final_report | Supports analyst timeline reconstruction.
+
+9. MITRE ATT&CK / Kill Chain Mapping
+Tactic | Technique | Reason / Evidence | Confidence
+Impact | T1486 Data Encrypted for Impact | Recovered from deterministic report context. | High
+
+10. Evidence Gaps
+Priority | Gap | Required Data
+Medium | No additional host telemetry was supplied. | None
+
+11. Technical Conclusion
+From a SOC investigation perspective, the available evidence shows alert first observed by monitoring source, followed by triage completed and severity/confidence assigned, followed by investigation completed or completed with limitations. This activity is consistent with WannaCry ransomware activity, supported by EV-001: severity: Critical. EV-002: risk_score: 98.0. EV-003: host: FINANCE-WKS-017. EV-004: ip: 10.20.14.117. EV-005: username: ACME\\lim.huiwen. MITRE ATT&CK context includes Impact: T1486 Data Encrypted for Impact.
+The current evidence supports a Critical-severity, High-confidence Likely True Positive, but it does not fully confirm whether payload execution completed, whether credentials or sessions were exposed, or whether follow-on access occurred. The analyst should validate script block logs, process completion status, identity logs, mailbox audit logs, and outbound network telemetry before closure.
+Formal chain-of-custody metadata was not supplied in the current source context. Evidence IDs in this report are reporting references only and should be validated against the source case folder or SIEM export before legal or forensic use.
+The report is suitable for SOC analyst review with status Generated for analyst review. Before closure, the analyst should validate unresolved evidence gaps, confirm containment or approval decisions, and determine whether any business, data, regulatory, or recovery impact exists. Any disruptive action, such as endpoint isolation or credential revocation, should follow the recorded approval workflow. Data impact assessment: No evidence of data access, data exfiltration, encryption impact, or personal data exposure was provided in the current telemetry. These items remain unresolved and require analyst validation before closure or notification decisions.
+- Data access: No evidence provided, requires validation
+- Data exfiltration: No evidence provided, requires validation
+- Encryption / modification / deletion: Not confirmed by supplied host telemetry
+- Personal data involvement: Cannot determine from current evidence
+- Notification requirement: Legal / Compliance decision only if data impact is confirmed
+- Business impact context: Current business impact depends on validated affected assets, users, data access, and service disruption evidence.
+- Security risk context: Security risk is tied to the WannaCry ransomware activity scenario and should be validated using the listed evidence and gaps.

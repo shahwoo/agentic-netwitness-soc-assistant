@@ -1,0 +1,51 @@
+{
+  "id": "Incident-008",
+  "metadata": {
+    "severity": "HIGH",
+    "status": "TRIAGED",
+    "assigned_analyst": "Automated Agent",
+    "created_at": 1784693468.930663,
+    "updated_at": 1784697349.700651,
+    "source_type": "LogIndicators",
+    "similar_to_incident": "Incident-007"
+  },
+  "raw_alerts": [
+    {
+      "id": "INC-53018",
+      "document": "Incident INC-53018 details are as follows: The classification alert type is Compromised asset (non-critical). The classification soc classification is HIGH. The incident details description is High risk alerts from NetWitness Endpoint on host KELLYWANG (IP 192.168.10.204) with traffic to 192.168.10.202 suggest possible lateral movement or data exfiltration. Unknown processes and odd device behavior indicate potential compromise.. The incident details mitre att&ck tactic is Lateral Movement. The incident details mitre att&ck technique is T1021 Remote Services. The incident details timestamp is 2025-11-18T03:18:37+00:00. The incident id is INC-53018. The log indicators computer name is KELLYWANG. The log indicators operating system is Unknown. The log indicators target user is Unknown. The network indicators destination ip is 192.168.10.202. The network indicators source ip is 192.168.10.204. The observed indicators destination ips lists: 192.168.10.202. The observed indicators entity from alert title is KELLYWANG. The observed indicators hostnames lists: KELLYWANG. The observed indicators ip addresses lists: 192.168.10.202, 192.168.10.204. The observed indicators source ips lists: 192.168.10.204. The observed indicators usernames lists: . The source incident summary is . The source incident title is High Risk Alerts: NetWitness Endpoint for KELLYWANG. The triage ioc summary is [CONFIDENTIALITY] Changes in network traffic telemetry (known bad IPs/domains), Unknown traffic originating from/terminating on the device — Traffic between internal IPs 192.168.10.204 and 192.168.10.202 may indicate lateral movement or data exfiltration; unknown traffic from endpoint alerts.\n[INTEGRITY] Odd device/platform behaviour, Unknown process running — High risk alerts from NetWitness Endpoint suggest odd device behavior and unknown processes running.. The triage matched ioc count is 4. The triage matched metakeys lists: DestinationIp, SourceIp, alert.type, bytes.out, device.type, domain, event.type, host.name, ip.dst, ip.src, network.service, port.dst, process.name, process.path, process.pid, protocol. The triage metakey values ip.dst is 192.168.10.202. The triage metakey values ip.src is 192.168.10.204. The triage risk rating likelihood adverse impact is High. The triage risk rating likelihood initiation is High. The triage risk rating likelihood occurrence is Medium. The triage risk rating overall risk is High. The triage risk rating rationale is High risk score (70) and internal IP traffic suggest adversary is highly likely to initiate, occurrence is medium due to low alert count, and adverse impact is high due to potential lateral movement or data exfiltration.. The triage ticket unc is #00036A.",
+      "metadata": {
+        "incident_id": "INC-53018",
+        "source_type": "LogIndicators",
+        "username": "Unknown",
+        "hostname": "KELLYWANG",
+        "timestamp_str": "2025-11-18T03:18:37+00:00",
+        "timestamp_epoch": 1763435917,
+        "tactic": "Lateral Movement",
+        "technique": "T1021 Remote Services",
+        "ips": "192.168.10.204,192.168.10.202",
+        "sha256s": "",
+        "md5s": "",
+        "emails": "",
+        "domains": "port.dst,device.type,ip.src,event.type,host.name,alert.type,ip.dst,bytes.out,process.pid,process.path,process.name"
+      }
+    }
+  ],
+  "summary_text": "On 2025-11-18 at 03:18 UTC, NetWitness Endpoint generated high-risk alerts on host KELLYWANG (IP 192.168.10.204). The alerts indicated unknown processes running and odd device behavior. Network telemetry showed traffic from KELLYWANG (192.168.10.204) to another internal host at 192.168.10.202, suggesting possible lateral movement or data exfiltration. The MITRE ATT&CK technique identified was T1021 (Remote Services) under the Lateral Movement tactic. The triage identified 4 matched IOCs including changes in network traffic telemetry, unknown traffic between internal IPs, odd device behavior, and unknown processes running. The overall risk was assessed as High.",
+  "indicators": [
+    "port.dst",
+    "device.type",
+    "ip.src",
+    "event.type",
+    "kellywang",
+    "host.name",
+    "192.168.10.204",
+    "alert.type",
+    "ip.dst",
+    "bytes.out",
+    "192.168.10.202",
+    "process.pid",
+    "process.path",
+    "process.name",
+    "192.168.10."
+  ]
+}

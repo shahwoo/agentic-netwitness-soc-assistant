@@ -1,0 +1,28 @@
+[
+  {
+    "type": "heading",
+    "level": 1,
+    "text": "Executive Summary"
+  },
+  {
+    "type": "table",
+    "columns": [
+      "Field",
+      "Value"
+    ],
+    "rows": [
+      [
+        "Incident ID",
+        "INC-STRUCTURED-0001"
+      ],
+      [
+        "Analyst Decision",
+        "Reviewed and approved"
+      ]
+    ]
+  },
+  {
+    "type": "paragraph",
+    "text": "SOC analyst edited this report inside dashboard tables."
+  }
+]
