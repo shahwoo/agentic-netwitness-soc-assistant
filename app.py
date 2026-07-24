@@ -3269,11 +3269,13 @@ with tab_dash:
                 cnt   = by_sev.get(s, 0)
                 pct   = cnt / sev_total
                 color = SEV_COLORS[s]
+                _sev_label = {"CRITICAL": "Critical", "HIGH": "High",
+                              "MEDIUM": "Medium", "LOW": "Low"}.get(s, s)
                 st.markdown(
                     f'<div style="margin:8px 0">'
                     f'<div style="display:flex;justify-content:space-between;'
                     f'font-family:var(--mono);font-size:0.63rem;margin-bottom:4px">'
-                    f'<span style="color:{color}">{{"CRITICAL":"Critical","HIGH":"High","MEDIUM":"Medium","LOW":"Low"}}.get(s, s)</span>'
+                    f'<span style="color:{color}">{_sev_label}</span>'
                     f'<span style="color:var(--muted)">{cnt}</span></div>'
                     f'<div style="background:#0A1420;border-radius:3px;height:7px">'
                     f'<div style="width:{pct*100:.1f}%;height:100%;border-radius:3px;'
@@ -3658,14 +3660,28 @@ with tab_inc:
             with st.container(key=f"hist_card_{inc_id}", border=True):
                 _cl, _cr = st.columns([3.4, 2.6])
                 with _cl:
-                    st.markdown(_ui.case_header_left(
-                        inc_id, title, sev=sev, status=status,
-                        subtitle=(f"{alerts} alert(s)" if str(alerts) != "—" else "NetWitness incident"),
-                    ), unsafe_allow_html=True)
+                    # Guarded: if ui_components is stale (e.g. a Streamlit hot-reload
+                    # cached an older module before case_header_left existed), fall
+                    # back to a simple card instead of white-screening the app.
+                    try:
+                        st.markdown(_ui.case_header_left(
+                            inc_id, title, sev=sev, status=status,
+                            subtitle=(f"{alerts} alert(s)" if str(alerts) != "—" else "NetWitness incident"),
+                        ), unsafe_allow_html=True)
+                    except Exception:
+                        st.markdown(
+                            f'<div class="card card-{sev.lower()}">'
+                            f'<span class="badge badge-{sev.lower()}">{sev}</span> '
+                            f'<strong>{title}</strong> · <code>{inc_id}</code></div>',
+                            unsafe_allow_html=True,
+                        )
                 with _cr:
-                    st.markdown(_ui.case_header_right(
-                        metas=[("Owner", assignee), ("Created", created), ("Alerts", str(alerts))]
-                    ), unsafe_allow_html=True)
+                    try:
+                        st.markdown(_ui.case_header_right(
+                            metas=[("Owner", assignee), ("Created", created), ("Alerts", str(alerts))]
+                        ), unsafe_allow_html=True)
+                    except Exception:
+                        pass
                     _b1, _b2, _b3, _b4 = st.columns([0.9, 1.4, 0.8, 1.1])
                     do_triage = _b1.button("Triage", key=f"chat_{inc_id}", use_container_width=True)
                     do_json   = _b2.button("View Raw JSON", key=f"json_{inc_id}", use_container_width=True)
