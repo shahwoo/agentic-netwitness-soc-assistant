@@ -4281,6 +4281,10 @@ with tab_chat:
               help="When on, the pipeline pauses after triage and after "
                    "investigation. Review each agent's output on this board, "
                    "then click Approve to hand off to the next agent.")
+    if st.session_state.get("manual_review"):
+        st.caption("Manual review is **armed** — turn it on **before** you run a "
+                   "triage. The pipeline will pause after triage and wait for "
+                   "your approval before each agent runs.")
 
     _board_live: dict = {}
     _b_cols = st.columns(3)
@@ -4298,14 +4302,26 @@ with tab_chat:
     _hitl_run = _workflow_store().get("run")
     if _hitl_run and _hitl_run.get("manual_review") and not _hitl_run.get("done"):
         _await = _hitl_run.get("awaiting")
-        if _await == "investigate" and not _hitl_run.get("_spawned"):
-            st.info("**Triage complete.** Review it above, then approve to hand "
-                    "off to the Investigation agent.")
-            if st.button("Approve → Investigate", type="primary",
-                         use_container_width=True, key="hitl_go_inv"):
+        if _await in ("investigate", "report_only") and not _hitl_run.get("_spawned"):
+            if _await == "investigate":
+                st.info("**Triage complete.** Review it above, then approve to "
+                        "hand off to the Investigation agent.")
+                _lbl = "Approve → Investigate"
+            else:
+                st.info("**Triage complete** (no investigation needed). Review it "
+                        "above, then approve to generate the report.")
+                _lbl = "Approve → Generate report"
+            if st.button(_lbl, type="primary", use_container_width=True,
+                         key="hitl_go_start"):
                 import threading as _th2
                 _hitl_run["_spawned"] = True
                 _hitl_run["awaiting"] = None
+                if _await == "report_only":
+                    # No investigation to gate — this click IS the pre-report
+                    # approval, so let the worker go straight to reporting.
+                    _g = _hitl_run.get("gate_report")
+                    if _g is not None:
+                        _g.set()
                 _th2.Thread(target=_workflow_worker,
                             args=(_hitl_run, _hitl_run["_tri"],
                                   _hitl_run["_incident"]),
@@ -4769,11 +4785,12 @@ with tab_chat:
                     "wf_md": _wf_md,
                     "chroma_queue": [],
                 }
-                # HITL: optional manual-review gates. gate_report blocks the
-                # worker before the reporting stage; pre-set it when review is OFF
-                # so the pipeline auto-chains EXACTLY as before. Gate 1
-                # (triage→investigation) is enforced by deferring the worker
-                # spawn until the analyst approves on the Agent Board.
+                # HITL: optional manual-review gates. When review is OFF the
+                # worker auto-spawns and gate_report is pre-set, so the pipeline
+                # auto-chains EXACTLY as before. When review is ON we NEVER spawn
+                # the worker here — we hold at triage and let the analyst approve
+                # each hand-off on the Agent Board (Gate 1 = triage → next agent;
+                # Gate 2 = investigation → reporting, enforced inside the worker).
                 _manual = bool(st.session_state.get("manual_review"))
                 _gate = _threading.Event()
                 if not _manual:
@@ -4783,13 +4800,14 @@ with tab_chat:
                 _run_rec["_tri"]          = _tri
                 _run_rec["_incident"]     = active_inc
                 _workflow_store()["run"]  = _run_rec
-                if _manual and _investigate:
-                    # Gate 1 — hold at triage until the analyst approves.
-                    _run_rec["awaiting"] = "investigate"
-                    reply += ("\n\n---\n\n**Manual review is ON.** Triage is "
-                              "done — review it, then click **Approve → "
-                              "Investigate** on the **Agent Board** above to "
-                              "run the investigation agent.")
+                if _manual:
+                    # Hold at triage — NO worker spawns until the analyst approves.
+                    _run_rec["awaiting"] = "investigate" if _investigate else "report_only"
+                    _nxt = "Investigate" if _investigate else "Generate report"
+                    reply += (f"\n\n---\n\n**Manual review is ON.** Triage is "
+                              f"done — review it above, then click **Approve → "
+                              f"{_nxt}** on the **Agent Board** to continue. "
+                              f"Nothing runs until you approve.")
                 else:
                     _threading.Thread(target=_workflow_worker,
                                       args=(_run_rec, _tri, active_inc),
@@ -4797,11 +4815,8 @@ with tab_chat:
                     reply += ("\n\n---\n\n**Investigation & reporting are now "
                               "running in the background.** Watch them live on "
                               "the **Agent Board** above — clicking around no "
-                              "longer interrupts the run."
-                              + (" You'll be asked to **approve** before the "
-                                 "final report is generated."
-                                 if _manual else "")
-                              + " Results post here when finished.")
+                              "longer interrupts the run. Results post here "
+                              "when finished.")
             else:
                 # Triage failed or workflow module unavailable — record the
                 # alert only; downstream agents need a valid triage result.
