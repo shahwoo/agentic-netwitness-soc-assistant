@@ -107,6 +107,18 @@ def _collect_asset(incident: dict, triage_result: dict | None) -> dict | None:
     return a
 
 
+def _collect_priority(incident: dict, triage_result: dict | None,
+                      ti_result: dict | None, asset: dict | None) -> dict | None:
+    try:
+        from triage_priority import build_priority
+    except Exception:
+        return None
+    p = _safe(build_priority, incident, triage_result, ti_result, asset)
+    if not isinstance(p, dict) or not p.get("available"):
+        return None
+    return p
+
+
 def _collect_mitigation(incident: dict, triage_result: dict | None,
                         ti_result: dict | None, asset: dict | None) -> dict | None:
     try:
@@ -325,6 +337,15 @@ def _verdict_lines(v: dict) -> list[str]:
     return lines
 
 
+def _priority_lines(p: dict) -> list[str]:
+    lines = [f"### Response Priority — {p.get('priority')} (SLA: {p.get('sla')})",
+             f"- Score {p.get('score')}/{p.get('max_score')} — {p.get('rationale')}"]
+    if p.get("data_sensitivity"):
+        lines.append(f"- Regulated data in scope: **{', '.join(p['data_sensitivity'])}**")
+    lines.append(f"- _{p.get('note')}_")
+    return lines
+
+
 def _correlation_lines(c: dict, limit: int = 5) -> list[str]:
     lines: list[str] = []
     results = [r for r in (c.get("results") or []) if r.get("confidence") != "none"]
@@ -372,8 +393,10 @@ def _mitigation_lines(m: dict, limit: int = 4) -> list[str]:
 
 
 def _build_narrative(diamond, verdict, corr, mitigation, sop=None, compliance=None,
-                     final=None) -> str:
+                     final=None, priority=None) -> str:
     blocks: list[list[str]] = []
+    if priority:
+        blocks.append(_priority_lines(priority))
     if verdict:
         blocks.append(_verdict_lines(verdict))
     if diamond:
@@ -437,6 +460,7 @@ def build_skills_context(incident: dict, triage_result: dict | None = None,
     verdict = _collect_verdict(incident, triage_result, ti_result)
     corr = _collect_correlation(incident, triage_result)
     asset = _collect_asset(incident, triage_result)
+    priority = _collect_priority(incident, triage_result, ti_result, asset)
     mitigation = _collect_mitigation(incident, triage_result, ti_result, asset)
     sop = _collect_sop(incident, triage_result, investigation_result, ti_result)
     compliance = _collect_compliance(incident, triage_result, investigation_result, ti_result)
@@ -447,10 +471,12 @@ def build_skills_context(incident: dict, triage_result: dict | None = None,
     affected_assets = _assets_from_skills(asset, diamond)
     affected_users = _users_from_diamond(diamond)
     recommended_actions = _recs_from_skills(mitigation, verdict)
-    narrative = _build_narrative(diamond, verdict, corr, mitigation, sop, compliance, final)
+    narrative = _build_narrative(diamond, verdict, corr, mitigation, sop,
+                                 compliance, final, priority)
 
     ran = [name for name, obj in (("diamond_model", diamond),
                                   ("triage_verdict", verdict),
+                                  ("triage_priority", priority),
                                   ("ioc_correlation", corr),
                                   ("asset_criticality", asset),
                                   ("mitigation_mapping", mitigation),
@@ -474,6 +500,7 @@ def build_skills_context(incident: dict, triage_result: dict | None = None,
         "skills_intelligence": {
             "diamond_model": diamond,
             "unified_verdict": verdict,
+            "triage_priority": priority,
             "ioc_correlation": corr,
             "asset_criticality": asset,
             "mitigation_coverage": mitigation,
