@@ -280,6 +280,19 @@ def _workflow_worker(run: dict, tri: dict, incident: dict) -> None:
             wf_md.append(f"- Investigation: skipped "
                          f"(classification {cls} below routing threshold)")
 
+        # ── HITL gate: pause before reporting until the analyst approves ────
+        # The Event is pre-set in non-manual mode (see spawn site), so this is a
+        # no-op for the normal auto-chain and only blocks when manual review is on.
+        gate = run.get("gate_report")
+        if gate is not None and not gate.is_set():
+            run["awaiting"] = "report"
+            bset("reporting", status="queued", progress=0,
+                 think="Investigation complete — awaiting analyst approval to "
+                       "generate the report…")
+            gate.wait()
+            run["awaiting"] = None
+            bset("reporting", think="Approved by analyst — starting report")
+
         # ── Stage 3: Reporting ─────────────────────────────────────────────
         bset("reporting", status="running", think="Reporting started", progress=10)
         try:
@@ -4260,6 +4273,15 @@ with tab_chat:
             unsafe_allow_html=True,
         )
 
+    # HITL manual-review toggle — OFF (default) keeps the pipeline auto-chaining
+    # exactly as before; ON pauses after triage and after investigation for the
+    # analyst to review and click Approve before the next agent runs.
+    st.toggle("Manual review — approve each hand-off",
+              key="manual_review",
+              help="When on, the pipeline pauses after triage and after "
+                   "investigation. Review each agent's output on this board, "
+                   "then click Approve to hand off to the next agent.")
+
     _board_live: dict = {}
     _b_cols = st.columns(3)
     for _bi, (_ag, _icon, _name, _color) in enumerate(_AGENTS):
@@ -4270,6 +4292,34 @@ with tab_chat:
             if st.button("View", key=f"board_view_{_ag}", use_container_width=True):
                 st.session_state.agent_board_sel = (
                     None if st.session_state.agent_board_sel == _ag else _ag)
+                st.rerun()
+
+    # ── HITL approval controls (shown only when a run awaits the analyst) ──
+    _hitl_run = _workflow_store().get("run")
+    if _hitl_run and _hitl_run.get("manual_review") and not _hitl_run.get("done"):
+        _await = _hitl_run.get("awaiting")
+        if _await == "investigate" and not _hitl_run.get("_spawned"):
+            st.info("**Triage complete.** Review it above, then approve to hand "
+                    "off to the Investigation agent.")
+            if st.button("Approve → Investigate", type="primary",
+                         use_container_width=True, key="hitl_go_inv"):
+                import threading as _th2
+                _hitl_run["_spawned"] = True
+                _hitl_run["awaiting"] = None
+                _th2.Thread(target=_workflow_worker,
+                            args=(_hitl_run, _hitl_run["_tri"],
+                                  _hitl_run["_incident"]),
+                            daemon=True).start()
+                st.rerun()
+        elif _await == "report":
+            st.info("**Investigation complete.** Review it above, then approve "
+                    "to generate the final report.")
+            if st.button("Approve → Generate report", type="primary",
+                         use_container_width=True, key="hitl_go_rep"):
+                _g = _hitl_run.get("gate_report")
+                if _g is not None:
+                    _g.set()
+                _hitl_run["awaiting"] = None
                 st.rerun()
 
     # ── Detail panel for the selected agent (live slots) ───────────────────
@@ -4719,15 +4769,39 @@ with tab_chat:
                     "wf_md": _wf_md,
                     "chroma_queue": [],
                 }
-                _workflow_store()["run"] = _run_rec
-                _threading.Thread(target=_workflow_worker,
-                                  args=(_run_rec, _tri, active_inc),
-                                  daemon=True).start()
-                reply += ("\n\n---\n\n **Investigation & reporting are now "
-                          "running in the background.** Watch them live on the "
-                          "**Agent Board** above — clicking around no longer "
-                          "interrupts the run. Results will be posted here "
-                          "when finished.")
+                # HITL: optional manual-review gates. gate_report blocks the
+                # worker before the reporting stage; pre-set it when review is OFF
+                # so the pipeline auto-chains EXACTLY as before. Gate 1
+                # (triage→investigation) is enforced by deferring the worker
+                # spawn until the analyst approves on the Agent Board.
+                _manual = bool(st.session_state.get("manual_review"))
+                _gate = _threading.Event()
+                if not _manual:
+                    _gate.set()
+                _run_rec["manual_review"] = _manual
+                _run_rec["gate_report"]   = _gate
+                _run_rec["_tri"]          = _tri
+                _run_rec["_incident"]     = active_inc
+                _workflow_store()["run"]  = _run_rec
+                if _manual and _investigate:
+                    # Gate 1 — hold at triage until the analyst approves.
+                    _run_rec["awaiting"] = "investigate"
+                    reply += ("\n\n---\n\n**Manual review is ON.** Triage is "
+                              "done — review it, then click **Approve → "
+                              "Investigate** on the **Agent Board** above to "
+                              "run the investigation agent.")
+                else:
+                    _threading.Thread(target=_workflow_worker,
+                                      args=(_run_rec, _tri, active_inc),
+                                      daemon=True).start()
+                    reply += ("\n\n---\n\n**Investigation & reporting are now "
+                              "running in the background.** Watch them live on "
+                              "the **Agent Board** above — clicking around no "
+                              "longer interrupts the run."
+                              + (" You'll be asked to **approve** before the "
+                                 "final report is generated."
+                                 if _manual else "")
+                              + " Results post here when finished.")
             else:
                 # Triage failed or workflow module unavailable — record the
                 # alert only; downstream agents need a valid triage result.
