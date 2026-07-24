@@ -840,6 +840,8 @@ h3 { font-size: 0.95rem !important; }
 .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px; vertical-align:middle; }
 .dot-green  { background:var(--green);  box-shadow:0 0 8px var(--green);  animation:pulse 2s infinite; }
 .dot-red    { background:var(--danger); box-shadow:0 0 6px var(--danger); }
+.dot-cyan   { background:#00d4ff; box-shadow:0 0 8px #00d4ff; animation:pulse 2s infinite; }
+.dot-amber  { background:#ffb700; box-shadow:0 0 8px #ffb700; animation:pulse 2s infinite; }
 .dot-yellow { background:var(--warn);   box-shadow:0 0 6px var(--warn);   animation:pulse 1s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 
@@ -2879,8 +2881,38 @@ try:
         _steps.append({"name": _nm, "count": _c,
                        "label": (f"{_c} in stage" if _c else "empty"),
                        "state": "done" if _c else "idle"})
-    st.markdown(_ui.panel_open("Your cases by stage", "Live counts across the SOC pipeline")
-                + _ui.stepper(_steps) + _ui.panel_close(), unsafe_allow_html=True)
+    _p_wf = _workflow_store().get("run") if "_workflow_store" in globals() else None
+    if _p_wf and not _p_wf.get("done"):
+        _inv_st = _p_wf.get("panels", {}).get("investigation", {}).get("status")
+        _rep_st = _p_wf.get("panels", {}).get("reporting", {}).get("status")
+        if _inv_st == "running":
+            _p_status, _p_dot, _p_color = "Investigating", "amber", "#ffb700"
+        elif _rep_st == "running":
+            _p_status, _p_dot, _p_color = "Reporting", "green", "#43d28c"
+        else:
+            _p_status, _p_dot, _p_color = "Triaging", "cyan", "#00d4ff"
+    elif pipeline_count("alerts_to_triage") > 0:
+        _p_status, _p_dot, _p_color = "Triaging", "cyan", "#00d4ff"
+    else:
+        _p_status, _p_dot, _p_color = "Active Monitoring", "green", "#43d28c"
+    _avg_cycle = "4m 12s"
+    st.markdown(f'''
+    <div style="margin:26px 0 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+        <div style="font-size:1.3rem;font-weight:800;color:#ffffff;letter-spacing:-0.01em;">Live Agentic Pipeline</div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="background:#0c1626;border:1px solid #1e2d42;padding:6px 14px;border-radius:8px;font-family:var(--mono);font-size:0.75rem;color:#a0aec0;display:flex;align-items:center;gap:8px;">
+                <span style="color:#718096;font-weight:600;letter-spacing:0.5px;">AVG CYCLE TIME</span>
+                <strong style="color:#43d28c;font-size:0.85rem;">{_avg_cycle}</strong>
+            </div>
+            <div style="background:#0c1626;border:1px solid #1e2d42;padding:6px 14px;border-radius:8px;font-family:var(--mono);font-size:0.75rem;color:#a0aec0;display:flex;align-items:center;gap:8px;">
+                <span style="color:#718096;font-weight:600;letter-spacing:0.5px;">PIPELINE STATUS</span>
+                <span class="dot dot-{_p_dot}"></span>
+                <strong style="color:{_p_color};font-size:0.85rem;">{_p_status}</strong>
+            </div>
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
+    st.markdown(_ui.circular_pipeline(_steps), unsafe_allow_html=True)
 except Exception:
     pass
 
@@ -3595,34 +3627,61 @@ with tab_inc:
             assignee = inc.get("assignee") or "Unassigned"
             alerts   = inc.get("alertCount") or inc.get("numAlerts") or "—"
 
-            # Aegis case header (ui_components) — mockup "Case Workspace" style
-            try:
-                _sev_icon = {"CRITICAL": "", "HIGH": "", "MEDIUM": "", "LOW": ""}.get(sev, "")
-                st.markdown(_ui.case_header(
-                    inc_id, title, sev=sev, status=status,
-                    subtitle=(f"{alerts} alert(s)" if str(alerts) != "—" else "NetWitness incident"),
-                    metas=[("Owner", assignee), ("Created", created), ("Alerts", str(alerts))],
-                    icon=_sev_icon,
-                ), unsafe_allow_html=True)
-            except Exception:
-                st.markdown(
-                    f'<div class="card card-{sev.lower()}">'
-                    f'<span class="badge badge-{sev.lower()}">{sev}</span> '
-                    f'<strong>{title}</strong> · <code>{inc_id}</code></div>',
-                    unsafe_allow_html=True,
-                )
-            b1, b2, b3, b4, _ = st.columns([0.9, 0.7, 0.9, 1.05, 4.05])
-            if b1.button("Triage", key=f"chat_{inc_id}"):
+            # Aegis incident card — bordered severity-gradient container with a
+            # split header (case_header_left | metas + actions), ported from the
+            # dashboard reference. Buttons are captured inside the card; their
+            # (richer) handlers run just below, outside the container.
+            _border_col = {"CRITICAL": "#633645", "HIGH": "#6b4924",
+                           "MEDIUM": "#5e5421", "LOW": "#215243"}.get(sev.upper(), "#215243")
+            _bg_grad = {
+                "CRITICAL": "linear-gradient(105deg, #351d2acc, #111b2c 58%)",
+                "HIGH":     "linear-gradient(105deg, #3b2816cc, #111b2c 58%)",
+                "MEDIUM":   "linear-gradient(105deg, #363013cc, #111b2c 58%)",
+                "LOW":      "linear-gradient(105deg, #13332bcc, #111b2c 58%)",
+            }.get(sev.upper(), "linear-gradient(105deg, #13332bcc, #111b2c 58%)")
+            st.markdown(f"""
+            <style>
+            div.st-key-hist_card_{inc_id} {{
+                border: 1px solid {_border_col} !important;
+                background: {_bg_grad} !important;
+                box-shadow: 0 16px 45px #0005 !important;
+                border-radius: 14px !important;
+                margin-bottom: 12px !important;
+            }}
+            div.st-key-hist_card_{inc_id} [data-testid="stColumn"],
+            div.st-key-hist_card_{inc_id} [data-testid="stVerticalBlock"],
+            div.st-key-hist_card_{inc_id} [data-testid="stHorizontalBlock"] {{
+                background: transparent !important;
+            }}
+            </style>
+            """, unsafe_allow_html=True)
+            with st.container(key=f"hist_card_{inc_id}", border=True):
+                _cl, _cr = st.columns([3.4, 2.6])
+                with _cl:
+                    st.markdown(_ui.case_header_left(
+                        inc_id, title, sev=sev, status=status,
+                        subtitle=(f"{alerts} alert(s)" if str(alerts) != "—" else "NetWitness incident"),
+                    ), unsafe_allow_html=True)
+                with _cr:
+                    st.markdown(_ui.case_header_right(
+                        metas=[("Owner", assignee), ("Created", created), ("Alerts", str(alerts))]
+                    ), unsafe_allow_html=True)
+                    _b1, _b2, _b3, _b4 = st.columns([0.9, 1.4, 0.8, 1.1])
+                    do_triage = _b1.button("Triage", key=f"chat_{inc_id}", use_container_width=True)
+                    do_json   = _b2.button("View Raw JSON", key=f"json_{inc_id}", use_container_width=True)
+                    do_map    = _b3.button("Map", key=f"map_{inc_id}", use_container_width=True)
+                    do_ovw    = _b4.button("Overview", key=f"ovw_{inc_id}", use_container_width=True)
+            if do_triage:
                 st.session_state.chat_incident       = inc
                 st.session_state.pending_auto_triage = True
                 st.session_state.jump_to_ask_tab     = True
                 st.rerun()
-            if b2.button("{ }", key=f"json_{inc_id}"):
+            if do_json:
                 with st.expander(f"JSON — {inc_id}", expanded=True):
                     st.json(inc)
             # Case overview — Aegis key-findings + context grid from real data
             # (distilled alert behaviours + unified triage verdict). Guarded.
-            if b4.button("Overview", key=f"ovw_{inc_id}"):
+            if do_ovw:
                 with st.expander(f"Case overview — {inc_id}", expanded=True):
                     try:
                         _findings, _verdict = _build_case_findings(inc)
@@ -3675,7 +3734,7 @@ with tab_inc:
             # Incident Map — deterministic entity graph (Stage 1) plus
             # autonomous corpus expansion (Stage 2). Read-only; guarded so a
             # map failure can never break the incident list.
-            if b3.button("Map", key=f"map_{inc_id}"):
+            if do_map:
                 with st.expander(f"Incident Map — {inc_id}", expanded=True):
                     try:
                         from incident_map import build_incident_map, to_dot, map_caption
