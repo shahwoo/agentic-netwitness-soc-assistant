@@ -4276,15 +4276,30 @@ with tab_chat:
     # HITL manual-review toggle — OFF (default) keeps the pipeline auto-chaining
     # exactly as before; ON pauses after triage and after investigation for the
     # analyst to review and click Approve before the next agent runs.
+    # Mirror the toggle into a PLAIN session_state key (mr_pref). Widget-keyed
+    # state (key="…") is garbage-collected when the widget isn't rendered as part
+    # of the triggering interaction — which happens when the pipeline is kicked
+    # off from ANOTHER tab (the Overview "Triage now" button, alerts tab, etc.):
+    # the toggle key silently reset to False mid-flow, so a genuinely-ON toggle
+    # read OFF and the pipeline auto-ran. A plain key we own is never GC'd, so it
+    # survives cross-tab reruns. Everything downstream reads mr_pref, not a widget.
+    st.session_state.setdefault("mr_pref", False)
+    # Re-seed the widget key from our stable pref (setdefault is a no-op while the
+    # widget key survives; it only re-seeds after Streamlit GC'd it on a cross-tab
+    # rerun). mr_pref is mutated ONLY by the on_change callback below — i.e. only
+    # on a REAL user toggle — so the dispatch always reads the true intent even if
+    # the widget's own state was garbage-collected OR desynced by a cross-tab run.
+    st.session_state.setdefault("mr_toggle", st.session_state.mr_pref)
+    def _mr_sync():
+        st.session_state.mr_pref = bool(st.session_state.get("mr_toggle"))
     st.toggle("Manual review — approve each hand-off",
-              key="manual_review",
+              key="mr_toggle", on_change=_mr_sync,
               help="When on, the pipeline pauses after triage and after "
                    "investigation. Review each agent's output on this board, "
                    "then click Approve to hand off to the next agent.")
-    if st.session_state.get("manual_review"):
-        st.caption("Manual review is **armed** — turn it on **before** you run a "
-                   "triage. The pipeline will pause after triage and wait for "
-                   "your approval before each agent runs.")
+    if st.session_state.mr_pref:
+        st.caption("Manual review is **armed** — the pipeline will pause after "
+                   "triage and wait for your approval before each agent runs.")
 
     _board_live: dict = {}
     _b_cols = st.columns(3)
@@ -4297,6 +4312,30 @@ with tab_chat:
                 st.session_state.agent_board_sel = (
                     None if st.session_state.agent_board_sel == _ag else _ag)
                 st.rerun()
+
+    # ── HITL dispatch: decide auto-vs-manual for a freshly-triaged run. Runs on
+    # a rerun AFTER the chat submission, so the toggle is reliably committed —
+    # and it reads the SAME st.session_state.mr_pref the "armed" caption above
+    # reads, so the decision can never disagree with what the user sees. ──
+    _disp = _workflow_store().get("run")
+    if (_disp and _disp.get("awaiting") == "dispatch"
+            and not _disp.get("_spawned") and not _disp.get("done")):
+        if st.session_state.get("mr_pref"):
+            _disp["manual_review"] = True
+            _disp["awaiting"] = ("investigate" if _disp.get("investigate")
+                                 else "report_only")
+        else:
+            _disp["manual_review"] = False
+            _dg = _disp.get("gate_report")
+            if _dg is not None:
+                _dg.set()          # auto mode — the worker never pauses
+            _disp["_spawned"] = True
+            _disp["awaiting"] = None
+            import threading as _thd
+            _thd.Thread(target=_workflow_worker,
+                        args=(_disp, _disp.get("_tri"), _disp.get("_incident")),
+                        daemon=True).start()
+            st.rerun()
 
     # ── HITL approval controls (shown only when a run awaits the analyst) ──
     _hitl_run = _workflow_store().get("run")
@@ -4785,38 +4824,23 @@ with tab_chat:
                     "wf_md": _wf_md,
                     "chroma_queue": [],
                 }
-                # HITL: optional manual-review gates. When review is OFF the
-                # worker auto-spawns and gate_report is pre-set, so the pipeline
-                # auto-chains EXACTLY as before. When review is ON we NEVER spawn
-                # the worker here — we hold at triage and let the analyst approve
-                # each hand-off on the Agent Board (Gate 1 = triage → next agent;
-                # Gate 2 = investigation → reporting, enforced inside the worker).
-                _manual = bool(st.session_state.get("manual_review"))
-                _gate = _threading.Event()
-                if not _manual:
-                    _gate.set()
-                _run_rec["manual_review"] = _manual
-                _run_rec["gate_report"]   = _gate
-                _run_rec["_tri"]          = _tri
-                _run_rec["_incident"]     = active_inc
-                _workflow_store()["run"]  = _run_rec
-                if _manual:
-                    # Hold at triage — NO worker spawns until the analyst approves.
-                    _run_rec["awaiting"] = "investigate" if _investigate else "report_only"
-                    _nxt = "Investigate" if _investigate else "Generate report"
-                    reply += (f"\n\n---\n\n**Manual review is ON.** Triage is "
-                              f"done — review it above, then click **Approve → "
-                              f"{_nxt}** on the **Agent Board** to continue. "
-                              f"Nothing runs until you approve.")
-                else:
-                    _threading.Thread(target=_workflow_worker,
-                                      args=(_run_rec, _tri, active_inc),
-                                      daemon=True).start()
-                    reply += ("\n\n---\n\n**Investigation & reporting are now "
-                              "running in the background.** Watch them live on "
-                              "the **Agent Board** above — clicking around no "
-                              "longer interrupts the run. Results post here "
-                              "when finished.")
+                # HITL: DO NOT decide auto-vs-manual here. Reading the toggle on
+                # the same rerun that submitted the chat is racy (the toggle's
+                # committed state can lag the submission, so a genuinely-ON toggle
+                # read as OFF and the pipeline auto-spawned). Instead we store the
+                # run as "dispatch" (pending) with NO worker spawned; the Agent
+                # Board's dispatch step decides on the NEXT rerun — reading the
+                # SAME session_state the "armed" caption reads, so they always
+                # agree. See the dispatch block in the board section.
+                _run_rec["gate_report"] = _threading.Event()   # clear; set by dispatch/approval
+                _run_rec["_tri"]        = _tri
+                _run_rec["_incident"]   = active_inc
+                _run_rec["awaiting"]    = "dispatch"
+                _workflow_store()["run"] = _run_rec
+                reply += ("\n\n---\n\n**Triage complete.** See the **Agent Board** "
+                          "above — if Manual review is on it will wait for your "
+                          "approval, otherwise investigation & reporting run "
+                          "automatically.")
             else:
                 # Triage failed or workflow module unavailable — record the
                 # alert only; downstream agents need a valid triage result.
