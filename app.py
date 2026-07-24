@@ -139,10 +139,14 @@ def _workflow_worker(run: dict, tri: dict, incident: dict) -> None:
     panels = run["panels"]
     wf_md  = run["wf_md"]
 
-    def bset(agent, status=None, think=None, output=None):
+    def bset(agent, status=None, think=None, output=None, progress=None):
         p = panels[agent]
         if status is not None:
             p["status"] = status
+            if status in ("done", "cached", "skipped"):
+                p["progress"] = 100
+        if progress is not None:
+            p["progress"] = max(0, min(100, int(progress)))
         if think is not None:
             clean = _ANSI_STRIP.sub("", str(think))
             p["thinking"].append(
@@ -162,7 +166,8 @@ def _workflow_worker(run: dict, tri: dict, incident: dict) -> None:
     try:
         # ── Stage 2: Investigation ─────────────────────────────────────────
         if run["investigate"]:
-            bset("investigation", status="running", think="Investigation started")
+            bset("investigation", status="running", think="Investigation started",
+                 progress=10)
 
             def _fb_event(event: str, detail: str) -> None:
                 # Board choreography for the feedback loop: the work visibly
@@ -276,10 +281,11 @@ def _workflow_worker(run: dict, tri: dict, incident: dict) -> None:
                          f"(classification {cls} below routing threshold)")
 
         # ── Stage 3: Reporting ─────────────────────────────────────────────
-        bset("reporting", status="running", think="Reporting started")
+        bset("reporting", status="running", think="Reporting started", progress=10)
         try:
             tid = _wfm.handoff_to_reporting(tri, incident, inv)
-            bset("reporting", think="Triage + investigation context handed over")
+            bset("reporting", think="Triage + investigation context handed over",
+                 progress=35)
             rep = _wfm.run_reporting(
                 tid, run_stamp=run["run_id"],
                 line_cb=lambda ln: bset("reporting", think=ln)
@@ -953,9 +959,9 @@ DEFAULTS = {
     "uploaded_filename": "",
     # ── Agent board (thinking + outputs per agent) ───────────
     "agent_board": {
-        "triage":        {"status": "idle", "thinking": [], "output": "", "updated": ""},
-        "investigation": {"status": "idle", "thinking": [], "output": "", "updated": ""},
-        "reporting":     {"status": "idle", "thinking": [], "output": "", "updated": ""},
+        "triage":        {"status": "idle", "thinking": [], "output": "", "updated": "", "progress": 0},
+        "investigation": {"status": "idle", "thinking": [], "output": "", "updated": "", "progress": 0},
+        "reporting":     {"status": "idle", "thinking": [], "output": "", "updated": "", "progress": 0},
     },
     "agent_board_sel": None,
     # ── Cisco Foundation LLM ─────────────────────────────────
@@ -4168,11 +4174,16 @@ with tab_chat:
     _ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
     def _board_set(agent: str, status: str | None = None,
-                   think: str | None = None, output: str | None = None) -> None:
+                   think: str | None = None, output: str | None = None,
+                   progress: int | None = None) -> None:
         """Update an agent's board state (+ live card/detail refresh mid-run)."""
         panel = st.session_state.agent_board[agent]
         if status is not None:
             panel["status"] = status
+            if status in ("done", "cached", "skipped"):
+                panel["progress"] = 100
+        if progress is not None:
+            panel["progress"] = max(0, min(100, int(progress)))
         if think is not None:
             clean = _ANSI_RE.sub("", str(think))   # subprocess logs carry colours
             panel["thinking"].append(f"[{datetime.now().strftime('%H:%M:%S')}] {clean}")
@@ -4225,6 +4236,13 @@ with tab_chat:
             tail = (f'<div style="font-family:var(--mono);font-size:0.52rem;'
                     f'color:var(--muted);margin-top:5px;white-space:nowrap;'
                     f'overflow:hidden;text-overflow:ellipsis">{last[-80:]}</div>')
+        pct = int(panel.get("progress", 0) or 0)
+        _bar = ""
+        if status in ("running", "done", "cached") or pct:
+            _bar = (f'<div style="height:3px;background:#12202f;border-radius:2px;'
+                    f'margin-top:7px;overflow:hidden"><div style="width:{pct}%;'
+                    f'height:100%;background:{color};border-radius:2px;'
+                    f'transition:width .4s ease"></div></div>')
         container.markdown(
             f'<div style="background:#060C16;border:1px solid {color}44;'
             f'border-left:3px solid {color};border-radius:7px;'
@@ -4236,8 +4254,9 @@ with tab_chat:
             f'border:1px solid {bcolor}44;padding:1px 7px;border-radius:3px;'
             f'font-family:var(--mono);font-size:0.55rem">{badge}</span></div>'
             f'<div style="font-family:var(--mono);font-size:0.52rem;'
-            f'color:var(--muted);margin-top:5px">last activity: {upd}</div>'
-            f'{tail}</div>',
+            f'color:var(--muted);margin-top:5px">last activity: {upd}'
+            f'{(" · " + str(pct) + "%") if (status == "running" or pct) else ""}</div>'
+            f'{_bar}{tail}</div>',
             unsafe_allow_html=True,
         )
 
@@ -4264,8 +4283,33 @@ with tab_chat:
         if not slots:
             return
         panel = st.session_state.agent_board[agent]
+        _acolor = {a: c for a, _i, _n, c in _AGENTS}.get(agent, "#00D4FF")
         if panel["thinking"]:
-            slots["think"].code("\n".join(panel["thinking"]), language=None)
+            # Chat-style live transcript: one row per thinking line, newest at the
+            # bottom. Show the recent tail so the latest activity is always in view
+            # (Streamlit strips <script>, so we can't auto-scroll a tall box).
+            _rows = []
+            for _ln in panel["thinking"][-16:]:
+                _ts, _msg = "", _ln
+                if _ln.startswith("[") and "]" in _ln:
+                    _ts = _ln[1:_ln.index("]")]
+                    _msg = _ln[_ln.index("]") + 1:].strip()
+                _esc = (_msg.replace("&", "&amp;").replace("<", "&lt;")
+                            .replace(">", "&gt;"))
+                _rows.append(
+                    f'<div style="display:flex;gap:9px;padding:5px 0;'
+                    f'border-bottom:1px solid #0e1826">'
+                    f'<span style="font-family:var(--mono);font-size:0.55rem;'
+                    f'color:var(--faint);flex-shrink:0;min-width:52px">{_ts}</span>'
+                    f'<span style="font-size:0.73rem;color:var(--text);'
+                    f'line-height:1.45">{_esc}</span></div>')
+            slots["think"].markdown(
+                f'<div style="max-height:300px;overflow-y:auto;'
+                f'padding:4px 12px;background:#070d16;border:1px solid {_acolor}33;'
+                f'border-radius:9px;border-left:3px solid {_acolor}">'
+                + "".join(_rows)
+                + '</div>',
+                unsafe_allow_html=True)
         else:
             slots["think"].caption("No activity yet — run a triage to see "
                                    "this agent think.")
@@ -4273,6 +4317,14 @@ with tab_chat:
             slots["out"].markdown(panel["output"], unsafe_allow_html=True)
         else:
             slots["out"].caption("No output yet.")
+
+    # Auto-follow: surface the currently-running agent's live thinking without a
+    # manual click (keeps the "live LLM chat" feel as work moves between agents).
+    if st.session_state.agent_board_sel is None:
+        for _ag2, _i2, _n2, _c2 in _AGENTS:
+            if st.session_state.agent_board[_ag2]["status"] == "running":
+                st.session_state.agent_board_sel = _ag2
+                break
 
     _sel_ag = st.session_state.agent_board_sel
     if _sel_ag:
@@ -4500,6 +4552,8 @@ with tab_chat:
                     thinking_panel,
                     (_board_live_detail.get("triage") or {}).get("token"))
 
+                _tri_prog = {"done": 0}   # completed triage phases → progress %
+
                 def on_progress(event: str, label: str, text: str = "") -> None:
                     key = next(
                         (p for p in ALL_PHASES
@@ -4515,7 +4569,10 @@ with tab_chat:
                         result = f" — {text}" if text else ""
                         st.write(f"**{key}**{result}")
                         thinking_tee.empty()
-                        _board_set("triage", think=f"{key}{result}")
+                        _tri_prog["done"] += 1
+                        _board_set("triage", think=f"{key}{result}",
+                                   progress=round(_tri_prog["done"]
+                                                  / max(1, len(ALL_PHASES)) * 100))
 
                 try:
                     reply = soc_triage_chat_respond(
