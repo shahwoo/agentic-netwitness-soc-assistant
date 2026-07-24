@@ -309,7 +309,7 @@ def to_dot(d: dict) -> str:
     vic, inf, cap, adv = d["victim"], d["infrastructure"], d["capability"], d["adversary"]
 
     def _lines(items, cap_n=3):
-        vals = [it["value"] + (" ⚠" if it.get("ti") else "") for it in items[:cap_n]]
+        vals = [it["value"] + ("" if it.get("ti") else "") for it in items[:cap_n]]
         extra = len(items) - cap_n
         if extra > 0:
             vals.append(f"+{extra} more")
@@ -355,11 +355,11 @@ def format_diamond(d: dict) -> str:
         f"  ● ADVERSARY:      {adv['label']} — {adv['note']}",
         "  ● CAPABILITY:     " + (", ".join(
             (it["value"][:44] + ("…" if len(it["value"]) > 44 else ""))
-            + (" ⚠" + it["ti"] if it.get("ti") else "") for it in cap["items"]) or "—")
+            + ("" + it["ti"] if it.get("ti") else "") for it in cap["items"]) or "—")
         + (f"   |   TTP: {cap['mitre_technique']} / {cap['mitre_tactic']}"
            if cap["mitre_technique"] else "   |   TTP: —"),
         "  ● INFRASTRUCTURE: " + (", ".join(
-            f"{it['value']} ({it['kind']})" + (" ⚠" + it["ti"] if it.get("ti") else "")
+            f"{it['value']} ({it['kind']})" + ("" + it["ti"] if it.get("ti") else "")
             for it in inf["items"]) or "—"),
         f"  ● VICTIM:         {vic['host'] or '(no named host)'} "
         f"[{vic['asset_tier']} asset]"

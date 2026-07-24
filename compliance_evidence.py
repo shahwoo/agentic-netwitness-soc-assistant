@@ -277,7 +277,7 @@ def _rec_text(action: Any) -> str:
 
 # ── rendering (markdown for the report appendix) ──────────────────────────────
 
-_ICON = {"MET": "✅", "PARTIAL": "🟡", "NOT_MET": "❌"}
+_ICON = {"MET": "", "PARTIAL": "", "NOT_MET": ""}
 
 
 def format_compliance_evidence(evidence: dict | None, compact: bool = False) -> str:

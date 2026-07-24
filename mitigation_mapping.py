@@ -398,8 +398,8 @@ def format_mitigation(cov: dict) -> str:
         f"deployed: {cov['achievable_risk_reduction']}%",
     ]
     for t in cov["threats"]:
-        did = "✓" if t["defense_in_depth"] else "✗"
-        div = "✓" if t["control_diversity"] else "✗"
+        did = "✓" if t["defense_in_depth"] else ""
+        div = "✓" if t["control_diversity"] else ""
         lines.append(f"  {t['name']} — achievable coverage {t['coverage']}% "
                      f"(defense-in-depth {did}, control-diversity {div})")
         for c in t["controls"]:

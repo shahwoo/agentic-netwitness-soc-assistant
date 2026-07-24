@@ -48,12 +48,12 @@ PIPELINE_LABELS = {
 }
 
 PIPELINE_ICONS = {
-    "alerts_to_triage":            "🚨",
-    "post_triage_investigate":     "🔍",
-    "post_triage_no_investigate":  "✅",
-    "initial_ticket":              "🎫",
-    "pending_ticket_report":       "⏳",
-    "finalized_report":            "📄",
+    "alerts_to_triage":            "",
+    "post_triage_investigate":     "",
+    "post_triage_no_investigate":  "",
+    "initial_ticket":              "",
+    "pending_ticket_report":       "",
+    "finalized_report":            "",
 }
 
 PIPELINE_COLORS = {
@@ -72,7 +72,7 @@ CHROMA_PATH = "./chroma_db"
 # ══════════════════════════════════════════════════════════════════════════════
 st.set_page_config(
     page_title="SOC Pipeline · ChromaDB Viewer",
-    page_icon="🗄️",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -233,7 +233,7 @@ if _preselect not in PIPELINE_STAGES:
 with st.sidebar:
     st.markdown(
         '<div style="font-family:var(--mono);font-size:1rem;color:var(--accent);'
-        'letter-spacing:3px;padding:4px 0">🗄️ CHROMA VIEWER</div>'
+        'letter-spacing:3px;padding:4px 0"> CHROMA VIEWER</div>'
         '<div style="font-family:var(--mono);font-size:0.52rem;color:var(--muted);'
         'letter-spacing:2px;margin-bottom:12px">SOC PIPELINE COLLECTIONS</div>',
         unsafe_allow_html=True,
@@ -241,7 +241,7 @@ with st.sidebar:
     st.markdown("---")
 
     chroma_path_in = st.text_input("ChromaDB path", value=CHROMA_PATH)
-    if st.button("🗄️ Connect", use_container_width=True):
+    if st.button("Connect", use_container_width=True):
         client, err = connect_chroma(chroma_path_in)
         if client:
             st.success(f"Connected — {chroma_path_in}")
@@ -341,15 +341,15 @@ if client:
         vec_cnt = col_obj.count()
 
 m1, m2, m3, m4 = st.columns(4)
-m1.metric("💾 SQLite Records", sql_cnt)
-m2.metric("🧠 ChromaDB Vectors", vec_cnt)
-m3.metric("📋 Stage", label[:20])
-m4.metric("🗂️ Collection", f"pipeline_{stage}")
+m1.metric("SQLite Records", sql_cnt)
+m2.metric("ChromaDB Vectors", vec_cnt)
+m3.metric("Stage", label[:20])
+m4.metric("Collection", f"pipeline_{stage}")
 
 st.markdown("---")
 
 # ── Tabs: SQLite view | ChromaDB search ───────────────────────────────────────
-vtab_sql, vtab_chroma = st.tabs(["💾  SQLITE RECORDS", "🧠  CHROMADB SEARCH"])
+vtab_sql, vtab_chroma = st.tabs(["SQLITE RECORDS", "CHROMADB SEARCH"])
 
 
 # ── SQLite tab ────────────────────────────────────────────────────────────────
@@ -457,7 +457,7 @@ with vtab_chroma:
             top_n  = sn.number_input("Top N", 1, 20, 5, key="cv_topn",
                                       label_visibility="collapsed")
 
-            if st.button("🔍 Search", key="cv_search_btn") and query.strip():
+            if st.button("Search", key="cv_search_btn") and query.strip():
                 if vec_total == 0:
                     st.info("No vectors yet — run triage in the main app first.")
                 else:
@@ -507,7 +507,7 @@ with vtab_chroma:
                 'letter-spacing:2px;margin-bottom:8px">■ BROWSE ALL VECTORS</div>',
                 unsafe_allow_html=True,
             )
-            if st.button("📋 Load All Vectors", key="cv_load_all"):
+            if st.button("Load All Vectors", key="cv_load_all"):
                 if vec_total == 0:
                     st.info("No vectors in this collection.")
                 else:
@@ -542,7 +542,7 @@ with vtab_chroma:
                 'letter-spacing:2px;margin-bottom:8px">■ ACTIONS</div>',
                 unsafe_allow_html=True,
             )
-            if st.button(f"🗑️ Wipe Collection pipeline_{stage}", key="cv_wipe"):
+            if st.button(f"Wipe Collection pipeline_{stage}", key="cv_wipe"):
                 try:
                     client.delete_collection(f"pipeline_{stage}")
                     get_collection(client, stage)  # recreate empty

@@ -915,7 +915,7 @@ def investigate_with_feedback(triage_result: dict, incident: dict,
                     "incident_category"] = redirect["incident_category"]
             redir_msg = ("Playbook redirection: "
                          + ", ".join(f"{k} → '{v}'" for k, v in redirect.items()))
-            _emit("second_pass_start", f"🔁 {redir_msg}")
+            _emit("second_pass_start", f"{redir_msg}")
             _log("FEEDBACK", redir_msg)
 
         handoff_to_investigation(

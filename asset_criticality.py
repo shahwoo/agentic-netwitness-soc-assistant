@@ -178,7 +178,7 @@ def format_assessment(a: dict) -> str:
                      f"({x['reason']})")
     lines.append(f"  response urgency: {a['response_urgency']}")
     if a["escalation"]:
-        lines.append(f"  ⚠ {a['escalation']}")
+        lines.append(f"  {a['escalation']}")
     lines.append("  tier-scoped containment guidance:")
     for step in a["containment_checklist"]:
         lines.append(f"    · {step}")

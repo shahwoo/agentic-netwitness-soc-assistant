@@ -211,7 +211,7 @@ def main(argv=None) -> int:
     failed = sum(1 for _, _, s, _ in results if s == "FAIL")
     skipped = sum(1 for _, _, s, _ in results if s == "SKIP")
 
-    icon = {"PASS": "✅", "FAIL": "❌", "SKIP": "⏭️"}
+    icon = {"PASS": "", "FAIL": "", "SKIP": ""}
     cur = None
     for name, check, status, detail in results:
         if name != cur:

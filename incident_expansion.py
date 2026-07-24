@@ -179,10 +179,10 @@ def expand_incident_map(imap: dict, source: Any, max_pivots: int = 10,
 
     for node in _frontier(imap):
         if pivots >= max_pivots:
-            log.append(f"⏹ pivot budget ({max_pivots}) reached")
+            log.append(f"pivot budget ({max_pivots}) reached")
             break
         if time.time() - t0 > deadline_seconds:
-            log.append(f"⏹ expansion deadline ({deadline_seconds:.0f}s) reached")
+            log.append(f"expansion deadline ({deadline_seconds:.0f}s) reached")
             break
         pivots += 1
         value = node["label"]
@@ -190,7 +190,7 @@ def expand_incident_map(imap: dict, source: Any, max_pivots: int = 10,
             res = source.pivot(value, exclude_ids={seed_id} | known_incidents,
                                limit=max_related)
         except Exception as exc:
-            log.append(f"⚠ pivot failed for {value}: {exc}")
+            log.append(f"pivot failed for {value}: {exc}")
             continue
         node["props"]["expanded"] = True
         node["props"]["corpus_mentions"] = res["count"]
@@ -200,15 +200,15 @@ def expand_incident_map(imap: dict, source: Any, max_pivots: int = 10,
             continue
         if res["count"] > _UBIQUITOUS_AT:
             log.append(
-                f"🔇 {value}: in {res['count']} incidents — ubiquitous "
+                f"{value}: in {res['count']} incidents — ubiquitous "
                 f"(gateway/scanner-class), not expanded")
             node["props"]["ubiquitous"] = True
             continue
 
         weak = res["count"] > _WEAK_SIGNAL_AT
-        tag = " ⚠ common across corpus (weak indicator)" if weak else ""
+        tag = " common across corpus (weak indicator)" if weak else ""
         log.append(
-            f"🔗 {value}: seen in {res['count']} other incidents — "
+            f"{value}: seen in {res['count']} other incidents — "
             f"linked newest {len(res['related'])}{tag}")
         for rel in res["related"]:
             rid = rel["id"]
@@ -242,12 +242,12 @@ def expand_incident_map(imap: dict, source: Any, max_pivots: int = 10,
                     imap["endpoint_profile_text"] = format_profile(prof)
                     focus["props"]["profiled"] = True
                     log.append(
-                        f"📇 endpoint profile: {focus['label']} — "
+                        f"endpoint profile: {focus['label']} — "
                         f"{prof['total_incidents']} incidents "
                         f"{prof['first_seen']} → {prof['last_seen']}, "
                         f"{len(prof['lateral_candidates'])} shared-IP lateral trail(s)")
             except Exception as exc:
-                log.append(f"⚠ endpoint profile unavailable: {exc}")
+                log.append(f"endpoint profile unavailable: {exc}")
 
     # refresh counts so map_caption reflects the expanded graph
     type_counts: dict[str, int] = {}

@@ -24,7 +24,7 @@ corpus (read-only) versus its OWN baseline — turning "48 incidents on
 
 NOTE (design constraint): this module is entirely self-contained — it does
 NOT edit or import the investigation agent's internals. It is surfaced
-through the app UI (a 🎯 Map panel). Deterministic: no LLM, no network.
+through the app UI (a Map panel). Deterministic: no LLM, no network.
 """
 
 from __future__ import annotations

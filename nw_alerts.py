@@ -148,7 +148,7 @@ def _alerts_fetch_warning(inc: dict) -> str:
     the status-specific hint, the exact endpoint, and a response snippet."""
     err = inc.get("alerts_fetch_error") or "unknown"
     diag = inc.get("alerts_fetch_diag") or {}
-    msg = f"⚠️ Alerts fetch failed: **{err}**."
+    msg = f"Alerts fetch failed: **{err}**."
     if diag.get("hint"):
         msg += f" {diag['hint']}."
     if diag.get("url"):

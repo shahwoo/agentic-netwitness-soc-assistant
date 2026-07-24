@@ -123,7 +123,7 @@ def _ti_signal(ti_result: dict | None) -> dict | None:
     passed in (network-gated, so never triggered from here)."""
     if not ti_result:
         return {"name": "external threat intel", "level": 0,
-                "label": "not run (opt-in — run 🌐 Enrich to include)",
+                "label": "not run (opt-in — run Enrich to include)",
                 "detail": "", "absent": True}
     verdict_level = {"MALICIOUS": 3, "SUSPICIOUS": 2, "NO_FINDINGS": 0, "UNKNOWN": 0}
     best = 0
@@ -218,7 +218,7 @@ def format_verdict(v: dict) -> str:
         detail = f" — {s['detail']}" if s.get("detail") else ""
         note = ""
         if s.get("error"):
-            note = "  ⚠"
+            note = ""
         elif s.get("absent"):
             note = "  (not included)"
         lines.append(f"  [{bar}] {s['name']}: {s['label']}{detail}{note}")

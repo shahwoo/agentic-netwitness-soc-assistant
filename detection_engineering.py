@@ -245,13 +245,13 @@ def format_coverage(cov: dict) -> str:
     ]
     mark = {True: " ✓ ", False: " · "}
     for r in cov["rows"]:
-        badge = {"covered": "✅", "partial": "🟡", "gap": "❌"}[r["status"]]
+        badge = {"covered": "", "partial": "", "gap": ""}[r["status"]]
         lines.append(f"  {badge} {r['tactic']:<24}{mark[r['detection']]}"
                      f"{mark[r['hunt']]}{mark[r['mitigation']]}  {r['corpus_incidents']}")
     if cov["gaps"]:
         lines.append("  prioritised gaps (by threat-actor relevance):")
         for g in cov["gaps"]:
-            lines.append(f"    {'★'*g['relevance']} {g['tactic']} ({g['status']}) — "
+            lines.append(f"    {''*g['relevance']} {g['tactic']} ({g['status']}) — "
                          f"missing: {', '.join(g['missing'])}")
     if cov["roadmap"]:
         lines.append("  detection roadmap:")
