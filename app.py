@@ -169,17 +169,17 @@ def _workflow_worker(run: dict, tri: dict, incident: dict) -> None:
                 # returns to the triage card for the deep-dive, then hands
                 # back to investigation for the second pass.
                 if event == "gaps_detected":
-                    bset("investigation", think=f"🔁 {detail}")
+                    bset("investigation", think=f"{detail}")
                 elif event == "triage_deep_dive_start":
-                    bset("triage", status="running", think=f"🔁 {detail}")
+                    bset("triage", status="running", think=f"{detail}")
                 elif event == "triage_deep_dive_done":
-                    bset("triage", status="done", think=f"✅ {detail}")
-                    bset("investigation", think=f"📥 {detail}")
+                    bset("triage", status="done", think=f"{detail}")
+                    bset("investigation", think=f"{detail}")
                 elif event == "second_pass_start":
-                    bset("investigation", status="running", think=f"🔁 {detail}")
+                    bset("investigation", status="running", think=f"{detail}")
                 elif event == "supplement_error":
                     bset("triage", status="done",
-                         think=f"⚠️ deep-dive failed: {detail}")
+                         think=f"deep-dive failed: {detail}")
                 else:
                     bset("investigation", think=detail)
 
@@ -196,13 +196,13 @@ def _workflow_worker(run: dict, tri: dict, incident: dict) -> None:
                                     for g in (_fbmeta.get("gaps") or []))
                 if _fbmeta.get("supplement_error"):
                     wf_md.append(
-                        f"- 🔁 Feedback loop: gaps detected (`{gap_ids}`) but "
+                        f"- Feedback loop: gaps detected (`{gap_ids}`) but "
                         f"the triage deep-dive failed — "
                         f"`{str(_fbmeta['supplement_error'])[:120]}` — "
                         f"pass-1 findings kept")
                 elif _fbmeta.get("second_pass_failed"):
                     wf_md.append(
-                        f"- 🔁 Feedback loop: triage deep-dive answered "
+                        f"- Feedback loop: triage deep-dive answered "
                         f"{_fbmeta.get('gaps_answered', 0)} gap(s) but the "
                         f"re-investigation failed — pass-1 findings kept")
                 else:
@@ -216,7 +216,7 @@ def _workflow_worker(run: dict, tri: dict, incident: dict) -> None:
                                    f"**{_fbmeta['suggested_classification']}**"
                                    f" (analyst to review)")
                     wf_md.append(
-                        f"- 🔁 Feedback loop (pass {_fbmeta.get('passes', 1)}): "
+                        f"- Feedback loop (pass {_fbmeta.get('passes', 1)}): "
                         f"gaps `{gap_ids}` → triage deep-dive answered "
                         f"**{_fbmeta.get('gaps_answered', 0)}** → "
                         f"investigation re-ran with the supplement{_extra}")
@@ -228,23 +228,23 @@ def _workflow_worker(run: dict, tri: dict, incident: dict) -> None:
                     pass
                 _ie = str(inv.get("error") or "")
                 _cold = ("503" in _ie or "unavailable" in _ie.lower())
-                wf_md.append(f"- 🔎 Investigation: ❌ failed — "
+                wf_md.append(f"- Investigation: failed — "
                              f"`{_ie[:150]}` "
                              + ("**(the LLM endpoint was asleep — wait a few "
                                 "minutes for it to boot, then re-run)** "
                                 if _cold else "")
                              + f"(full details: `soc_db/last_investigation_error.json`)")
                 bset("investigation", status="failed",
-                     think=f"❌ {str(inv.get('error') or '')[:150]}",
-                     output=f"❌ Investigation failed:\n\n```\n"
+                     think=f"{str(inv.get('error') or '')[:150]}",
+                     output=f"Investigation failed:\n\n```\n"
                             f"{str(inv.get('error') or '')[:800]}\n```")
                 inv = None
             else:
                 bset("investigation", status="done",
-                     think=f"✅ Complete — {inv.get('incident_folder')}",
+                     think=f"Complete — {inv.get('incident_folder')}",
                      output=inv.get("narrative_report") or inv.get("summary")
                             or "Investigation completed.")
-                wf_md.append(f"- 🔎 Investigation: ✅ {inv.get('status')} — "
+                wf_md.append(f"- Investigation: {inv.get('status')} — "
                              f"folder `{inv.get('incident_folder')}`")
                 try:
                     rec = _wfm.build_post_investigation_record(
@@ -258,21 +258,21 @@ def _workflow_worker(run: dict, tri: dict, incident: dict) -> None:
                                 raise
                             time.sleep(0.8)   # ride out a brief sqlite lock
                     run["chroma_queue"].append(("post_investigation", rec))
-                    wf_md.append("- 🕵️ Findings recorded — **Pipeline DB** "
+                    wf_md.append("- Findings recorded — **Pipeline DB** "
                                  "tab → *Post-Investigation*")
                 except Exception as exc:
                     # Never swallow silently — a missing findings record looks
                     # like "no output" to the analyst.
                     bset("investigation",
-                         think=f"⚠️ findings record insert failed: {str(exc)[:120]}")
-                    wf_md.append(f"- ⚠️ Findings record insert failed: "
+                         think=f"findings record insert failed: {str(exc)[:120]}")
+                    wf_md.append(f"- Findings record insert failed: "
                                  f"`{str(exc)[:150]}`")
         else:
             bset("investigation", status="skipped",
-                 think=f"⏭️ Skipped — classification {cls} below routing threshold",
+                 think=f"Skipped — classification {cls} below routing threshold",
                  output=f"Investigation skipped: classification **{cls}** is "
                         "below the routing threshold (critical/high/medium).")
-            wf_md.append(f"- 🔎 Investigation: ⏭️ skipped "
+            wf_md.append(f"- Investigation: skipped "
                          f"(classification {cls} below routing threshold)")
 
         # ── Stage 3: Reporting ─────────────────────────────────────────────
@@ -293,10 +293,10 @@ def _workflow_worker(run: dict, tri: dict, incident: dict) -> None:
             except Exception:
                 pass
             bset("reporting", status="failed",
-                 think=f"❌ {str(rep.get('error') or '')[:150]}",
-                 output=f"❌ Reporting failed:\n\n```\n"
+                 think=f"{str(rep.get('error') or '')[:150]}",
+                 output=f"Reporting failed:\n\n```\n"
                         f"{str(rep.get('error') or '')[:800]}\n```")
-            wf_md.append(f"- 📄 Reporting: ❌ failed — "
+            wf_md.append(f"- Reporting: failed — "
                          f"`{str(rep.get('error') or '')[:150]}` "
                          f"(full details: `soc_db/last_reporting_error.json`)")
         else:
@@ -321,15 +321,15 @@ def _workflow_worker(run: dict, tri: dict, incident: dict) -> None:
             ]
             for f in ("docx", "pdf"):
                 if exports.get(f):
-                    rep_out.append(f"- {'📝' if f == 'docx' else '📕'} "
+                    rep_out.append(f"- {'' if f == 'docx' else ''} "
                                    f"{f.upper()}: `{exports[f]}`")
             rep_out += ["", "Full report suite: **Pipeline DB** tab "
                             "→ *Finalized Report*."]
-            bset("reporting", status="done", think="✅ Report finalised",
+            bset("reporting", status="done", think="Report finalised",
                  output="\n".join(rep_out))
-            wf_md.append(f"- 📄 Reporting: ✅ {rep.get('status')} "
+            wf_md.append(f"- Reporting: {rep.get('status')} "
                          f"(mode: {rep.get('reporting_mode', 'standard')})")
-            for fmt, icon in (("docx", "📝"), ("pdf", "📕")):
+            for fmt, icon in (("docx", ""), ("pdf", "")):
                 if exports.get(fmt):
                     wf_md.append(f"- {icon} {fmt.upper()} report: "
                                  f"`{exports[fmt]}`")
@@ -337,16 +337,16 @@ def _workflow_worker(run: dict, tri: dict, incident: dict) -> None:
                     err = str(exports.get(f"{fmt}_error") or exports.get("error")
                               or "no file produced")[:150]
                     wf_md.append(f"- {icon} {fmt.upper()} report: "
-                                 f"❌ export failed — `{err}`")
+                                 f"export failed — `{err}`")
             wf_md.append("")
-            wf_md.append("📂 Download the Word/PDF report from the "
+            wf_md.append("Download the Word/PDF report from the "
                          "**Pipeline DB** tab → *Finalized Report*.")
     except Exception as exc:
-        wf_md.append(f"- ❌ Workflow worker crashed: `{str(exc)[:200]}`")
+        wf_md.append(f"- Workflow worker crashed: `{str(exc)[:200]}`")
         for ag in ("investigation", "reporting"):
             if panels[ag]["status"] in ("running", "queued"):
                 bset(ag, status="failed",
-                     think=f"❌ worker crash: {str(exc)[:150]}")
+                     think=f"worker crash: {str(exc)[:150]}")
     finally:
         # Audit trail row — one NEW record per workflow execution.
         try:
@@ -566,7 +566,7 @@ def nw_login(host: str, username: str, password: str) -> tuple[bool, str, str]:
 # ══════════════════════════════════════════════════════════════════════════════
 st.set_page_config(
     page_title="Security Dashboard",
-    page_icon="🛡️",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -940,8 +940,8 @@ DEFAULTS = {
     "last_fetch_mode":  None,   # ← "full" | "incremental", shown in diagnostics
     "chat_history":     [],
     "chat_incident":    None,
-    "pending_auto_triage": False,   # set by "🩺 Triage" button — auto-runs the pipeline
-    "jump_to_ask_tab":     False,   # set by "🩺 Triage" button — switches to Ask a Question tab
+    "pending_auto_triage": False,   # set by "Triage" button — auto-runs the pipeline
+    "jump_to_ask_tab":     False,   # set by "Triage" button — switches to Ask a Question tab
     "triage_in_flight":    None,    # {incident_id, attempts} — survives an interrupted
                                     # inline triage run so it can auto-restart
     "chroma_client":    None,
@@ -1530,14 +1530,14 @@ PIPELINE_LABELS = {
     "workflow_runs":              "Workflow Runs (Audit)",
 }
 PIPELINE_ICONS = {
-    "alerts_to_triage":           "🚨",
-    "post_triage_investigate":    "🔍",
-    "post_triage_no_investigate": "✅",
-    "post_investigation":         "🕵️",
-    "initial_ticket":             "🎫",
-    "pending_ticket_report":      "⏳",
-    "finalized_report":           "📄",
-    "workflow_runs":              "🧾",
+    "alerts_to_triage":           "",
+    "post_triage_investigate":    "",
+    "post_triage_no_investigate": "",
+    "post_investigation":         "",
+    "initial_ticket":             "",
+    "pending_ticket_report":      "",
+    "finalized_report":           "",
+    "workflow_runs":              "",
 }
 PIPELINE_COLORS = {
     "alerts_to_triage":           "#FF3B3B",
@@ -2150,7 +2150,7 @@ with st.sidebar:
 
     st.markdown(
         '<div class="app-logo">'
-        '<div class="name">🛡️ Security Dashboard</div>'
+        '<div class="name"> Security Dashboard</div>'
         '<div class="sub">Powered by NetWitness</div>'
         '</div>',
         unsafe_allow_html=True,
@@ -2162,7 +2162,7 @@ with st.sidebar:
         import ui_components as _uisb
         _ws_user = (st.session_state.nw_username or "").strip() or "not signed in"
         st.markdown(_uisb.workspace_card(
-            "SOC Workspace", f"Analyst · {_ws_user}", "🛡️"),
+            "SOC Workspace", f"Analyst · {_ws_user}", ""),
             unsafe_allow_html=True)
     except Exception:
         pass
@@ -2202,7 +2202,7 @@ with st.sidebar:
                 f'Synced {last_str} &nbsp;·&nbsp; refresh in {remaining}s</div>'
                 f'<div style="font-family:var(--mono);font-size:0.55rem;'
                 f'color:#2A5A78;margin-top:4px">'
-                f'📡 {st.session_state.nw_incidents_path} · {st.session_state.nw_auth_style}</div>'
+                f'{st.session_state.nw_incidents_path} · {st.session_state.nw_auth_style}</div>'
                 f'<div style="background:#060E1A;border-radius:2px;height:3px;'
                 f'width:100%;margin-top:7px;overflow:hidden">'
                 f'<div style="width:{pct*100:.0f}%;height:100%;border-radius:2px;'
@@ -2221,7 +2221,7 @@ with st.sidebar:
             )
 
         # ── NetWitness credentials ─────────────────────────────────
-        st.markdown('<div class="sec-label">🔌  Connection</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec-label">  Connection</div>', unsafe_allow_html=True)
 
         # If already auto-connected from .env, show a clean status + update option
         if st.session_state.nw_verified and _env["username"]:
@@ -2236,7 +2236,7 @@ with st.sidebar:
                 '</div>',
                 unsafe_allow_html=True,
             )
-            with st.expander("🔑 Update credentials"):
+            with st.expander("Update credentials"):
                 host_in = st.text_input("Host URL", value=st.session_state.nw_host, key="sb_host")
                 user_in = st.text_input("Username", value=st.session_state.nw_username, key="sb_user")
                 pass_in = st.text_input("Password", value="", type="password",
@@ -2255,7 +2255,7 @@ with st.sidebar:
                     label_visibility="collapsed",
                 )
                 cv, cs, cd = st.columns(3)
-                if cv.button("🔌 Login", use_container_width=True, key="sb_verify"):
+                if cv.button("Login", use_container_width=True, key="sb_verify"):
                     st.session_state.nw_host     = host_in
                     st.session_state.nw_username = user_in
                     st.session_state.nw_password = pass_in
@@ -2286,7 +2286,7 @@ with st.sidebar:
                             st.session_state.last_fetch = datetime.now()
                             db_upsert_incidents(items)
                     st.rerun()
-                if cs.button("💾 Save", use_container_width=True, key="sb_save"):
+                if cs.button("Save", use_container_width=True, key="sb_save"):
                     if pass_in:
                         env_save(host_in, user_in, pass_in)
                         st.success("Saved to .env")
@@ -2308,7 +2308,7 @@ with st.sidebar:
                     f'<div style="background:#1A0505;border:1px solid #5A1010;border-radius:5px;'
                     f'padding:8px 11px;font-family:var(--mono);font-size:0.6rem;'
                     f'color:#FF6B6B;margin-bottom:8px">'
-                    f'❌ Last error: {_last_err}</div>',
+                    f'Last error: {_last_err}</div>',
                     unsafe_allow_html=True,
                 )
             if DOTENV_OK and not _env["username"]:
@@ -2316,8 +2316,8 @@ with st.sidebar:
                     '<div style="background:#0A0800;border:1px solid #3A3000;border-radius:5px;'
                     'padding:8px 11px;font-family:var(--mono);font-size:0.6rem;'
                     'color:#FFB700;margin-bottom:8px">'
-                    '⚠ No credentials in .env<br>'
-                    '<span style="color:var(--muted)">Enter below & click 💾 Save</span></div>',
+                    'No credentials in .env<br>'
+                    '<span style="color:var(--muted)">Enter below & click Save</span></div>',
                     unsafe_allow_html=True,
                 )
             host_in = st.text_input("Host URL", value=st.session_state.nw_host,
@@ -2353,12 +2353,12 @@ with st.sidebar:
                 st.markdown(
                     '<div style="font-family:var(--mono);font-size:0.58rem;'
                     'color:var(--muted);margin-top:-8px;margin-bottom:6px">'
-                    '⚡ Tokens expire — re-paste when you get a 401</div>',
+                    'Tokens expire — re-paste when you get a 401</div>',
                     unsafe_allow_html=True,
                 )
 
             cv, cs, cd = st.columns(3)
-            if cv.button("🔌 Login", use_container_width=True):
+            if cv.button("Login", use_container_width=True):
                 st.session_state.nw_username = user_in
                 st.session_state.nw_password = pass_in
 
@@ -2366,9 +2366,9 @@ with st.sidebar:
                 if login_method == "Paste Token":
                     raw_token = token_in.strip()
                     if not raw_token:
-                        st.error("❌ Paste a token first.")
+                        st.error("Paste a token first.")
                     elif not host_in.strip():
-                        st.error("❌ Enter the Host URL.")
+                        st.error("Enter the Host URL.")
                     else:
                         st.session_state.nw_token = raw_token
                         with st.spinner("Verifying token…"):
@@ -2376,7 +2376,7 @@ with st.sidebar:
                         st.session_state.nw_verified = ok
                         st.session_state.nw_msg      = msg
                         if ok:
-                            st.success(f"✅ {msg}")
+                            st.success(f"{msg}")
                             ok2, items, _diag = nw_fetch_incidents()
                             if ok2:
                                 st.session_state.incidents  = items
@@ -2387,7 +2387,7 @@ with st.sidebar:
                                 st.warning("Token accepted but no incidents fetched yet.")
                         else:
                             st.session_state.nw_token = ""
-                            st.error(f"❌ {msg}")
+                            st.error(f"{msg}")
                     st.rerun()
 
                 # ── Username / Password path ───────────────────────
@@ -2401,7 +2401,7 @@ with st.sidebar:
                     st.session_state.nw_msg      = msg
                     if ok:
                         st.session_state.nw_token = token
-                        st.success(f"✅ {msg}")
+                        st.success(f"{msg}")
                         ok2, items, _diag = nw_fetch_incidents()
                         if ok2:
                             st.session_state.incidents  = items
@@ -2411,14 +2411,14 @@ with st.sidebar:
                         else:
                             st.warning("Connected but no incidents fetched yet.")
                     else:
-                        st.error(f"❌ {msg}")
+                        st.error(f"{msg}")
                     st.rerun()
 
-            if cs.button("💾 Save", use_container_width=True,
+            if cs.button("Save", use_container_width=True,
                          help="Save to .env — auto-connects on next startup"):
                 if host_in and user_in and pass_in:
                     env_save(host_in, user_in, pass_in)
-                    st.success("Saved — will auto-connect on next startup", icon="💾")
+                    st.success("Saved — will auto-connect on next startup")
                 else:
                     st.warning("Enter host, username and password first.")
 
@@ -2432,13 +2432,13 @@ with st.sidebar:
                 st.rerun()
 
         # ── TLS Certificate (Option B — verified HTTPS) ─────────────
-        st.markdown('<div class="sec-label">🔒  Security Certificate</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec-label">  Security Certificate</div>', unsafe_allow_html=True)
 
         # Auto-clear bad cert if last message was an SSL error
         _last_msg = st.session_state.get("nw_msg", "")
         if "SSL error" in _last_msg and st.session_state.get("nw_cert_path", ""):
             st.warning(
-                f"⚠️ The uploaded cert caused an SSL error — it has been removed. "
+                f"The uploaded cert caused an SSL error — it has been removed. "
                 f"Revert to browser export or try again.\n\n`{_last_msg}`"
             )
             st.session_state.nw_cert_path = ""
@@ -2474,7 +2474,7 @@ with st.sidebar:
             cert_dest.write_bytes(cert_upload.getvalue())
             st.session_state.nw_cert_path = str(cert_dest)
             nw_cert_env_save(str(cert_dest))
-            st.success(f"✅ Saved {cert_upload.name} — re-login to apply verified TLS")
+            st.success(f"Saved {cert_upload.name} — re-login to apply verified TLS")
             st.rerun()
 
         cert_path_in = st.text_input(
@@ -2484,11 +2484,11 @@ with st.sidebar:
             key="cert_path_text",
         )
         ccert1, ccert2 = st.columns(2)
-        if ccert1.button("💾 Use this path", use_container_width=True):
+        if ccert1.button("Use this path", use_container_width=True):
             if cert_path_in.strip() and Path(cert_path_in.strip()).is_file():
                 st.session_state.nw_cert_path = cert_path_in.strip()
                 nw_cert_env_save(cert_path_in.strip())
-                st.success("✅ Cert path set — re-login to apply")
+                st.success("Cert path set — re-login to apply")
             else:
                 st.error("File not found at that path.")
             st.rerun()
@@ -2499,7 +2499,7 @@ with st.sidebar:
             st.rerun()
 
         # ── Foundation LLM (HuggingFace) ──────────────────────────
-        st.markdown('<div class="sec-label">🤖  AI Settings</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec-label">  AI Settings</div>', unsafe_allow_html=True)
 
         # Connection status indicator
         if st.session_state.cisco_connected:
@@ -2546,11 +2546,11 @@ with st.sidebar:
 
         cl1, cl2, cl3 = st.columns(3)
 
-        if cl1.button("✅ Apply", use_container_width=True, key="cisco_apply"):
+        if cl1.button("Apply", use_container_width=True, key="cisco_apply"):
             if not cisco_url_in.strip():
-                st.error("❌ Enter the endpoint URL.")
+                st.error("Enter the endpoint URL.")
             elif not cisco_key_in.strip():
-                st.error("❌ Enter your HF token.")
+                st.error("Enter your HF token.")
             else:
                 st.session_state.cisco_url       = cisco_url_in.strip()
                 st.session_state.cisco_key       = cisco_key_in.strip()
@@ -2558,10 +2558,10 @@ with st.sidebar:
                     cisco_model_in.strip() or "fdtn-ai/Foundation-Sec-8B-Reasoning"
                 )
                 st.session_state.cisco_connected = True
-                st.success("✅ LLM configured!")
+                st.success("LLM configured!")
                 st.rerun()
 
-        if cl2.button("💾 Save", use_container_width=True, key="cisco_save"):
+        if cl2.button("Save", use_container_width=True, key="cisco_save"):
             if cisco_url_in.strip() and cisco_key_in.strip():
                 st.session_state.cisco_url       = cisco_url_in.strip()
                 st.session_state.cisco_key       = cisco_key_in.strip()
@@ -2574,7 +2574,7 @@ with st.sidebar:
                     cisco_key_in.strip(),
                     st.session_state.cisco_model,
                 )
-                st.success("💾 Saved to .env")
+                st.success("Saved to .env")
                 st.rerun()
             else:
                 st.warning("Enter URL and HF token first.")
@@ -2588,14 +2588,14 @@ with st.sidebar:
             st.rerun()
 
         # ── ChromaDB ───────────────────────────────────────────────
-        st.markdown('<div class="sec-label">🧠  Knowledge Base</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec-label">  Knowledge Base</div>', unsafe_allow_html=True)
 
         chroma_path = st.text_input("Persist path", value="./chroma_db")
         cc1, cc2 = st.columns(2)
 
-        if cc1.button("🗄️ Connect", use_container_width=True):
+        if cc1.button("Connect", use_container_width=True):
             ok, msg = chroma_connect(chroma_path)
-            if ok: st.success(msg, icon="✅")
+            if ok: st.success(msg)
             else:  st.error(msg)
             st.rerun()
 
@@ -2607,7 +2607,7 @@ with st.sidebar:
                 f'<span class="dot dot-green"></span>{count} vectors stored</div>',
                 unsafe_allow_html=True,
             )
-            if cc2.button("⬆️ Sync", use_container_width=True):
+            if cc2.button("⬆ Sync", use_container_width=True):
                 if st.session_state.incidents:
                     n, msg = chroma_sync(st.session_state.incidents)
                     st.success(msg) if n else st.error(msg)
@@ -2664,18 +2664,18 @@ def _build_case_findings(inc: dict):
     except Exception:
         v = {"available": False, "signals": []}
     _conf = {3: "high", 2: "elevated", 1: "moderate", 0: "low"}
-    _kw = [("hta", "🧬"), ("c2", "📡"), ("command", "📡"), ("exfil", "📤"),
-           ("autorun", "🔁"), ("credential", "🔑"), ("powershell", "⌘"),
-           ("lateral", "↔"), ("ransom", "🔒"), ("phish", "🎣"), ("beacon", "📡")]
+    _kw = [("hta", ""), ("c2", ""), ("command", ""), ("exfil", ""),
+           ("autorun", ""), ("credential", ""), ("powershell", "⌘"),
+           ("lateral", "↔"), ("ransom", ""), ("phish", ""), ("beacon", "")]
     am = inc.get("alertMeta") or {}
     for t in list(dict.fromkeys(am.get("AlertTitles") or []))[:6]:
         tl = str(t).lower()
-        icon = next((e for k, e in _kw if k in tl), "❗")
+        icon = next((e for k, e in _kw if k in tl), "")
         findings.append({"icon": icon, "title": str(t)[:72],
                          "desc": "Observed alert behaviour", "confidence": ""})
     if v.get("available"):
-        _si = {"base severity": "⚑", "asset criticality": "🏷️",
-               "internal IOC correlation": "🔗", "external threat intel": "🌐"}
+        _si = {"base severity": "", "asset criticality": "",
+               "internal IOC correlation": "", "external threat intel": ""}
         for s in sorted(v.get("signals", []), key=lambda s: -s.get("level", 0)):
             if s.get("error") or s.get("absent") or s.get("level", 0) == 0:
                 continue
@@ -2813,8 +2813,8 @@ try:
         st.markdown(_ui.hero(
             "YOUR NEXT MOVE", f"{_nm_id} — {_nm_title}",
             "Why this case: " + " · ".join(_why),
-            "", "red" if _hot else "blue", "🎯"), unsafe_allow_html=True)
-        if st.button(f"🩺 Triage {_nm_id} now", key="hero_triage"):
+            "", "red" if _hot else "blue", ""), unsafe_allow_html=True)
+        if st.button(f"Triage {_nm_id} now", key="hero_triage"):
             st.session_state.chat_incident       = _nm
             st.session_state.pending_auto_triage = True
             st.session_state.jump_to_ask_tab     = True
@@ -2880,18 +2880,18 @@ _inc_count = len(incidents)
 #   • no data + developer                   → point them at the sidebar config
 #   • no data + guest                       → plain offline note (no phantom panel)
 if _connected:
-    _status_msg = "✅ Connected — " + str(_inc_count) + " alerts loaded"
+    _status_msg = "Connected — " + str(_inc_count) + " alerts loaded"
 elif _inc_count:
     _status_msg = "Offline demo — " + str(_inc_count) + " stored alerts loaded"
 elif _is_dev:
-    _status_msg = "⚠️ Not connected — configure NetWitness in the left panel"
+    _status_msg = "Not connected — configure NetWitness in the left panel"
 else:
     _status_msg = "Offline demo — no stored alerts available"
 st.markdown(
     f'<div style="display:flex;align-items:center;justify-content:space-between;'
     f'padding:10px 0 16px">'
     f'<div>'
-    f'<div style="font-size:1.3rem;font-weight:700;color:var(--accent)">🛡️ Security Dashboard</div>'
+    f'<div style="font-size:1.3rem;font-weight:700;color:var(--accent)"> Security Dashboard</div>'
     f'<div style="font-size:0.8rem;color:var(--muted);margin-top:2px">'
     f'{_status_msg}'
     f'</div></div>'
@@ -2902,12 +2902,12 @@ st.markdown(
 )
 
 tab_dash, tab_inc, tab_chat, tab_chroma, tab_log, tab_pipeline = st.tabs([
-    "📊  Overview",
-    "🚨  Security Alerts",
-    "💬  Ask a Question",
-    "🧠  Knowledge Base",
-    "📁  History",
-    "🔁  Data Pipeline",
+    "Overview",
+    "Security Alerts",
+    "Ask a Question",
+    "Knowledge Base",
+    "History",
+    "Data Pipeline",
 ])
 
 # ── RBAC: guest by default; developers unlock the Knowledge Base (ChromaDB)
@@ -2948,7 +2948,7 @@ if not _is_dev:
         unsafe_allow_html=True)
 
 # Streamlit's st.tabs has no server-side "set active tab" API — the click
-# from the "🩺 Triage" button is simulated client-side by finding the tab
+# from the "Triage" button is simulated client-side by finding the tab
 # button whose label contains "Ask a Question" and clicking it. One-shot:
 # the flag is cleared immediately so this doesn't refire on later reruns.
 if st.session_state.jump_to_ask_tab:
@@ -3005,9 +3005,9 @@ with tab_dash:
     if st.session_state.nw_verified:
         _last = st.session_state.last_fetch
         _mode = st.session_state.last_fetch_mode
-        _mode_str = {"full": "🌐 full", "incremental": "⚡ incremental"}.get(_mode, "—")
+        _mode_str = {"full": "full", "incremental": "incremental"}.get(_mode, "—")
         _diag_str = (
-            f"🕐 Last fetch: {_last.strftime('%H:%M:%S') if _last else 'never'} "
+            f"Last fetch: {_last.strftime('%H:%M:%S') if _last else 'never'} "
             f"({_mode_str}) · "
             f"Incidents in session: {len(incidents)} · "
             f"Host: {st.session_state.nw_host}"
@@ -3016,11 +3016,11 @@ with tab_dash:
             f'<div style="background:#04090F;border:1px solid #0E2030;border-radius:5px;'
             f'padding:7px 12px;font-family:var(--mono);font-size:0.6rem;'
             f'color:var(--muted);margin-bottom:10px">'
-            f'📡 {_diag_str}</div>',
+            f'{_diag_str}</div>',
             unsafe_allow_html=True,
         )
         rc1, rc2 = st.columns([1, 4])
-        if rc1.button("🔄 Refresh Data", use_container_width=True, help="Forces a full resync, not incremental"):
+        if rc1.button("Refresh Data", use_container_width=True, help="Forces a full resync, not incremental"):
             ok_r, items_r, diag_r = nw_fetch_incidents()
             if ok_r:
                 st.session_state.incidents       = items_r
@@ -3028,15 +3028,15 @@ with tab_dash:
                 st.session_state.last_full_fetch = datetime.now()
                 st.session_state.last_fetch_mode = "full"
                 db_upsert_incidents(items_r)
-                st.success(f"✅ {diag_r}")
+                st.success(f"{diag_r}")
             else:
-                st.error(f"❌ Fetch failed: {diag_r}")
+                st.error(f"Fetch failed: {diag_r}")
             st.rerun()
 
     if not incidents:
         if st.session_state.nw_verified:
             st.warning(
-                "✅ Connected successfully, but there are **no security alerts** to show right now. "
+                "Connected successfully, but there are **no security alerts** to show right now. "
                 "This is normal if everything is quiet. If you expected to see data, please "
                 "contact your IT administrator to check your account permissions."
             )
@@ -3045,7 +3045,7 @@ with tab_dash:
             st.markdown(
                 '<div style="font-family:var(--mono);font-size:0.65rem;'
                 'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
-                '🔧  Getting Started — Connection Setup</div>',
+                'Getting Started — Connection Setup</div>',
                 unsafe_allow_html=True,
             )
             st.markdown(
@@ -3066,7 +3066,7 @@ with tab_dash:
                 f'padding:8px 12px;margin-bottom:6px;border-radius:4px;'
                 f'background:{"#041A0A" if s1_ok else "#1A0505"};'
                 f'border-left:3px solid {"#00E676" if s1_ok else "#FF5252"}">'
-                f'{"✅" if s1_ok else "❌"} '
+                f'{"" if s1_ok else ""} '
                 f'<strong>Step 1 — Server Address</strong> &nbsp;'
                 f'<span style="color:var(--muted)">'
                 f'{"Set to: " + host if s1_ok else "Not set — enter https://192.168.x.x in the sidebar"}'
@@ -3083,7 +3083,7 @@ with tab_dash:
                 f'padding:8px 12px;margin-bottom:6px;border-radius:4px;'
                 f'background:{"#041A0A" if s2_ok else "#1A0505"};'
                 f'border-left:3px solid {"#00E676" if s2_ok else "#FF5252"}">'
-                f'{"✅" if s2_ok else "❌"} '
+                f'{"" if s2_ok else ""} '
                 f'<strong>Step 2 — Login Session</strong> &nbsp;'
                 f'<span style="color:var(--muted)">'
                 f'{"Token present: " + token_preview if s2_ok else "No token — login with credentials in the sidebar"}'
@@ -3100,7 +3100,7 @@ with tab_dash:
             t3a, t3b, t3c = st.columns(3)
 
             # Test A: Can we reach the host at all?
-            if t3a.button("🌐 Check Network", use_container_width=True,
+            if t3a.button("Check Network", use_container_width=True,
                           disabled=not s1_ok, key="ping_host"):
                 with st.spinner("Reaching host…"):
                     try:
@@ -3114,7 +3114,7 @@ with tab_dash:
                         st.session_state["_test_ping"] = (False, str(e)[:100])
 
             # Test B: Does the auth endpoint respond?
-            if t3b.button("🔑 Check Login Page", use_container_width=True,
+            if t3b.button("Check Login Page", use_container_width=True,
                           disabled=not s1_ok, key="test_auth"):
                 with st.spinner("Testing auth endpoint…"):
                     try:
@@ -3134,7 +3134,7 @@ with tab_dash:
                         st.session_state["_test_auth"] = (False, str(e)[:100])
 
             # Test C: Does the incidents endpoint respond with the current token?
-            if t3c.button("📋 Check Data Access", use_container_width=True,
+            if t3c.button("Check Data Access", use_container_width=True,
                           disabled=not (s1_ok and s2_ok), key="test_incidents"):
                 with st.spinner("Testing incidents endpoint…"):
                     try:
@@ -3147,7 +3147,7 @@ with tab_dash:
                         body = r.text[:200]
                         if r.status_code == 200:
                             total = r.json().get("totalItems", "?")
-                            st.session_state["_test_inc"] = (True, f"✅ HTTP 200 — {total} incident(s) in NW")
+                            st.session_state["_test_inc"] = (True, f"HTTP 200 — {total} incident(s) in NW")
                         elif r.status_code == 401:
                             st.session_state["_test_inc"] = (False, "401 Unauthorised — token expired, login again")
                         elif r.status_code == 403:
@@ -3160,7 +3160,7 @@ with tab_dash:
                         st.session_state["_test_inc"] = (False, str(e)[:120])
 
             # Show test results
-            for key, label in [("_test_ping","🌐 Ping"), ("_test_auth","🔑 Auth"), ("_test_inc","📋 Incidents")]:
+            for key, label in [("_test_ping","Ping"), ("_test_auth","Auth"), ("_test_inc","Incidents")]:
                 result = st.session_state.get(key)
                 if result:
                     ok, msg = result
@@ -3180,7 +3180,7 @@ with tab_dash:
                 unsafe_allow_html=True,
             )
             fa, fb = st.columns(2)
-            if fa.button("🔌 Connect Automatically",
+            if fa.button("Connect Automatically",
                          use_container_width=True, key="quick_relogin",
                          disabled=not (bool(_env.get("host")) and bool(_env.get("username")) and bool(_env.get("password")))):
                 with st.spinner("Logging in…"):
@@ -3196,9 +3196,9 @@ with tab_dash:
                         db_upsert_incidents(items2)
                     st.rerun()
                 else:
-                    st.error(f"❌ {msg}")
+                    st.error(f"{msg}")
 
-            if fb.button("🗑️ Reset",
+            if fb.button("Reset",
                          use_container_width=True, key="clear_tests"):
                 for k in ["_test_ping", "_test_auth", "_test_inc"]:
                     st.session_state.pop(k, None)
@@ -3211,7 +3211,7 @@ with tab_dash:
             st.markdown(
                 '<div style="font-family:var(--mono);font-size:0.65rem;'
                 'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
-                '🎯  Alert Priority Breakdown</div>', unsafe_allow_html=True,
+                'Alert Priority Breakdown</div>', unsafe_allow_html=True,
             )
             sev_total = sum(by_sev.values()) or 1
             for s in ["CRITICAL","HIGH","MEDIUM","LOW"]:  # shown with friendly labels below
@@ -3222,7 +3222,7 @@ with tab_dash:
                     f'<div style="margin:8px 0">'
                     f'<div style="display:flex;justify-content:space-between;'
                     f'font-family:var(--mono);font-size:0.63rem;margin-bottom:4px">'
-                    f'<span style="color:{color}">{{"CRITICAL":"🔴 Critical","HIGH":"🟠 High","MEDIUM":"🟡 Medium","LOW":"🟢 Low"}}.get(s, s)</span>'
+                    f'<span style="color:{color}">{{"CRITICAL":"Critical","HIGH":"High","MEDIUM":"Medium","LOW":"Low"}}.get(s, s)</span>'
                     f'<span style="color:var(--muted)">{cnt}</span></div>'
                     f'<div style="background:#0A1420;border-radius:3px;height:7px">'
                     f'<div style="width:{pct*100:.1f}%;height:100%;border-radius:3px;'
@@ -3236,7 +3236,7 @@ with tab_dash:
             st.markdown(
                 '<div style="font-family:var(--mono);font-size:0.65rem;'
                 'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
-                '📌  Current Status</div>', unsafe_allow_html=True,
+                'Current Status</div>', unsafe_allow_html=True,
             )
             status_counts = Counter(
                 str(i.get("status") or "UNKNOWN").upper() for i in incidents
@@ -3263,7 +3263,7 @@ with tab_dash:
             st.markdown(
                 '<div style="font-family:var(--mono);font-size:0.65rem;'
                 'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
-                '🕐  Most Recent Alerts</div>', unsafe_allow_html=True,
+                'Most Recent Alerts</div>', unsafe_allow_html=True,
             )
             for inc in incidents[:10]:
                 sev     = normalise_sev(inc)
@@ -3289,7 +3289,7 @@ with tab_dash:
         st.markdown(
             '<div style="font-family:var(--mono);font-size:0.65rem;'
             'color:var(--muted);letter-spacing:2px;margin-bottom:12px">'
-            '👤  Team Workload</div>', unsafe_allow_html=True,
+            'Team Workload</div>', unsafe_allow_html=True,
         )
         assignee_counts = Counter(
             str(i.get("assignee") or "Unassigned") for i in incidents
@@ -3319,7 +3319,7 @@ with tab_dash:
 # ─────────────────────────────────────────────────────────────
 with tab_inc:
     st.markdown(
-        '<div class="info-box"><div class="title">🚨 Security Alerts</div>'
+        '<div class="info-box"><div class="title"> Security Alerts</div>'
         'This page lists all security incidents detected by NetWitness. '
         'Use the filter below to focus on the most urgent alerts. '
         'Click any alert to see full details.</div>',
@@ -3331,7 +3331,7 @@ with tab_inc:
         "Filter by priority", ["ALL","CRITICAL","HIGH","MEDIUM","LOW"],
         label_visibility="visible",
     )
-    if col_sync.button("⬆️ Sync to Knowledge Base", use_container_width=True):
+    if col_sync.button("⬆ Sync to Knowledge Base", use_container_width=True):
         if not incidents:
             st.warning("No incidents loaded yet.")
         elif st.session_state.chroma_col is None:
@@ -3353,11 +3353,11 @@ with tab_inc:
             unsafe_allow_html=True,
         )
 
-    with st.expander("🔧 Endpoint Diagnostics", expanded=not bool(incidents)):
+    with st.expander("Endpoint Diagnostics", expanded=not bool(incidents)):
         st.markdown(
             '<div style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);margin-bottom:8px">'
             'Tests all known NW endpoints with all auth styles to find the working combination. '
-            'Click "✅ Use this" on a hit to wire it into the app automatically.</div>',
+            'Click "Use this" on a hit to wire it into the app automatically.</div>',
             unsafe_allow_html=True,
         )
 
@@ -3369,7 +3369,7 @@ with tab_inc:
             "Both":     "Both",
         }
 
-        if st.button("🔍 Run Endpoint Scan", use_container_width=False):
+        if st.button("Run Endpoint Scan", use_container_width=False):
             if not st.session_state.nw_token:
                 st.error("Login first.")
             else:
@@ -3413,7 +3413,7 @@ with tab_inc:
                             results.append({
                                 "endpoint": ep, "auth": style,
                                 "status": r.status_code,
-                                "json": "✅ JSON" if is_j else "❌ HTML",
+                                "json": "JSON" if is_j else "HTML",
                                 "is_hit": is_j and r.status_code == 200,
                                 "preview": r.text[:80] if is_j else "",
                             })
@@ -3421,7 +3421,7 @@ with tab_inc:
                             results.append({"endpoint": ep, "auth": style,
                                             "status": "ERR", "json": str(e)[:50],
                                             "is_hit": False, "preview": ""})
-                # Persist across reruns (so "✅ Use this" buttons survive)
+                # Persist across reruns (so "Use this" buttons survive)
                 st.session_state.endpoint_scan_results = results
 
         results = st.session_state.get("endpoint_scan_results", [])
@@ -3446,7 +3446,7 @@ with tab_inc:
                     )
                 with rc2:
                     if res.get("is_hit"):
-                        if st.button("✅ Use this", key=f"use_ep_{i}", use_container_width=True):
+                        if st.button("Use this", key=f"use_ep_{i}", use_container_width=True):
                             # Wire the found endpoint + auth style into the app
                             clean_path = res["endpoint"].split("?")[0]
                             st.session_state.nw_incidents_path = clean_path
@@ -3470,12 +3470,12 @@ with tab_inc:
 
         if st.session_state.nw_working_ep:
             st.success(
-                f"✅ Active endpoint: `{st.session_state.nw_incidents_path}` "
+                f"Active endpoint: `{st.session_state.nw_incidents_path}` "
                 f"· auth style: `{st.session_state.nw_auth_style}`"
             )
 
     # ── Manual endpoint / auth override ─────────────────────────
-    with st.expander("⚙️ Manual Endpoint Config"):
+    with st.expander("Manual Endpoint Config"):
         st.markdown(
             '<div style="font-family:var(--mono);font-size:0.62rem;color:var(--muted);margin-bottom:6px">'
             'Set these directly if you already know your NW instance\'s working values.</div>',
@@ -3495,7 +3495,7 @@ with tab_inc:
             ),
             key="manual_auth_style",
         )
-        if st.button("💾 Apply & Re-verify", key="manual_apply"):
+        if st.button("Apply & Re-verify", key="manual_apply"):
             st.session_state.nw_incidents_path = new_path.strip() or "/rest/api/incidents"
             st.session_state.nw_auth_style     = new_style
             ok_v, msg_v = nw_verify_token()
@@ -3507,9 +3507,9 @@ with tab_inc:
                     st.session_state.incidents  = items_f
                     st.session_state.last_fetch = datetime.now()
                     db_upsert_incidents(items_f)
-                st.success(f"✅ {msg_v}")
+                st.success(f"{msg_v}")
             else:
-                st.error(f"❌ {msg_v}")
+                st.error(f"{msg_v}")
             st.rerun()
 
     st.markdown("---")
@@ -3578,7 +3578,7 @@ with tab_inc:
 
             # Aegis case header (ui_components) — mockup "Case Workspace" style
             try:
-                _sev_icon = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🟢"}.get(sev, "⚠")
+                _sev_icon = {"CRITICAL": "", "HIGH": "", "MEDIUM": "", "LOW": ""}.get(sev, "")
                 st.markdown(_ui.case_header(
                     inc_id, title, sev=sev, status=status,
                     subtitle=(f"{alerts} alert(s)" if str(alerts) != "—" else "NetWitness incident"),
@@ -3593,7 +3593,7 @@ with tab_inc:
                     unsafe_allow_html=True,
                 )
             b1, b2, b3, b4, _ = st.columns([0.9, 0.7, 0.9, 1.05, 4.05])
-            if b1.button("🩺 Triage", key=f"chat_{inc_id}"):
+            if b1.button("Triage", key=f"chat_{inc_id}"):
                 st.session_state.chat_incident       = inc
                 st.session_state.pending_auto_triage = True
                 st.session_state.jump_to_ask_tab     = True
@@ -3601,10 +3601,10 @@ with tab_inc:
             if b2.button("{ }", key=f"json_{inc_id}"):
                 with st.expander(f"JSON — {inc_id}", expanded=True):
                     st.json(inc)
-            # 📋 Case overview — Aegis key-findings + context grid from real data
+            # Case overview — Aegis key-findings + context grid from real data
             # (distilled alert behaviours + unified triage verdict). Guarded.
-            if b4.button("📋 Overview", key=f"ovw_{inc_id}"):
-                with st.expander(f"📋 Case overview — {inc_id}", expanded=True):
+            if b4.button("Overview", key=f"ovw_{inc_id}"):
+                with st.expander(f"Case overview — {inc_id}", expanded=True):
                     try:
                         _findings, _verdict = _build_case_findings(inc)
                         _ctx = _build_case_context(inc, sev, status, alerts, _verdict)
@@ -3625,7 +3625,7 @@ with tab_inc:
                                         unsafe_allow_html=True)
                         except Exception:
                             pass
-                        # 🎯 MITRE ATT&CK kill-chain strip (Phase 4b) — highlights
+                        # MITRE ATT&CK kill-chain strip (Phase 4b) — highlights
                         # the incident's inferred tactic across the chain.
                         try:
                             from tactic_inference import infer_tactics
@@ -3653,11 +3653,11 @@ with tab_inc:
                                         unsafe_allow_html=True)
                     except Exception as _ovw_err:
                         st.caption(f"Overview unavailable: {_ovw_err}")
-            # 🗺️ Incident Map — deterministic entity graph (Stage 1) plus
+            # Incident Map — deterministic entity graph (Stage 1) plus
             # autonomous corpus expansion (Stage 2). Read-only; guarded so a
             # map failure can never break the incident list.
-            if b3.button("🗺️ Map", key=f"map_{inc_id}"):
-                with st.expander(f"🗺️ Incident Map — {inc_id}", expanded=True):
+            if b3.button("Map", key=f"map_{inc_id}"):
+                with st.expander(f"Incident Map — {inc_id}", expanded=True):
                     try:
                         from incident_map import build_incident_map, to_dot, map_caption
                         from incident_expansion import LocalCorpusSource, expand_incident_map
@@ -3674,7 +3674,7 @@ with tab_inc:
                         except Exception:
                             _tac_note = None
                         if _tac_note:
-                            st.caption(f"🧭 {_tac_note}")
+                            st.caption(f"{_tac_note}")
                         _imap_key = "main"
                         _imap = build_incident_map(inc)
                         try:
@@ -3682,16 +3682,16 @@ with tab_inc:
                                 expand_incident_map(_imap, _src)
                         except Exception as _exp_err:
                             _imap.setdefault("expansion_log", []).append(
-                                f"⚠ expansion unavailable: {_exp_err}")
+                                f"expansion unavailable: {_exp_err}")
                         st.graphviz_chart(to_dot(_imap), width="stretch")
                         st.caption(map_caption(_imap))
                         if _imap.get("expansion_log"):
-                            st.markdown("**🔗 Autonomous expansion**")
+                            st.markdown("** Autonomous expansion**")
                             st.markdown("\n".join(f"- {l}" for l in _imap["expansion_log"]))
                         if _imap.get("endpoint_profile_text"):
-                            st.markdown("**📇 Endpoint profile**")
+                            st.markdown("** Endpoint profile**")
                             st.code(_imap["endpoint_profile_text"], language=None)
-                        # 🎯 Unified triage verdict — capstone that aggregates the
+                        # Unified triage verdict — capstone that aggregates the
                         # triage-side skills (base severity + asset criticality +
                         # internal IOC correlation) into ONE prioritized verdict.
                         # Reads the other skills' outputs; edits none of them.
@@ -3699,23 +3699,23 @@ with tab_inc:
                             from triage_verdict import aggregate_verdict, format_verdict
                             _tv = aggregate_verdict(_imap_src)
                             if _tv.get("available"):
-                                st.markdown(f"**🎯 Unified triage verdict — "
+                                st.markdown(f"** Unified triage verdict — "
                                             f"{_tv['level']} (priority {_tv['priority']}/5)**")
                                 st.code(format_verdict(_tv), language=None)
                         except Exception as _tv_err:
                             st.caption(f"Unified verdict unavailable: {_tv_err}")
-                        # 🏷️ Asset criticality (instant, deterministic)
+                        # Asset criticality (instant, deterministic)
                         try:
                             from asset_criticality import assess_incident, format_assessment
                             _ac = assess_incident(_imap_src)
-                            st.markdown("**🏷️ Asset criticality**")
+                            st.markdown("** Asset criticality**")
                             st.code(format_assessment(_ac), language=None)
                         except Exception as _ac_err:
                             st.caption(f"Asset criticality unavailable: {_ac_err}")
-                        # 🌐 Threat-intel enrichment (live IOC lookups — opt-in
+                        # Threat-intel enrichment (live IOC lookups — opt-in
                         # since it hits the network the first time per IOC)
                         try:
-                            if st.checkbox("🌐 Enrich IOCs (threat intel)",
+                            if st.checkbox("Enrich IOCs (threat intel)",
                                            key=f"ti_{_imap_key}_{_imap_src.get('id','')}"):
                                 from threat_intel import enrich_iocs, format_enrichment
                                 _enr = enrich_iocs(_imap_src)
@@ -3725,7 +3725,7 @@ with tab_inc:
                                     st.caption("No external IOCs to enrich.")
                         except Exception as _ti_err:
                             st.caption(f"Threat intel unavailable: {_ti_err}")
-                        # 🛡️ Recommended detection — deterministic Sigma rule
+                        # Recommended detection — deterministic Sigma rule
                         # from the incident's indicators (no LLM, no TI lookup
                         # so it stays instant); guarded independently.
                         try:
@@ -3734,16 +3734,16 @@ with tab_inc:
                             _asset = assess_incident(_imap_src)
                             _det = build_detection(_imap_src, asset=_asset)
                             if _det["has_selection"]:
-                                st.markdown("**🛡️ Recommended detection (Sigma)**")
+                                st.markdown("** Recommended detection (Sigma)**")
                                 st.code(_det["sigma_yaml"], language="yaml")
                                 st.caption(f"Splunk: {_det['splunk_spl']}")
                                 # detection-as-code: validate + Elastic EQL (3rd SIEM)
                                 try:
                                     from detection_engineering import validate_sigma, to_elastic_eql
                                     _v = validate_sigma(_det["sigma"])
-                                    st.caption(("✅ detection-as-code: all required fields present"
+                                    st.caption(("detection-as-code: all required fields present"
                                                 if _v["valid"] else
-                                                "⚠️ " + "; ".join(_v["missing_fields"] + _v["warnings"])))
+                                                "" + "; ".join(_v["missing_fields"] + _v["warnings"])))
                                     st.caption(f"Elastic EQL: {to_elastic_eql(_det)}")
                                 except Exception:
                                     pass
@@ -3752,26 +3752,26 @@ with tab_inc:
                                         f"{c['id']} {c['name']}" for c in _det["d3fend"]))
                         except Exception as _det_err:
                             st.caption(f"Detection unavailable: {_det_err}")
-                        # 🛰️ ATT&CK detection coverage (program-level capability)
+                        # ATT&CK detection coverage (program-level capability)
                         try:
                             from detection_engineering import assess_attack_coverage, format_coverage
                             _acov = assess_attack_coverage(str(DB_FILE))
-                            with st.expander(f"🛰️ ATT&CK detection coverage "
+                            with st.expander(f"ATT&CK detection coverage "
                                              f"({_acov['covered']}/{_acov['tactics_total']} "
                                              f"tactics, {_acov['coverage_pct']}%)", expanded=False):
                                 st.code(format_coverage(_acov), language=None)
                         except Exception as _cov_err:
                             st.caption(f"Coverage unavailable: {_cov_err}")
-                        # 🧯 Recommended mitigations & coverage (threat->control)
+                        # Recommended mitigations & coverage (threat->control)
                         try:
                             from mitigation_mapping import build_mitigation_coverage, format_mitigation
                             _cov = build_mitigation_coverage(_imap_src, asset=_asset)
                             if _cov.get("available"):
-                                st.markdown("**🧯 Recommended mitigations & coverage**")
+                                st.markdown("** Recommended mitigations & coverage**")
                                 st.code(format_mitigation(_cov), language=None)
                         except Exception as _mit_err:
                             st.caption(f"Mitigation map unavailable: {_mit_err}")
-                        # 🔗 Internal IOC correlation — frequency/severity/case
+                        # Internal IOC correlation — frequency/severity/case
                         # status of each IOC across the local corpus + case
                         # pipeline -> HIGH/MEDIUM/LOW/NONE confidence. Deterministic,
                         # read-only, self-locating DBs; ubiquity-guarded.
@@ -3779,61 +3779,61 @@ with tab_inc:
                             from ioc_correlation import correlate_iocs, format_correlation
                             _corr = correlate_iocs(_imap_src)
                             if _corr.get("available") and _corr.get("results"):
-                                st.markdown("**🔗 Internal IOC correlation**")
+                                st.markdown("** Internal IOC correlation**")
                                 st.code(format_correlation(_corr), language=None)
                         except Exception as _corr_err:
                             st.caption(f"IOC correlation unavailable: {_corr_err}")
-                        # 🔬 osquery investigation pack — per-incident, MITRE-mapped
+                        # osquery investigation pack — per-incident, MITRE-mapped
                         # osquery queries to RUN on the affected host (investigation
                         # skill; standalone, deterministic, no soc_investigation_agent edits)
                         try:
                             from osquery_investigation import build_investigation_pack, format_pack
                             _oq = build_investigation_pack(_imap_src)
                             if _oq.get("available"):
-                                with st.expander(f"🔬 osquery investigation pack "
+                                with st.expander(f"osquery investigation pack "
                                                  f"({_oq['stats']['total_queries']} queries · "
                                                  f"{_oq['platform']})", expanded=False):
                                     st.code(format_pack(_oq), language="sql")
                         except Exception as _oq_err:
                             st.caption(f"osquery pack unavailable: {_oq_err}")
-                        # 🦖 Velociraptor collection & hunt plan — named DFIR
+                        # Velociraptor collection & hunt plan — named DFIR
                         # artifacts + VQL to collect on the affected host
                         # (investigation skill; standalone, no soc_investigation_agent edits)
                         try:
                             from velociraptor_investigation import build_collection_plan, format_plan
                             _vr = build_collection_plan(_imap_src)
                             if _vr.get("available"):
-                                with st.expander(f"🦖 Velociraptor collection plan "
+                                with st.expander(f"Velociraptor collection plan "
                                                  f"({_vr['stats']['artifacts']} artifacts · "
                                                  f"{_vr['stats']['total_vql']} VQL)", expanded=False):
                                     st.code(format_plan(_vr), language="sql")
                         except Exception as _vr_err:
                             st.caption(f"Velociraptor plan unavailable: {_vr_err}")
-                        # 💎 Diamond Model of Intrusion Analysis — structures the
+                        # Diamond Model of Intrusion Analysis — structures the
                         # incident into Adversary/Capability/Infrastructure/Victim
                         # (investigation skill; standalone, no soc_investigation_agent edits)
                         try:
                             from diamond_model import build_diamond, format_diamond, to_dot
                             _dm = build_diamond(_imap_src)
                             if _dm.get("available"):
-                                with st.expander(f"💎 Diamond Model "
+                                with st.expander(f"Diamond Model "
                                                  f"({_dm['stats']['completeness_pct']}% complete)",
                                                  expanded=False):
                                     st.graphviz_chart(to_dot(_dm), width="stretch")
                                     st.code(format_diamond(_dm), language=None)
                         except Exception as _dm_err:
                             st.caption(f"Diamond Model unavailable: {_dm_err}")
-                        # 🎯 Proactive threat hunting + statistical anomalies
+                        # Proactive threat hunting + statistical anomalies
                         # (standalone module; needs a MITRE tactic on the incident)
                         try:
                             from threat_hunting import build_hunt_package, format_hunt
                             _pkg = build_hunt_package(_imap_src, None, str(DB_FILE))
                             if _pkg.get("available"):
-                                st.markdown("**🎯 Proactive threat hunting**")
+                                st.markdown("** Proactive threat hunting**")
                                 st.code(format_hunt(_pkg), language=None)
                         except Exception as _hunt_err:
                             st.caption(f"Threat hunting unavailable: {_hunt_err}")
-                        # 📋 Incident Response SOP / runbook — the actionable
+                        # Incident Response SOP / runbook — the actionable
                         # containment→recovery procedure (standalone reporting-agent
                         # skill; also folded into the written report via
                         # skills_sidecar). Deterministic, guarded.
@@ -3843,7 +3843,7 @@ with tab_inc:
                             if _sop.get("available"):
                                 _sv = _sop.get("validation", {})
                                 with st.expander(
-                                    f"📋 Response SOP ({_sop['stats']['steps']} steps · "
+                                    f"Response SOP ({_sop['stats']['steps']} steps · "
                                     f"{_sop['meta']['scenario']} · validation "
                                     f"{'PASS' if _sv.get('valid') else 'REVIEW'})",
                                     expanded=False):
@@ -3851,7 +3851,7 @@ with tab_inc:
                         except Exception as _sop_err:
                             st.caption(f"Response SOP unavailable: {_sop_err}")
                         if _imap["timeline"]:
-                            st.markdown("**🕐 Timeline**")
+                            st.markdown("** Timeline**")
                             st.markdown("\n".join(
                                 f"- `{t['time'][:19]}` — {t['event']}"
                                 for t in _imap["timeline"][:12]))
@@ -3863,7 +3863,7 @@ with tab_inc:
             # Associated Alerts / Logs
             alerts_list = inc.get("alerts")
             if alerts_list:
-                with st.expander(f"🚨 Associated Alerts ({len(alerts_list)})", expanded=False):
+                with st.expander(f"Associated Alerts ({len(alerts_list)})", expanded=False):
                     for alert in alerts_list:
                         a_title = alert.get("title") or alert.get("name") or "Untitled Alert"
                         a_id = alert.get("id") or ""
@@ -3896,7 +3896,7 @@ with tab_inc:
                                 ev_port = ev_dst.get("device", {}).get("port") or ev_dst.get("port") or "—"
                                 st.markdown(
                                     f'<div style="margin-left:15px;padding:4px 8px;font-family:var(--mono);font-size:0.7rem;color:var(--muted);border-left:1px dashed #1B4A62">'
-                                    f'Event {idx+1}: 🧑‍💻 {user} | ➡️ {src_ip} → {dst_ip} (Port {ev_port}, Proto {ev_proto})'
+                                    f'Event {idx+1}: {user} | ➡ {src_ip} → {dst_ip} (Port {ev_port}, Proto {ev_proto})'
                                     f'</div>',
                                     unsafe_allow_html=True
                                 )
@@ -3910,7 +3910,7 @@ with tab_inc:
 # ─────────────────────────────────────────────────────────────
 with tab_chat:
     st.markdown(
-        '<div class="info-box"><div class="title">💬 Ask a Question</div>'
+        '<div class="info-box"><div class="title"> Ask a Question</div>'
         'You can ask plain-language questions about your security alerts here. '
         'For example: <em>"What are the most critical incidents today?"</em> or '
         '<em>"Summarise the latest high-priority alerts."</em> '
@@ -4056,7 +4056,7 @@ with tab_chat:
                 f'<div style="background:#050F1A;border:1px solid var(--warn);'
                 f'border-radius:6px;padding:10px 16px;font-family:var(--mono);'
                 f'font-size:0.72rem">'
-                f'📎 <strong>{st.session_state.uploaded_filename}</strong>'
+                f'<strong>{st.session_state.uploaded_filename}</strong>'
                 f'<span style="color:var(--muted);font-size:0.6rem;margin-left:10px">'
                 f'● from uploaded file</span>'
                 f'</div>',
@@ -4067,7 +4067,7 @@ with tab_chat:
                 '<div style="background:#07080F;border:1px solid var(--border);'
                 'border-radius:6px;padding:10px 16px;font-family:var(--mono);'
                 'font-size:0.68rem;color:var(--muted)">'
-                '⚠ No incident context — select one from the Incidents tab '
+                'No incident context — select one from the Incidents tab '
                 'or upload a file below.'
                 '</div>',
                 unsafe_allow_html=True,
@@ -4092,18 +4092,18 @@ with tab_chat:
     )
 
     _AGENTS = [
-        ("triage",        "🩺", "Triage Agent",        "#00D4FF"),
-        ("investigation", "🔎", "Investigation Agent", "#FF7700"),
-        ("reporting",     "📄", "Reporting Agent",     "#A78BFA"),
+        ("triage",        "", "Triage Agent",        "#00D4FF"),
+        ("investigation", "", "Investigation Agent", "#FF7700"),
+        ("reporting",     "", "Reporting Agent",     "#A78BFA"),
     ]
     _BOARD_BADGES = {
         "idle":    ("○ IDLE",    "#3A607A"),
-        "queued":  ("⏸ QUEUED",  "#8B9DC3"),
-        "running": ("⏳ RUNNING", "#FFB700"),
-        "done":    ("✅ DONE",    "#0AF0A0"),
-        "cached":  ("♻️ CACHED",  "#0AF0A0"),
-        "skipped": ("⏭️ SKIPPED", "#3A607A"),
-        "failed":  ("❌ FAILED",  "#FF3B3B"),
+        "queued":  ("QUEUED",  "#8B9DC3"),
+        "running": ("RUNNING", "#FFB700"),
+        "done":    ("DONE",    "#0AF0A0"),
+        "cached":  ("CACHED",  "#0AF0A0"),
+        "skipped": ("SKIPPED", "#3A607A"),
+        "failed":  ("FAILED",  "#FF3B3B"),
     }
 
     # ── Background workflow sync: worker state → board, finalize once ──────
@@ -4135,7 +4135,7 @@ with tab_chat:
             if st.session_state.agent_board[_ag]["status"] in ("running", "queued"):
                 st.session_state.agent_board[_ag]["status"] = "failed"
                 st.session_state.agent_board[_ag]["thinking"].append(
-                    f"[{datetime.now().strftime('%H:%M:%S')}] ⚠️ previous run "
+                    f"[{datetime.now().strftime('%H:%M:%S')}] previous run "
                     "was interrupted before completion")
 
     # ── Disk fallback: surface a completed run this session never saw ──────
@@ -4283,17 +4283,17 @@ with tab_chat:
             f'letter-spacing:2px;margin:10px 0 4px">{_icon} {_name.upper()} — DETAIL</div>',
             unsafe_allow_html=True,
         )
-        with st.expander("🧠 Thinking process", expanded=True):
+        with st.expander("Thinking process", expanded=True):
             _think_slot = st.empty()
             _token_slot = st.empty()   # live LLM token stream (triage phases)
-        with st.expander("📤 Output", expanded=bool(_panel["output"])):
+        with st.expander("Output", expanded=bool(_panel["output"])):
             _out_slot = st.empty()
         _board_live_detail[_sel_ag] = {"think": _think_slot,
                                        "token": _token_slot, "out": _out_slot}
         _render_board_detail(_sel_ag)
 
     # ── File uploader (kept — tucked below the board) ──────────────────────
-    with st.expander("📎 Upload incident file (JSON · CSV · TXT · LOG)"):
+    with st.expander("Upload incident file (JSON · CSV · TXT · LOG)"):
         uploaded_file = st.file_uploader(
             "Upload incident file",
             type=["json", "csv", "txt", "log"],
@@ -4306,7 +4306,7 @@ with tab_chat:
             if uploaded_file.name != st.session_state.uploaded_filename:
                 parsed_inc, err = _parse_uploaded_file(uploaded_file)
                 if err:
-                    st.error(f"❌ {err}")
+                    st.error(f"{err}")
                 else:
                     st.session_state.uploaded_incident = parsed_inc
                     st.session_state.uploaded_filename  = uploaded_file.name
@@ -4327,7 +4327,7 @@ with tab_chat:
                 f'<div style="background:#060C16;border:1px solid var(--border);'
                 f'border-radius:5px;padding:8px 12px;font-family:var(--mono);'
                 f'font-size:0.62rem;margin:6px 0;line-height:1.8">'
-                f'📋 Parsed fields: {preview_html}'
+                f'Parsed fields: {preview_html}'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -4335,12 +4335,12 @@ with tab_chat:
             # SIEM/EDR/NDR/log alert (defensive-security skill's analyze_alert)
             _av = preview_inc.get("_analyze_alert")
             if isinstance(_av, dict) and _av.get("classification") not in (None, "invalid"):
-                _tp = "✅ true positive" if _av["is_true_positive"] else "⚠️ needs review"
+                _tp = "true positive" if _av["is_true_positive"] else "needs review"
                 st.markdown(
                     f'<div style="background:#0A1A10;border:1px solid #1E5A38;'
                     f'border-radius:5px;padding:8px 12px;font-family:var(--mono);'
                     f'font-size:0.62rem;margin:6px 0;line-height:1.7">'
-                    f'🩺 <b>Alert triage</b> ({preview_inc.get("_source_format","?").upper()} '
+                    f'<b>Alert triage</b> ({preview_inc.get("_source_format","?").upper()} '
                     f'source): {_av["classification"]} · '
                     f'severity <b>{_av["severity"]}</b> · {_tp}'
                     + (" · MITRE " + ", ".join(m["technique"] for m in _av.get("mitre", [])[:4])
@@ -4349,7 +4349,7 @@ with tab_chat:
                     unsafe_allow_html=True,
                 )
             # (checkbox, not an expander — Streamlit forbids nesting expanders)
-            if st.checkbox("🔍 View full parsed incident JSON", key="upl_json_view"):
+            if st.checkbox("View full parsed incident JSON", key="upl_json_view"):
                 st.json({k: v for k, v in preview_inc.items() if k != "raw_log"})
 
     st.markdown("---")
@@ -4358,7 +4358,7 @@ with tab_chat:
     if active_inc:
         st.markdown(
             '<div style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);'
-            'margin-bottom:6px">💡 Type <strong style="color:var(--accent)">triage</strong>, '
+            'margin-bottom:6px"> Type <strong style="color:var(--accent)">triage</strong>, '
             '<strong style="color:var(--accent)">ioc</strong>, '
             '<strong style="color:var(--accent)">classify</strong> or '
             '<strong style="color:var(--accent)">ticket</strong> to run the full triage pipeline.'
@@ -4369,7 +4369,7 @@ with tab_chat:
     # ── Chat input  (called first — always fixed at page bottom by Streamlit)
     user_input = st.chat_input("Ask the SOC agent…")
 
-    # The "🩺 Triage" button sets this flag instead of the user typing a
+    # The "Triage" button sets this flag instead of the user typing a
     # message — synthesize the trigger word so it flows through the exact
     # same pipeline below, with no manual typing required.
     _triage_restart = False
@@ -4394,9 +4394,9 @@ with tab_chat:
         else:
             st.session_state.triage_in_flight = None
             _board_set("triage", status="failed",
-                       think="❌ triage was interrupted repeatedly — click 🩺 Triage to run it again",
+                       think="triage was interrupted repeatedly — click Triage to run it again",
                        output="Triage did not complete: the run was interrupted "
-                              "repeatedly by page interactions. Click 🩺 Triage to rerun.")
+                              "repeatedly by page interactions. Click Triage to rerun.")
 
     # Append user message immediately so it shows in the history render below
     # (not on auto-restart — the original message is already in the history)
@@ -4417,7 +4417,7 @@ with tab_chat:
         st.markdown(
             '<div style="text-align:center;padding:40px;font-family:var(--mono);'
             'font-size:0.78rem;color:var(--muted)">'
-            '💬 SOC TRIAGE AGENT READY<br>'
+            'SOC TRIAGE AGENT READY<br>'
             '<span style="font-size:0.62rem">'
             'Upload a file or select an incident, then type a message below</span></div>',
             unsafe_allow_html=True,
@@ -4444,7 +4444,7 @@ with tab_chat:
     # ── Agent execution ────────────────────────────────────────────────────────
     if user_input:
 
-        reply = "⚠️ No response was generated."   # safe default
+        reply = "No response was generated."   # safe default
 
         # ── Triage trigger ─────────────────────────────────────────────────────
         if active_inc and _TRIAGE_TRIGGER.search(user_input):
@@ -4485,13 +4485,13 @@ with tab_chat:
                 st.session_state.triage_in_flight = {
                     "incident_id": str(active_inc.get("id") or ""), "attempts": 1}
             if _triage_restart:
-                _board_set("triage", think="🔁 previous run was interrupted by a "
+                _board_set("triage", think="previous run was interrupted by a "
                                            "page interaction — restarted automatically")
 
             # st.status() + st.write() is Streamlit's guaranteed progressive-update
             # pattern — st.write() calls inside the with-block appear live as each
             # phase fires; status.update(label=…) changes the header to the current phase.
-            with st.status("⏳ Initialising triage pipeline…", expanded=True) as triage_status:
+            with st.status("Initialising triage pipeline…", expanded=True) as triage_status:
 
                 thinking_panel = st.empty()   # token-by-token stream inside the status
                 # Mirror the token stream into the agent board's detail view
@@ -4508,14 +4508,14 @@ with tab_chat:
                     )
                     if event == "phase_start":
                         desc = PHASE_DESC.get(key, label)
-                        triage_status.update(label=f"🔍 {desc}…", expanded=True)
+                        triage_status.update(label=f"{desc}…", expanded=True)
                         thinking_tee.empty()
                         _board_set("triage", think=f"▶ {desc}")
                     elif event == "phase_complete":
                         result = f" — {text}" if text else ""
-                        st.write(f"✅ **{key}**{result}")
+                        st.write(f"**{key}**{result}")
                         thinking_tee.empty()
-                        _board_set("triage", think=f"✅ {key}{result}")
+                        _board_set("triage", think=f"{key}{result}")
 
                 try:
                     reply = soc_triage_chat_respond(
@@ -4527,9 +4527,9 @@ with tab_chat:
                         result_sink        = _triage_sink,
                     )
                     if not reply:
-                        reply = "⚠️ Triage returned an empty response."
+                        reply = "Triage returned an empty response."
                     triage_status.update(
-                        label="✅ Triage complete", state="complete", expanded=False
+                        label="Triage complete", state="complete", expanded=False
                     )
                     _board_set(
                         "triage",
@@ -4540,7 +4540,7 @@ with tab_chat:
                 except Exception as exc:
                     _es = str(exc)
                     if "503" in _es or "unavailable" in _es.lower():
-                        reply = ("⏸️ **The LLM endpoint is asleep (HTTP 503).** "
+                        reply = ("**The LLM endpoint is asleep (HTTP 503).** "
                                  "Your HuggingFace endpoint scales to zero when "
                                  "idle and needs a few minutes to boot — this "
                                  "request has started waking it. **Wait 2–5 "
@@ -4548,18 +4548,18 @@ with tab_chat:
                                  "token is fine: 503 means the server isn't "
                                  "running, not an auth problem.)")
                     elif "401" in _es or "unauthorized" in _es.lower():
-                        reply = ("🔑 **The LLM endpoint rejected the "
+                        reply = ("**The LLM endpoint rejected the "
                                  "credentials (HTTP 401).** Check the token "
                                  "and endpoint URL in the sidebar LLM "
                                  "settings, and that the endpoint still "
                                  "exists in your HuggingFace console.")
                     else:
-                        reply = f"❌ Triage error: {exc}"
+                        reply = f"Triage error: {exc}"
                     triage_status.update(
-                        label="❌ Triage failed", state="error", expanded=True
+                        label="Triage failed", state="error", expanded=True
                     )
                     _board_set("triage", status="failed",
-                               think=f"❌ {str(exc)[:150]}", output=reply)
+                               think=f"{str(exc)[:150]}", output=reply)
                     # real failure (error already shown) — no auto-restart
                     st.session_state.triage_in_flight = None
 
@@ -4569,9 +4569,9 @@ with tab_chat:
                 with st.spinner("Agent thinking…"):
                     reply = chat_respond(user_input, incident=active_inc)
                 if not reply:
-                    reply = "⚠️ Agent returned an empty response."
+                    reply = "Agent returned an empty response."
             except Exception as exc:
-                reply = f"❌ Error: {exc}"
+                reply = f"Error: {exc}"
 
         # ── Sequential agent workflow: triage → investigation → reporting ──
         # Driven by the STRUCTURED triage result (not keyword-matching the
@@ -4601,11 +4601,11 @@ with tab_chat:
                 _ticket = _tri["ticket"]
                 _cls    = _ticket.get("classification") or _sev
                 _unc    = _ticket.get("unc") or f"#TKT_{_inc_id[:6]}"
-                _wf_md  = ["", "---", "", "## 🔗 Agent Workflow"]
+                _wf_md  = ["", "---", "", "## Agent Workflow"]
                 _run_started = datetime.now()
                 _run_stamp   = _run_started.strftime("%Y%m%d-%H%M%S")
                 if _tri.get("cached"):
-                    _wf_md.append("- ♻️ Triage served from cache — MITRE mapping "
+                    _wf_md.append("- Triage served from cache — MITRE mapping "
                                   "and metakey extraction reflect the *original* "
                                   "run. Type **retriage** for a fresh analysis "
                                   "with the latest agent upgrades.")
@@ -4613,7 +4613,7 @@ with tab_chat:
                 _n_alerts_attached = len(active_inc.get("alerts") or [])
                 if _n_alerts_reported and not _n_alerts_attached:
                     _fetch_err = active_inc.get("alerts_fetch_error")
-                    _wf_md.append(f"- ⚠️ NetWitness reports "
+                    _wf_md.append(f"- NetWitness reports "
                                   f"{_n_alerts_reported} alert(s) for this "
                                   f"incident but none were attached"
                                   + (f" (alerts fetch: {_fetch_err})"
@@ -4666,7 +4666,7 @@ with tab_chat:
                 _threading.Thread(target=_workflow_worker,
                                   args=(_run_rec, _tri, active_inc),
                                   daemon=True).start()
-                reply += ("\n\n---\n\n🔗 **Investigation & reporting are now "
+                reply += ("\n\n---\n\n **Investigation & reporting are now "
                           "running in the background.** Watch them live on the "
                           "**Agent Board** above — clicking around no longer "
                           "interrupts the run. Results will be posted here "
@@ -4687,7 +4687,7 @@ with tab_chat:
         st.rerun()
 
     if st.session_state.chat_history:
-        if st.button("🗑️ Clear Chat", key="clear_chat"):
+        if st.button("Clear Chat", key="clear_chat"):
             st.session_state.chat_history = []
             st.rerun()
 
@@ -4697,14 +4697,14 @@ with tab_chat:
 # ─────────────────────────────────────────────────────────────
 with tab_chroma:
     st.markdown(
-        '<div class="info-box"><div class="title">🧠 Knowledge Base</div>'
+        '<div class="info-box"><div class="title"> Knowledge Base</div>'
         'This is where the AI stores its understanding of your security alerts. '
         'Once synced, the AI can answer questions much more accurately. '
         'Use the search box below to find specific incidents by description.</div>',
         unsafe_allow_html=True,
     )
     if st.session_state.chroma_col is None:
-        st.warning("⚠️ The Knowledge Base isn't connected yet. Connect it from the left panel under 🧠 Knowledge Base.")
+        st.warning("The Knowledge Base isn't connected yet. Connect it from the left panel under Knowledge Base.")
     else:
         col = st.session_state.chroma_col
         st.markdown(f"### Knowledge Base — {col.count()} incidents indexed")
@@ -4720,7 +4720,7 @@ with tab_chroma:
                                label_visibility="collapsed")
         top_n = sn.number_input("N", 1, 20, 5, label_visibility="collapsed")
 
-        if st.button("🔍 Search"):
+        if st.button("Search"):
             st.session_state.search_results = chroma_search(query, n=top_n)
 
         for r in st.session_state.search_results:
@@ -4746,7 +4746,7 @@ with tab_chroma:
         )
         a1, a2 = st.columns(2)
 
-        if a1.button("⬆️ Sync Incidents", use_container_width=True):
+        if a1.button("⬆ Sync Incidents", use_container_width=True):
             if not incidents:
                 st.warning("No incidents loaded yet.")
             else:
@@ -4754,7 +4754,7 @@ with tab_chroma:
                 st.success(msg) if n else st.error(msg)
                 st.rerun()
 
-        if a2.button("🗑️ Wipe & Reset", use_container_width=True):
+        if a2.button("Wipe & Reset", use_container_width=True):
             try:
                 st.session_state.chroma_client.delete_collection("soc_incidents")
                 chroma_connect("./chroma_db")
@@ -4795,7 +4795,7 @@ return chain.invoke(user_msg)["result"]
 # ─────────────────────────────────────────────────────────────
 with tab_log:
     st.markdown(
-        '<div class="info-box"><div class="title">📁 History</div>'
+        '<div class="info-box"><div class="title"> History</div>'
         'All security alerts that have ever been loaded are saved here permanently, '
         'even after a restart. You can search, filter, export to Excel, or generate '
         'a report for any incident.</div>',
@@ -4806,14 +4806,14 @@ with tab_log:
     # ── Summary stats ──────────────────────────────────────────
     st.markdown(
         '<div style="font-size:0.75rem;font-weight:600;color:var(--muted);'
-        'text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">📊 Summary</div>',
+        'text-transform:uppercase;letter-spacing:1px;margin-bottom:12px"> Summary</div>',
         unsafe_allow_html=True,
     )
     ls1, ls2, ls3, ls4 = st.columns(4)
-    ls1.metric("💾 Total Logged",    stats["total"])
-    ls2.metric("🔄 Total Fetches",   stats["fetches"])
-    ls3.metric("🚨 Critical (ever)", stats["by_sev"].get("CRITICAL", 0))
-    ls4.metric("🟠 High (ever)",     stats["by_sev"].get("HIGH", 0))
+    ls1.metric("Total Logged",    stats["total"])
+    ls2.metric("Total Fetches",   stats["fetches"])
+    ls3.metric("Critical (ever)", stats["by_sev"].get("CRITICAL", 0))
+    ls4.metric("High (ever)",     stats["by_sev"].get("HIGH", 0))
 
     st.markdown("---")
 
@@ -4860,7 +4860,7 @@ with tab_log:
     csv_data = db_export_csv()
     if csv_data:
         st.download_button(
-            label="📥 Export all as CSV",
+            label="Export all as CSV",
             data=csv_data,
             file_name=f"soc_incidents_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
             mime="text/csv",
@@ -4901,10 +4901,10 @@ with tab_log:
                 f'</div>'
                 f'<div style="margin-top:8px;font-size:0.73rem;color:var(--muted);'
                 f'display:flex;gap:16px;flex-wrap:wrap">'
-                f'<span>📌 {status}</span>'
-                f'<span>👤 {assignee}</span>'
-                f'<span>🚨 {alerts} alerts</span>'
-                f'<span>📅 created {created}</span>'
+                f'<span> {status}</span>'
+                f'<span> {assignee}</span>'
+                f'<span> {alerts} alerts</span>'
+                f'<span> created {created}</span>'
                 f'<span style="color:#1A4A62">first seen {first_seen}</span>'
                 f'<span style="color:#1A4A62">last seen {last_seen}</span>'
                 f'</div></div>',
@@ -4919,9 +4919,9 @@ with tab_log:
                     raw = row
                 with st.expander(f"Full JSON — {inc_id}", expanded=True):
                     st.json(raw)
-            # 🗺️ Incident Map — Stage 1 entity graph + Stage 2 corpus expansion
-            if bm.button("🗺️ Map", key=f"log_map_{inc_id}"):
-                with st.expander(f"🗺️ Incident Map — {inc_id}", expanded=True):
+            # Incident Map — Stage 1 entity graph + Stage 2 corpus expansion
+            if bm.button("Map", key=f"log_map_{inc_id}"):
+                with st.expander(f"Incident Map — {inc_id}", expanded=True):
                     try:
                         from incident_map import build_incident_map, to_dot, map_caption
                         from incident_expansion import LocalCorpusSource, expand_incident_map
@@ -4934,7 +4934,7 @@ with tab_log:
                         except Exception:
                             _tac_note = None
                         if _tac_note:
-                            st.caption(f"🧭 {_tac_note}")
+                            st.caption(f"{_tac_note}")
                         _imap_key = "log"
                         _imap = build_incident_map(_imap_src)
                         try:
@@ -4942,16 +4942,16 @@ with tab_log:
                                 expand_incident_map(_imap, _src)
                         except Exception as _exp_err:
                             _imap.setdefault("expansion_log", []).append(
-                                f"⚠ expansion unavailable: {_exp_err}")
+                                f"expansion unavailable: {_exp_err}")
                         st.graphviz_chart(to_dot(_imap), width="stretch")
                         st.caption(map_caption(_imap))
                         if _imap.get("expansion_log"):
-                            st.markdown("**🔗 Autonomous expansion**")
+                            st.markdown("** Autonomous expansion**")
                             st.markdown("\n".join(f"- {l}" for l in _imap["expansion_log"]))
                         if _imap.get("endpoint_profile_text"):
-                            st.markdown("**📇 Endpoint profile**")
+                            st.markdown("** Endpoint profile**")
                             st.code(_imap["endpoint_profile_text"], language=None)
-                        # 🎯 Unified triage verdict — capstone that aggregates the
+                        # Unified triage verdict — capstone that aggregates the
                         # triage-side skills (base severity + asset criticality +
                         # internal IOC correlation) into ONE prioritized verdict.
                         # Reads the other skills' outputs; edits none of them.
@@ -4959,23 +4959,23 @@ with tab_log:
                             from triage_verdict import aggregate_verdict, format_verdict
                             _tv = aggregate_verdict(_imap_src)
                             if _tv.get("available"):
-                                st.markdown(f"**🎯 Unified triage verdict — "
+                                st.markdown(f"** Unified triage verdict — "
                                             f"{_tv['level']} (priority {_tv['priority']}/5)**")
                                 st.code(format_verdict(_tv), language=None)
                         except Exception as _tv_err:
                             st.caption(f"Unified verdict unavailable: {_tv_err}")
-                        # 🏷️ Asset criticality (instant, deterministic)
+                        # Asset criticality (instant, deterministic)
                         try:
                             from asset_criticality import assess_incident, format_assessment
                             _ac = assess_incident(_imap_src)
-                            st.markdown("**🏷️ Asset criticality**")
+                            st.markdown("** Asset criticality**")
                             st.code(format_assessment(_ac), language=None)
                         except Exception as _ac_err:
                             st.caption(f"Asset criticality unavailable: {_ac_err}")
-                        # 🌐 Threat-intel enrichment (live IOC lookups — opt-in
+                        # Threat-intel enrichment (live IOC lookups — opt-in
                         # since it hits the network the first time per IOC)
                         try:
-                            if st.checkbox("🌐 Enrich IOCs (threat intel)",
+                            if st.checkbox("Enrich IOCs (threat intel)",
                                            key=f"ti_{_imap_key}_{_imap_src.get('id','')}"):
                                 from threat_intel import enrich_iocs, format_enrichment
                                 _enr = enrich_iocs(_imap_src)
@@ -4985,7 +4985,7 @@ with tab_log:
                                     st.caption("No external IOCs to enrich.")
                         except Exception as _ti_err:
                             st.caption(f"Threat intel unavailable: {_ti_err}")
-                        # 🛡️ Recommended detection — deterministic Sigma rule
+                        # Recommended detection — deterministic Sigma rule
                         # from the incident's indicators (no LLM, no TI lookup
                         # so it stays instant); guarded independently.
                         try:
@@ -4994,16 +4994,16 @@ with tab_log:
                             _asset = assess_incident(_imap_src)
                             _det = build_detection(_imap_src, asset=_asset)
                             if _det["has_selection"]:
-                                st.markdown("**🛡️ Recommended detection (Sigma)**")
+                                st.markdown("** Recommended detection (Sigma)**")
                                 st.code(_det["sigma_yaml"], language="yaml")
                                 st.caption(f"Splunk: {_det['splunk_spl']}")
                                 # detection-as-code: validate + Elastic EQL (3rd SIEM)
                                 try:
                                     from detection_engineering import validate_sigma, to_elastic_eql
                                     _v = validate_sigma(_det["sigma"])
-                                    st.caption(("✅ detection-as-code: all required fields present"
+                                    st.caption(("detection-as-code: all required fields present"
                                                 if _v["valid"] else
-                                                "⚠️ " + "; ".join(_v["missing_fields"] + _v["warnings"])))
+                                                "" + "; ".join(_v["missing_fields"] + _v["warnings"])))
                                     st.caption(f"Elastic EQL: {to_elastic_eql(_det)}")
                                 except Exception:
                                     pass
@@ -5012,26 +5012,26 @@ with tab_log:
                                         f"{c['id']} {c['name']}" for c in _det["d3fend"]))
                         except Exception as _det_err:
                             st.caption(f"Detection unavailable: {_det_err}")
-                        # 🛰️ ATT&CK detection coverage (program-level capability)
+                        # ATT&CK detection coverage (program-level capability)
                         try:
                             from detection_engineering import assess_attack_coverage, format_coverage
                             _acov = assess_attack_coverage(str(DB_FILE))
-                            with st.expander(f"🛰️ ATT&CK detection coverage "
+                            with st.expander(f"ATT&CK detection coverage "
                                              f"({_acov['covered']}/{_acov['tactics_total']} "
                                              f"tactics, {_acov['coverage_pct']}%)", expanded=False):
                                 st.code(format_coverage(_acov), language=None)
                         except Exception as _cov_err:
                             st.caption(f"Coverage unavailable: {_cov_err}")
-                        # 🧯 Recommended mitigations & coverage (threat->control)
+                        # Recommended mitigations & coverage (threat->control)
                         try:
                             from mitigation_mapping import build_mitigation_coverage, format_mitigation
                             _cov = build_mitigation_coverage(_imap_src, asset=_asset)
                             if _cov.get("available"):
-                                st.markdown("**🧯 Recommended mitigations & coverage**")
+                                st.markdown("** Recommended mitigations & coverage**")
                                 st.code(format_mitigation(_cov), language=None)
                         except Exception as _mit_err:
                             st.caption(f"Mitigation map unavailable: {_mit_err}")
-                        # 🔗 Internal IOC correlation — frequency/severity/case
+                        # Internal IOC correlation — frequency/severity/case
                         # status of each IOC across the local corpus + case
                         # pipeline -> HIGH/MEDIUM/LOW/NONE confidence. Deterministic,
                         # read-only, self-locating DBs; ubiquity-guarded.
@@ -5039,61 +5039,61 @@ with tab_log:
                             from ioc_correlation import correlate_iocs, format_correlation
                             _corr = correlate_iocs(_imap_src)
                             if _corr.get("available") and _corr.get("results"):
-                                st.markdown("**🔗 Internal IOC correlation**")
+                                st.markdown("** Internal IOC correlation**")
                                 st.code(format_correlation(_corr), language=None)
                         except Exception as _corr_err:
                             st.caption(f"IOC correlation unavailable: {_corr_err}")
-                        # 🔬 osquery investigation pack — per-incident, MITRE-mapped
+                        # osquery investigation pack — per-incident, MITRE-mapped
                         # osquery queries to RUN on the affected host (investigation
                         # skill; standalone, deterministic, no soc_investigation_agent edits)
                         try:
                             from osquery_investigation import build_investigation_pack, format_pack
                             _oq = build_investigation_pack(_imap_src)
                             if _oq.get("available"):
-                                with st.expander(f"🔬 osquery investigation pack "
+                                with st.expander(f"osquery investigation pack "
                                                  f"({_oq['stats']['total_queries']} queries · "
                                                  f"{_oq['platform']})", expanded=False):
                                     st.code(format_pack(_oq), language="sql")
                         except Exception as _oq_err:
                             st.caption(f"osquery pack unavailable: {_oq_err}")
-                        # 🦖 Velociraptor collection & hunt plan — named DFIR
+                        # Velociraptor collection & hunt plan — named DFIR
                         # artifacts + VQL to collect on the affected host
                         # (investigation skill; standalone, no soc_investigation_agent edits)
                         try:
                             from velociraptor_investigation import build_collection_plan, format_plan
                             _vr = build_collection_plan(_imap_src)
                             if _vr.get("available"):
-                                with st.expander(f"🦖 Velociraptor collection plan "
+                                with st.expander(f"Velociraptor collection plan "
                                                  f"({_vr['stats']['artifacts']} artifacts · "
                                                  f"{_vr['stats']['total_vql']} VQL)", expanded=False):
                                     st.code(format_plan(_vr), language="sql")
                         except Exception as _vr_err:
                             st.caption(f"Velociraptor plan unavailable: {_vr_err}")
-                        # 💎 Diamond Model of Intrusion Analysis — structures the
+                        # Diamond Model of Intrusion Analysis — structures the
                         # incident into Adversary/Capability/Infrastructure/Victim
                         # (investigation skill; standalone, no soc_investigation_agent edits)
                         try:
                             from diamond_model import build_diamond, format_diamond, to_dot
                             _dm = build_diamond(_imap_src)
                             if _dm.get("available"):
-                                with st.expander(f"💎 Diamond Model "
+                                with st.expander(f"Diamond Model "
                                                  f"({_dm['stats']['completeness_pct']}% complete)",
                                                  expanded=False):
                                     st.graphviz_chart(to_dot(_dm), width="stretch")
                                     st.code(format_diamond(_dm), language=None)
                         except Exception as _dm_err:
                             st.caption(f"Diamond Model unavailable: {_dm_err}")
-                        # 🎯 Proactive threat hunting + statistical anomalies
+                        # Proactive threat hunting + statistical anomalies
                         # (standalone module; needs a MITRE tactic on the incident)
                         try:
                             from threat_hunting import build_hunt_package, format_hunt
                             _pkg = build_hunt_package(_imap_src, None, str(DB_FILE))
                             if _pkg.get("available"):
-                                st.markdown("**🎯 Proactive threat hunting**")
+                                st.markdown("** Proactive threat hunting**")
                                 st.code(format_hunt(_pkg), language=None)
                         except Exception as _hunt_err:
                             st.caption(f"Threat hunting unavailable: {_hunt_err}")
-                        # 📋 Incident Response SOP / runbook — the actionable
+                        # Incident Response SOP / runbook — the actionable
                         # containment→recovery procedure (standalone reporting-agent
                         # skill; also folded into the written report via
                         # skills_sidecar). Deterministic, guarded.
@@ -5103,7 +5103,7 @@ with tab_log:
                             if _sop.get("available"):
                                 _sv = _sop.get("validation", {})
                                 with st.expander(
-                                    f"📋 Response SOP ({_sop['stats']['steps']} steps · "
+                                    f"Response SOP ({_sop['stats']['steps']} steps · "
                                     f"{_sop['meta']['scenario']} · validation "
                                     f"{'PASS' if _sv.get('valid') else 'REVIEW'})",
                                     expanded=False):
@@ -5111,7 +5111,7 @@ with tab_log:
                         except Exception as _sop_err:
                             st.caption(f"Response SOP unavailable: {_sop_err}")
                         if _imap["timeline"]:
-                            st.markdown("**🕐 Timeline**")
+                            st.markdown("** Timeline**")
                             st.markdown("\n".join(
                                 f"- `{t['time'][:19]}` — {t['event']}"
                                 for t in _imap["timeline"][:12]))
@@ -5125,7 +5125,7 @@ with tab_log:
                 raw_dict = {}
             alerts_list = raw_dict.get("alerts")
             if alerts_list:
-                with st.expander(f"🚨 Associated Alerts ({len(alerts_list)})", expanded=False):
+                with st.expander(f"Associated Alerts ({len(alerts_list)})", expanded=False):
                     for alert in alerts_list:
                         a_title = alert.get("title") or alert.get("name") or "Untitled Alert"
                         a_id = alert.get("id") or ""
@@ -5158,7 +5158,7 @@ with tab_log:
                                 ev_port = ev_dst.get("device", {}).get("port") or ev_dst.get("port") or "—"
                                 st.markdown(
                                     f'<div style="margin-left:15px;padding:4px 8px;font-family:var(--mono);font-size:0.7rem;color:var(--muted);border-left:1px dashed #1B4A62">'
-                                    f'Event {idx+1}: 🧑‍💻 {user} | ➡️ {src_ip} → {dst_ip} (Port {ev_port}, Proto {ev_proto})'
+                                    f'Event {idx+1}: {user} | ➡ {src_ip} → {dst_ip} (Port {ev_port}, Proto {ev_proto})'
                                     f'</div>',
                                     unsafe_allow_html=True
                                 )
@@ -5170,7 +5170,7 @@ with tab_log:
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab_pipeline:
     st.markdown(
-        '<div class="info-box"><div class="title">🔁 Data Pipeline</div>'
+        '<div class="info-box"><div class="title"> Data Pipeline</div>'
         'This tool helps IT staff manage how security data flows through the system — '
         'from collection, to review, to archiving. If you are not sure what this is for, '
         'you likely do not need to use it.</div>',
@@ -5263,15 +5263,15 @@ with tab_pipeline:
         _sql_cnt = pipeline_count(_sel)
         _vec_cnt = pipeline_chroma_count(_sel)
         _vm1, _vm2, _vm3, _vm4 = st.columns(4)
-        _vm1.metric("💾 SQLite Records",   _sql_cnt)
-        _vm2.metric("🧠 ChromaDB Vectors", _vec_cnt)
-        _vm3.metric("📋 Stage",            _label[:22])
-        _vm4.metric("🗂️ Collection",       f"pipeline_{_sel}"[:24])
+        _vm1.metric("SQLite Records",   _sql_cnt)
+        _vm2.metric("ChromaDB Vectors", _vec_cnt)
+        _vm3.metric("Stage",            _label[:22])
+        _vm4.metric("Collection",       f"pipeline_{_sel}"[:24])
 
         # ── action strip ──────────────────────────────────────────────────────
         _ac1, _ac2, _ac3, _ac4, _ = st.columns([1, 1.4, 1, 1.1, 2.5])
 
-        if _ac1.button("➕ Test Insert", key=f"pl_add_{_sel}"):
+        if _ac1.button("Test Insert", key=f"pl_add_{_sel}"):
             import uuid as _uuid3
             pipeline_insert_full(_sel, {
                 "id":          f"test_{str(_uuid3.uuid4())[:8]}",
@@ -5284,7 +5284,7 @@ with tab_pipeline:
             st.rerun()
 
         if _sel == "pending_ticket_report":
-            if _ac2.button("✅ Finalize All", key="pl_finalize_btn"):
+            if _ac2.button("Finalize All", key="pl_finalize_btn"):
                 _pending = pipeline_load("pending_ticket_report")
                 for _prow in _pending:
                     _fin = dict(_prow)
@@ -5295,7 +5295,7 @@ with tab_pipeline:
                 st.success(f"Finalized {len(_pending)} records → Finalized Report.")
                 st.rerun()
 
-        if _ac3.button("🗑️ Clear Stage", key=f"pl_clear_{_sel}"):
+        if _ac3.button("Clear Stage", key=f"pl_clear_{_sel}"):
             with _pl_con() as _c:
                 _c.execute(f"DELETE FROM {_sel}")
                 _c.commit()
@@ -5316,7 +5316,7 @@ with tab_pipeline:
         st.markdown("---")
 
         # ── sub-tabs ──────────────────────────────────────────────────────────
-        _vtab_sql, _vtab_chroma = st.tabs(["💾  SQLITE RECORDS", "🧠  CHROMADB SEARCH"])
+        _vtab_sql, _vtab_chroma = st.tabs(["SQLITE RECORDS", "CHROMADB SEARCH"])
 
         # ════════════════════ SQLite Records ════════════════════
         with _vtab_sql:
@@ -5347,7 +5347,7 @@ with tab_pipeline:
                     '<div style="text-align:center;padding:50px;font-family:var(--mono);'
                     'font-size:0.78rem;color:var(--muted)">● NO RECORDS FOUND<br>'
                     '<span style="font-size:0.62rem">'
-                    'Run a triage in the Chat tab, or click ➕ Test Insert above.'
+                    'Run a triage in the Chat tab, or click Test Insert above.'
                     '</span></div>',
                     unsafe_allow_html=True,
                 )
@@ -5379,7 +5379,7 @@ with tab_pipeline:
                 except Exception:
                     pass
                 _show_detail = st.checkbox(
-                    "🗂 Show detail cards (JSON · exports · delete per record)",
+                    "Show detail cards (JSON · exports · delete per record)",
                     value=False, key=f"pl_detail_{_sel}")
                 _rows_detail = _rows if _show_detail else []
                 for _row in _rows_detail:
@@ -5430,14 +5430,14 @@ with tab_pipeline:
                             f'<span style="background:#00403A;color:#0AF0A0;'
                             f'border:1px solid #0AF0A044;padding:2px 8px;'
                             f'border-radius:3px;font-family:var(--mono);font-size:0.56rem;'
-                            f'margin-left:6px">📊 CSV</span>'
+                            f'margin-left:6px"> CSV</span>'
                         )
                     elif _is_docx_stage:
                         _export_badge = (
                             f'<span style="background:#1A0040;color:#A78BFA;'
                             f'border:1px solid #A78BFA44;padding:2px 8px;'
                             f'border-radius:3px;font-family:var(--mono);font-size:0.56rem;'
-                            f'margin-left:6px">📄 DOCX</span>'
+                            f'margin-left:6px"> DOCX</span>'
                         )
                     elif _is_report_stage and _report_exports:
                         _fmt_txt = " · ".join(k.upper() for k in ("docx", "pdf")
@@ -5446,14 +5446,14 @@ with tab_pipeline:
                             f'<span style="background:#1A0040;color:#A78BFA;'
                             f'border:1px solid #A78BFA44;padding:2px 8px;'
                             f'border-radius:3px;font-family:var(--mono);font-size:0.56rem;'
-                            f'margin-left:6px">📄 {_fmt_txt}</span>'
+                            f'margin-left:6px"> {_fmt_txt}</span>'
                         )
                     elif _is_postinv_stage and _postinv_md:
                         _export_badge = (
                             f'<span style="background:#04342C;color:#2DD4BF;'
                             f'border:1px solid #2DD4BF44;padding:2px 8px;'
                             f'border-radius:3px;font-family:var(--mono);font-size:0.56rem;'
-                            f'margin-left:6px">📜 REPORT</span>'
+                            f'margin-left:6px"> REPORT</span>'
                         )
 
                     st.markdown(
@@ -5505,7 +5505,7 @@ with tab_pipeline:
                         _safe_id = re.sub(r"[^A-Za-z0-9_\-]", "_", _r_id)[:40]
                         _csv_bytes = _make_csv_bytes(_row)
                         _bj2.download_button(
-                            label="📊 View as Sheet",
+                            label="View as Sheet",
                             data=_csv_bytes,
                             file_name=f"triage_{_safe_id}.csv",
                             mime="text/csv",
@@ -5519,7 +5519,7 @@ with tab_pipeline:
                         # Detect if python-docx is available (bytes start with PK zip magic)
                         _is_real_docx = _docx_bytes[:2] == b'PK'
                         _bj2.download_button(
-                            label="📄 View as Ticket",
+                            label="View as Ticket",
                             data=_docx_bytes,
                             file_name=f"ticket_{_safe_id}.{'docx' if _is_real_docx else 'txt'}",
                             mime=(
@@ -5539,7 +5539,7 @@ with tab_pipeline:
                         if _report_exports.get("docx"):
                             try:
                                 _bj2.download_button(
-                                    label="📝 Word Report",
+                                    label="Word Report",
                                     data=Path(str(_report_exports["docx"])).read_bytes(),
                                     file_name=f"incident_report_{_safe_id}.docx",
                                     mime=("application/vnd.openxmlformats-officedocument"
@@ -5551,7 +5551,7 @@ with tab_pipeline:
                         if _report_exports.get("pdf") and _bj2b is not None:
                             try:
                                 _bj2b.download_button(
-                                    label="📕 PDF Report",
+                                    label="PDF Report",
                                     data=Path(str(_report_exports["pdf"])).read_bytes(),
                                     file_name=f"incident_report_{_safe_id}.pdf",
                                     mime="application/pdf",
@@ -5564,14 +5564,14 @@ with tab_pipeline:
                     elif _is_postinv_stage and _postinv_md and _bj2 is not None:
                         _safe_id = re.sub(r"[^A-Za-z0-9_\-]", "_", _r_id)[:40]
                         _bj2.download_button(
-                            label="📜 Report (MD)",
+                            label="Report (MD)",
                             data=_postinv_md.encode("utf-8"),
                             file_name=f"investigation_{_safe_id}.md",
                             mime="text/markdown",
                             key=f"pl_invmd_{_sel}_{_r_id}",
                         )
                         if _bj2b is not None and _bj2b.button(
-                                "🔎 View Findings", key=f"pl_invview_{_sel}_{_r_id}"):
+                                "View Findings", key=f"pl_invview_{_sel}_{_r_id}"):
                             with st.expander(f"Investigation findings — {_r_id}",
                                              expanded=True):
                                 # ✦ AI-summary card (Phase 4a) — flags an
@@ -5602,7 +5602,7 @@ with tab_pipeline:
                     '<div style="background:#0A0608;border:1px solid #2A1010;'
                     'border-radius:6px;padding:12px 16px;font-family:var(--mono);'
                     'font-size:0.68rem;margin-bottom:12px">'
-                    '<span style="color:var(--warn)">⚠ ChromaDB not connected</span><br>'
+                    '<span style="color:var(--warn)"> ChromaDB not connected</span><br>'
                     '<span style="color:var(--muted);font-size:0.6rem">'
                     'Connect ChromaDB from the sidebar. SQLite records persist regardless.'
                     '</span></div>',
@@ -5631,7 +5631,7 @@ with tab_pipeline:
                 "topn", 1, 20, 5,
                 key=f"cv_n_{_sel}", label_visibility="collapsed"))
 
-            if st.button("🔍 Search", key=f"cv_srch_{_sel}"):
+            if st.button("Search", key=f"cv_srch_{_sel}"):
                 if not _chroma_ok:
                     st.warning("Connect ChromaDB from the sidebar first.")
                 elif not _cv_q.strip():
@@ -5667,7 +5667,7 @@ with tab_pipeline:
                 'letter-spacing:2px;margin-bottom:8px">■ BROWSE ALL VECTORS</div>',
                 unsafe_allow_html=True,
             )
-            if st.button("📋 Load All Vectors", key=f"cv_all_{_sel}"):
+            if st.button("Load All Vectors", key=f"cv_all_{_sel}"):
                 if not _chroma_ok:
                     st.warning("Connect ChromaDB from the sidebar first.")
                 else:
@@ -5699,7 +5699,7 @@ with tab_pipeline:
                 'letter-spacing:2px;margin-bottom:8px">■ COLLECTION ACTIONS</div>',
                 unsafe_allow_html=True,
             )
-            if st.button(f"🗑️ Wipe Chroma: pipeline_{_sel}", key=f"cv_wipe_{_sel}"):
+            if st.button(f"Wipe Chroma: pipeline_{_sel}", key=f"cv_wipe_{_sel}"):
                 if not _chroma_ok:
                     st.warning("Connect ChromaDB from the sidebar first.")
                 else:

@@ -217,11 +217,12 @@ def pill(text: str, kind: str = "stage") -> str:
 
 
 def hero(eyebrow: str, title: str, why: str = "", cta: str = "",
-         tone: str = "red", icon: str = "⚠") -> str:
+         tone: str = "red", icon: str = "") -> str:
     blue = " blue" if tone == "blue" else ""
     cta_html = f'<div class="ag-cta">{_e(cta)}</div>' if cta else ""
     why_html = f'<p>{_e(why)}</p>' if why else ""
-    return (f'<div class="ag-hero{blue}"><div class="ag-hero-icon">{_e(icon)}</div>'
+    icon_html = f'<div class="ag-hero-icon">{_e(icon)}</div>' if icon else ""
+    return (f'<div class="ag-hero{blue}">{icon_html}'
             f'<div class="ag-hero-body"><div class="e">{_e(eyebrow)}</div>'
             f'<h4>{_e(title)}</h4>{why_html}</div>{cta_html}</div>')
 
@@ -252,7 +253,7 @@ def stepper(stages: Iterable[dict]) -> str:
 
 
 def case_header(ticket: str, title: str, sev: str = "", status: str = "",
-                subtitle: str = "", metas: Iterable[tuple] = (), icon: str = "⚠") -> str:
+                subtitle: str = "", metas: Iterable[tuple] = (), icon: str = "") -> str:
     pills = ""
     if sev:
         pills += " " + pill(sev, sev_class(sev))
@@ -261,7 +262,8 @@ def case_header(ticket: str, title: str, sev: str = "", status: str = "",
     meta_html = "".join(
         f'<div class="ag-meta"><span>{_e(k)}</span><b>{_e(v)}</b></div>' for k, v in metas)
     metas_wrap = f'<div class="ag-metas">{meta_html}</div>' if meta_html else ""
-    return (f'<div class="ag-casehdr"><div class="ico">{_e(icon)}</div>'
+    icon_html = f'<div class="ico">{_e(icon)}</div>' if icon else ""
+    return (f'<div class="ag-casehdr">{icon_html}'
             f'<div class="body"><div class="tid">{_e(ticket)}{pills}</div>'
             f'<h3>{_e(title)}</h3><div class="sub">{_e(subtitle)}</div></div>{metas_wrap}</div>')
 
@@ -272,7 +274,7 @@ def key_findings(findings: Iterable[dict]) -> str:
         conf = f.get("confidence")
         conf_html = f'<div class="fc">{_e(conf)}</div>' if conf not in (None, "") else ""
         rows.append(
-            f'<div class="ag-finding"><div class="fi">{_e(f.get("icon","!"))}</div>'
+            f'<div class="ag-finding"><div class="fi">{_e(f.get("icon") or "!")}</div>'
             f'<div class="ft"><b>{_e(f.get("title",""))}</b>'
             f'<small>{_e(f.get("desc",""))}</small></div>{conf_html}</div>')
     return "".join(rows)
@@ -318,10 +320,11 @@ def queue_table(headers: Iterable[str], rows: Iterable[Iterable]) -> str:
             f'<tbody>{"".join(body)}</tbody></table></div>')
 
 
-def workspace_card(title: str, sub: str = "", icon: str = "🛡️") -> str:
+def workspace_card(title: str, sub: str = "", icon: str = "") -> str:
     """Sidebar workspace identity card (mockup .workspace)."""
     sub_html = f"<small>{_e(sub)}</small>" if sub else ""
-    return (f'<div class="ag-workspace"><div class="wi">{_e(icon)}</div>'
+    icon_html = f'<div class="wi">{_e(icon)}</div>' if icon else ""
+    return (f'<div class="ag-workspace">{icon_html}'
             f'<div><b>{_e(title)}</b>{sub_html}</div></div>')
 
 
@@ -357,7 +360,7 @@ def ai_summary(body: str, fallback: bool = False,
                title: str = "AI-Generated Summary") -> str:
     """Case-workspace AI summary card (mockup .ai-summary-card) with an optional
     amber 'Fallback logic' tag when the summary is error-fallback text."""
-    tag = ('<span class="tag">⚠ Fallback logic</span>' if fallback else "")
+    tag = ('<span class="tag"> Fallback logic</span>' if fallback else "")
     return (f'<div class="ag-aisum"><div class="ag-aisum-h"><span class="ic">✦</span>'
             f'<b>{_e(title)}</b>{tag}</div><p>{_e(body)}</p></div>')
 
