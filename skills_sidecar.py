@@ -119,6 +119,19 @@ def _collect_priority(incident: dict, triage_result: dict | None,
     return p
 
 
+def _collect_escalation(incident: dict, triage_result: dict | None,
+                        ti_result: dict | None, asset: dict | None,
+                        priority: dict | None) -> dict | None:
+    try:
+        from escalation_routing import build_escalation
+    except Exception:
+        return None
+    e = _safe(build_escalation, incident, triage_result, ti_result, asset, priority)
+    if not isinstance(e, dict) or not e.get("available"):
+        return None
+    return e
+
+
 def _collect_mitigation(incident: dict, triage_result: dict | None,
                         ti_result: dict | None, asset: dict | None) -> dict | None:
     try:
@@ -346,6 +359,21 @@ def _priority_lines(p: dict) -> list[str]:
     return lines
 
 
+def _escalation_lines(e: dict) -> list[str]:
+    lines = [f"### Escalation Routing — {e.get('tier_label')}"
+             + ("  ·  major incident" if e.get("major_incident") else ""),
+             f"- Owner: **{e.get('owner')}** · queue `{e.get('queue')}` · "
+             f"acknowledge within {e.get('ack_sla')}"]
+    if e.get("notify"):
+        lines.append(f"- Notify: {', '.join(e['notify'])}")
+    if e.get("escalation_path"):
+        lines.append(f"- Escalation path: {' → '.join(e['escalation_path'])}")
+    for c in e.get("conditionals") or []:
+        lines.append(f"- {c.get('trigger')}: {c.get('action')}")
+    lines.append(f"- _{e.get('note')}_")
+    return lines
+
+
 def _correlation_lines(c: dict, limit: int = 5) -> list[str]:
     lines: list[str] = []
     results = [r for r in (c.get("results") or []) if r.get("confidence") != "none"]
@@ -393,10 +421,12 @@ def _mitigation_lines(m: dict, limit: int = 4) -> list[str]:
 
 
 def _build_narrative(diamond, verdict, corr, mitigation, sop=None, compliance=None,
-                     final=None, priority=None) -> str:
+                     final=None, priority=None, escalation=None) -> str:
     blocks: list[list[str]] = []
     if priority:
         blocks.append(_priority_lines(priority))
+    if escalation:
+        blocks.append(_escalation_lines(escalation))
     if verdict:
         blocks.append(_verdict_lines(verdict))
     if diamond:
@@ -461,6 +491,7 @@ def build_skills_context(incident: dict, triage_result: dict | None = None,
     corr = _collect_correlation(incident, triage_result)
     asset = _collect_asset(incident, triage_result)
     priority = _collect_priority(incident, triage_result, ti_result, asset)
+    escalation = _collect_escalation(incident, triage_result, ti_result, asset, priority)
     mitigation = _collect_mitigation(incident, triage_result, ti_result, asset)
     sop = _collect_sop(incident, triage_result, investigation_result, ti_result)
     compliance = _collect_compliance(incident, triage_result, investigation_result, ti_result)
@@ -472,11 +503,12 @@ def build_skills_context(incident: dict, triage_result: dict | None = None,
     affected_users = _users_from_diamond(diamond)
     recommended_actions = _recs_from_skills(mitigation, verdict)
     narrative = _build_narrative(diamond, verdict, corr, mitigation, sop,
-                                 compliance, final, priority)
+                                 compliance, final, priority, escalation)
 
     ran = [name for name, obj in (("diamond_model", diamond),
                                   ("triage_verdict", verdict),
                                   ("triage_priority", priority),
+                                  ("escalation_routing", escalation),
                                   ("ioc_correlation", corr),
                                   ("asset_criticality", asset),
                                   ("mitigation_mapping", mitigation),
@@ -501,6 +533,7 @@ def build_skills_context(incident: dict, triage_result: dict | None = None,
             "diamond_model": diamond,
             "unified_verdict": verdict,
             "triage_priority": priority,
+            "escalation_routing": escalation,
             "ioc_correlation": corr,
             "asset_criticality": asset,
             "mitigation_coverage": mitigation,
